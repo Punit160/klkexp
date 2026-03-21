@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id             Int      @id @default(autoincrement())
+  user_id        String   @unique
+  username       String
+  email          String   @unique
+  password       String
+  reporting_head String
+  doj            DateTime
+  dol            DateTime?
+  ctc            Float?
+  phone_no       String?
+  designation    String?
+  dob            DateTime?
+  gender         String?
+  qualification  String?
+  user_img       String?
+  pfesi          Boolean  @default(false)
+  status         Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@map("User")
+}
+
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  project_id  String   @unique
+  name        String
+  description String?
+  start_date  DateTime
+  end_date    DateTime?
+  financial_year        String
+  funder_name        String
+  manager_id  Int
+  contact_person        String
+  contact_person_number        String
+  mou       String
+  status         Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+   @@map("Project")
+}
+
+model Intervention {
+  id          Int      @id @default(autoincrement())
+  name        String
+  status         Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@map("Intervention")
+}
+
+model ExpensePayment {
+  id                       Int      @id @default(autoincrement())
+  project_name             String
+  project_state            String
+  project_district         String
+  project_village          String
+  amount                   Float
+  old_amount               Float?
+  amount_change_by         Int?
+  requested_by             Int
+  requested_date           DateTime
+  manager_id               Int
+  approval_status          Boolean  @default(true)
+  manager_remarks          String?
+  review_assign            Boolean  @default(true)
+  reviewer_id              Int?
+  reviewer_remarks         String?
+  reviewer_approval_status Boolean  @default(true)
+  reviewer_status          Boolean  @default(true)
+  accountant_id            Int?
+  payment_status           Boolean  @default(true)
+  accountant_remarks       String?
+  remarks                  String?
+  document                 String?
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  @@map("ExpensePayment")
+  
+}

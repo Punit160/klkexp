@@ -1,0 +1,57 @@
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import path from "path";
+import fs from "fs";
+
+import userRoutes from "./src/routes/user.routes.js";
+import loginRoutes from "./src/routes/auth/login.routes.js";
+import projectRoutes from "./src/routes/project.routes.js";
+import interventionRoutes from "./src/routes/intervention.routes.js";
+
+dotenv.config();
+
+const app = express();
+
+// middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.get("/test", (req, res) => {
+  res.json({ ok: true });
+});
+
+// static
+app.use(express.static(path.join(process.cwd(), "public")));
+app.use("/uploads", express.static("uploads"));
+
+// ensure uploads folder
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// routes
+app.use("/api/users", userRoutes);
+app.use("/api/login", loginRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/interventions", interventionRoutes);
+
+app.get("/", (req, res) => {
+  res.send("API is running...");
+});
+
+// error handler
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(err.status || 500).json({
+    message: err.message || "Internal Server Error",
+  });
+});
+
+const PORT = process.env.PORT || 5001;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port http://localhost:${PORT}`);
+});

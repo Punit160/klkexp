@@ -1,0 +1,30 @@
+-- CreateTable
+CREATE TABLE `ExpensePayment` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `project_name` VARCHAR(191) NOT NULL,
+    `project_state` VARCHAR(191) NOT NULL,
+    `project_district` VARCHAR(191) NOT NULL,
+    `project_village` VARCHAR(191) NOT NULL,
+    `amount` DOUBLE NOT NULL,
+    `old_amount` DOUBLE NULL,
+    `amount_change_by` INTEGER NULL,
+    `requested_by` INTEGER NOT NULL,
+    `requested_date` DATETIME(3) NOT NULL,
+    `manager_id` INTEGER NOT NULL,
+    `approval_status` BOOLEAN NOT NULL DEFAULT true,
+    `manager_remarks` VARCHAR(191) NULL,
+    `review_assign` BOOLEAN NOT NULL DEFAULT true,
+    `reviewer_id` INTEGER NULL,
+    `reviewer_remarks` VARCHAR(191) NULL,
+    `reviewer_approval_status` BOOLEAN NOT NULL DEFAULT true,
+    `reviewer_status` BOOLEAN NOT NULL DEFAULT true,
+    `accountant_id` INTEGER NULL,
+    `payment_status` BOOLEAN NOT NULL DEFAULT true,
+    `accountant_remarks` VARCHAR(191) NULL,
+    `remarks` VARCHAR(191) NULL,
+    `document` VARCHAR(191) NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
