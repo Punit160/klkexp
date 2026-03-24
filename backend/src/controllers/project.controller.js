@@ -7,8 +7,7 @@ const prisma = new PrismaClient();
 export const createProject = async (req, res) => {
   try {
     const {
-      project_id,
-      name,
+      project_name,
       description,
       start_date,
       end_date,
@@ -17,13 +16,21 @@ export const createProject = async (req, res) => {
       manager_id,
       contact_person,
       contact_person_number,
-      mou,
+      projectStatus,
     } = req.body;
 
-    // 🔍 Check duplicate (name + financial year)
+    const company_id = req.user.company_id;
+    const created_by =  req.user.email;
+
+    // 📄 Handle MOU file
+    const mouFile = req.file
+      ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+      : null;
+
+    // 🔍 Check duplicate
     const existingProject = await prisma.project.findFirst({
       where: {
-        name,
+        name: project_name,
         financial_year,
       },
     });
@@ -34,10 +41,14 @@ export const createProject = async (req, res) => {
       });
     }
 
+    // 🆔 Generate project_id
+    const project_id = "PROJ" + Date.now();
+
     const newProject = await prisma.project.create({
       data: {
+        company_id,
         project_id,
-        name,
+        name: project_name,
         description,
         start_date: start_date ? new Date(start_date) : null,
         end_date: end_date ? new Date(end_date) : null,
@@ -46,8 +57,9 @@ export const createProject = async (req, res) => {
         manager_id,
         contact_person,
         contact_person_number,
-        mou,
-        status: true,
+        mou: mouFile, 
+        status: projectStatus == 1, 
+        created_by,
       },
     });
 

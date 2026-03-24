@@ -16,7 +16,6 @@ import interventionRoutes from "./src/routes/intervention.routes.js";
 const app = express();
 
 // middleware
-app.use(cors());
 app.use(express.json());
 
 console.log("ENV JWT_SECRET:", process.env.JWT_SECRET);
@@ -25,6 +24,8 @@ app.use(
   cors({
     origin: ["http://localhost:5173", "http://klkexpense.cloud"],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 

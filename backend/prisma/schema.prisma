@@ -50,12 +50,12 @@ model Project {
   end_date    DateTime?
   financial_year        String
   funder_name        String
-  manager_id  Int
+  manager_id  String
   contact_person        String
   contact_person_number        String
-  mou       String
+  mou       String?
   status         Boolean  @default(true)
-  created_by     String
+  created_by     String?
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
@@ -67,7 +67,7 @@ model Intervention {
   company_id       String
   name        String
   status         Boolean  @default(true)
-  created_by     String
+  created_by     String?
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
@@ -86,7 +86,7 @@ model ExpensePayment {
   amount_change_by         Int?
   requested_by             Int
   requested_date           DateTime
-  manager_id               Int
+  manager_id               String
   approval_status          Boolean  @default(true)
   manager_remarks          String?
   review_assign            Boolean  @default(true)
@@ -99,7 +99,7 @@ model ExpensePayment {
   accountant_remarks       String?
   remarks                  String?
   document                 String?
-  created_by               String
+  created_by               String?
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 
