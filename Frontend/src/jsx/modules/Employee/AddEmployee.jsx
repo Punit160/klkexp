@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import PageTitle from "../../layouts/PageTitle";
 import { useNavigate } from "react-router-dom";
+import { createEmployee } from "../APIS/employeeApi";
 
 const AddEmployee = () => {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ const AddEmployee = () => {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Handle input change
+
   const handleChange = (e) => {
     const { name, value, files } = e.target;
 
@@ -41,7 +42,6 @@ const AddEmployee = () => {
     }
   };
 
-  // ✅ Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -51,79 +51,35 @@ const AddEmployee = () => {
     }
 
     try {
-      setLoading(true);
+      setLoading(true);   
+      await createEmployee(formData);
+      alert("Employee added successfully ");
 
-      const data = new FormData();
+   
+      setFormData({
+        empName: "",
+        empEmail: "",
+        password: "",
+        reportingHead: "",
+        doj: "",
+        dol: "",
+        ctc: "",
+        phone: "",
+        designation: "",
+        dob: "",
+        gender: "",
+        qualification: "",
+        status: "",
+        photo: null,
+      });
 
-      // ✅ FIELD MAPPING (IMPORTANT)
-      data.append("username", formData.empName);
-      data.append("email", formData.empEmail);
-      data.append("password", formData.password);
-      data.append("reporting_head", formData.reportingHead);
-      data.append("doj", formData.doj);
-      data.append("dol", formData.dol);
-      data.append("ctc", formData.ctc);
-      data.append("phone_no", formData.phone);
-      data.append("designation", formData.designation);
-      data.append("dob", formData.dob);
-      data.append("gender", formData.gender);
-      data.append("qualification", formData.qualification);
-      data.append("status", formData.status);
+      setPreview(null);
+      navigate("/employees");
 
-      if (formData.photo) {
-        data.append("photo", formData.photo);
-      }
-
-      const token = localStorage.getItem("token");
-      
-      console.log("TOKEN:", token);
-      
-      const response = await fetch(
-  
-        `${import.meta.env.VITE_BACKEND_API_URL}users/create-user`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: data,
-        }
-      );
-
-      const result = await response.json();
-
-      if (response.ok) {
-        alert("Employee added successfully ✅");
-
-        // Reset form
-        setFormData({
-          empName: "",
-          empEmail: "",
-          password: "",
-          reportingHead: "",
-          doj: "",
-          dol: "",
-          ctc: "",
-          phone: "",
-          designation: "",
-          dob: "",
-          gender: "",
-          qualification: "",
-          status: "",
-          photo: null,
-        });
-
-        setPreview(null);
-
-        // ✅ Redirect
-        navigate("/employees");
-      } else {
-        alert(result.message || "Error occurred ❌");
-      }
     } catch (error) {
-  console.log("FULL ERROR:", error);
-  alert(error.message || "Server error ❌");
-} finally {
+      console.log("ERROR:", error);
+      alert(error.message || "Server error");
+    } finally {
       setLoading(false);
     }
   };
@@ -142,7 +98,6 @@ const AddEmployee = () => {
             <form onSubmit={handleSubmit}>
               <div className="row">
 
-                {/* Name */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Employee Name *</label>
                   <input
@@ -151,11 +106,9 @@ const AddEmployee = () => {
                     name="empName"
                     value={formData.empName}
                     onChange={handleChange}
-                    placeholder="Enter employee name"
                   />
                 </div>
 
-                {/* Email */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Email *</label>
                   <input
@@ -164,11 +117,9 @@ const AddEmployee = () => {
                     name="empEmail"
                     value={formData.empEmail}
                     onChange={handleChange}
-                    placeholder="Enter email"
                   />
                 </div>
 
-                {/* Password */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Password *</label>
                   <input
@@ -177,11 +128,9 @@ const AddEmployee = () => {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="Enter password"
                   />
                 </div>
 
-                {/* Reporting Head */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Reporting Head</label>
                   <input
@@ -193,7 +142,6 @@ const AddEmployee = () => {
                   />
                 </div>
 
-                {/* Joining Date */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Joining Date</label>
                   <input
@@ -205,7 +153,6 @@ const AddEmployee = () => {
                   />
                 </div>
 
-                {/* Leaving Date */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Leaving Date</label>
                   <input
@@ -217,7 +164,6 @@ const AddEmployee = () => {
                   />
                 </div>
 
-                {/* CTC */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">CTC</label>
                   <input
@@ -229,7 +175,6 @@ const AddEmployee = () => {
                   />
                 </div>
 
-                {/* Phone */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Phone</label>
                   <input
@@ -241,7 +186,6 @@ const AddEmployee = () => {
                   />
                 </div>
 
-                {/* Designation */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Designation</label>
                   <input
@@ -253,7 +197,6 @@ const AddEmployee = () => {
                   />
                 </div>
 
-                {/* DOB */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Date of Birth</label>
                   <input
@@ -265,7 +208,6 @@ const AddEmployee = () => {
                   />
                 </div>
 
-                {/* Gender */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Gender</label>
                   <select
@@ -280,7 +222,6 @@ const AddEmployee = () => {
                   </select>
                 </div>
 
-                {/* Qualification */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Qualification</label>
                   <input
@@ -292,7 +233,6 @@ const AddEmployee = () => {
                   />
                 </div>
 
-                {/* Photo */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Photo</label>
                   <input
@@ -310,7 +250,6 @@ const AddEmployee = () => {
                   )}
                 </div>
 
-                {/* Status */}
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Status</label>
                   <select

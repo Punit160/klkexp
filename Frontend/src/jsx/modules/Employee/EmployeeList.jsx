@@ -1,38 +1,31 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { Col, Card, Table } from "react-bootstrap";
 import avatar1 from "../../../assets/images/User.jpg";
 import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
 
-const EmployeeList = () => {
+//  Import API
+import { getEmployees } from "../APIS/employeeApi";
 
+const EmployeeList = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 🔥 FETCH API
+  //  Fetch Employees
   const fetchUser = async () => {
     try {
-      const token = localStorage.getItem("token");
+      setLoading(true);
 
-      const res = await axios.get(
-        `${import.meta.env.VITE_BACKEND_API_URL}users/get-user`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await getEmployees();
 
-      console.log("User API:", res.data);
+      console.log("Employee API:", res);
 
-      // ⚠️ Adjust according to your API response
-      setData(res.data.data || res.data || []);
+   setData(res.data || res || []);
 
     } catch (error) {
-      console.log("User API Error", error);
+      console.log("Employee API Error", error);
       setError(error);
     } finally {
       setLoading(false);
@@ -43,7 +36,7 @@ const EmployeeList = () => {
     fetchUser();
   }, []);
 
-  // 🔥 PAGINATION
+  //  Pagination
   const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -52,9 +45,9 @@ const EmployeeList = () => {
 
   const currentEmployees = data.slice(indexOfFirst, indexOfLast);
 
-  // 🔥 LOADING / ERROR UI
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error loading data</p>;
+  //  Loading / Error UI
+  if (loading) return <p className="text-center">Loading employees...</p>;
+  if (error) return <p className="text-center">Error loading data</p>;
 
   return (
     <>
@@ -62,27 +55,24 @@ const EmployeeList = () => {
 
       <Col lg={12}>
         <Card>
-
           <Card.Header className="d-flex justify-content-between">
             <Card.Title>Employee List</Card.Title>
 
             <TableExportActions
               data={data}
               columns={[
-                { label: "Name", key: "name" },
+                { label: "Name", key: "username" },
                 { label: "Email", key: "email" },
-                { label: "Phone", key: "phone" },
+                { label: "Phone", key: "phone_no" },
                 { label: "Designation", key: "designation" },
-                { label: "Status", key: "status" }
+                { label: "Status", key: "status" },
               ]}
               fileName="Employee_List"
             />
           </Card.Header>
 
           <Card.Body>
-
             <Table responsive className="text-nowrap">
-
               <thead>
                 <tr>
                   <th>Sno</th>
@@ -97,11 +87,9 @@ const EmployeeList = () => {
               </thead>
 
               <tbody>
-
                 {currentEmployees.length > 0 ? (
                   currentEmployees.map((emp, index) => (
                     <tr key={emp.id || index}>
-
                       <td>{indexOfFirst + index + 1}</td>
 
                       <td>
@@ -110,7 +98,7 @@ const EmployeeList = () => {
                             src={emp.photo || avatar1}
                             className="rounded-lg me-2"
                             width="30"
-                            alt=""
+                            alt="user"
                           />
                           <span>{emp.username || "N/A"}</span>
                         </div>
@@ -119,13 +107,13 @@ const EmployeeList = () => {
                       <td>{emp.email || "N/A"}</td>
                       <td>{emp.phone_no || "N/A"}</td>
                       <td>{emp.designation || "N/A"}</td>
-                       <td>{emp.reporting_head || "N/A"}</td>
+                      <td>{emp.reporting_head || "N/A"}</td>
 
                       <td>
                         <div className="d-flex align-items-center">
                           <i
                             className={`fa fa-circle me-1 ${
-                              emp.status == "1"
+                              emp.status === "Active" || emp.status === "1"
                                 ? "text-success"
                                 : "text-danger"
                             }`}
@@ -145,19 +133,16 @@ const EmployeeList = () => {
                           </button>
                         </div>
                       </td>
-
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="text-center">
+                    <td colSpan="8" className="text-center">
                       No Data Found
                     </td>
                   </tr>
                 )}
-
               </tbody>
-
             </Table>
 
             <Pagination
@@ -166,7 +151,6 @@ const EmployeeList = () => {
               currentPage={currentPage}
               onPageChange={setCurrentPage}
             />
-
           </Card.Body>
         </Card>
       </Col>
