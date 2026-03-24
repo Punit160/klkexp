@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
-// ✅ CREATE EMPLOYEE
+//   CREATE EMPLOYEE
 export const createUser = async (req, res) => {
   try {
     const {
@@ -24,7 +24,7 @@ export const createUser = async (req, res) => {
       status,
     } = req.body;
 
-    // ✅ Session values
+    //   Session values
     const company_id = req.session.company_id;
     const created_by = req.session.user_id;
 
@@ -64,20 +64,20 @@ export const createUser = async (req, res) => {
     });
 
     res.status(201).json({
-      message: "Employee created successfully ✅",
+      message: "Employee created successfully ",
       employee,
     });
 
   } catch (error) {
     console.error(error);
     res.status(500).json({
-      message: "Server error ❌",
+      message: "Server error ",
     });
   }
 };
 
 
-// ✅ GET ALL USERS
+//   GET ALL USERS
 export const getAllUsers = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
@@ -93,7 +93,7 @@ export const getAllUsers = async (req, res) => {
 
 
 
-// ✅ GET SINGLE USER
+//   GET SINGLE USER
 export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -113,6 +113,7 @@ export const getUserById = async (req, res) => {
 };
 
 
+// UPDATE USER  
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -125,23 +126,58 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const updateData = { ...req.body };
+    const {
+      empName,
+      empEmail,
+      password,
+      reportingHead,
+      doj,
+      dol,
+      ctc,
+      phone,
+      designation,
+      dob,
+      gender,
+      qualification,
+      status,
+    } = req.body;
 
-    // 🖼️ Handle new image upload
+    //   Date helper
+    const formatDate = (date) => {
+      if (!date || date === "" || date === "undefined") return null;
+      return new Date(date);
+    };
+
+    //   Build update object with correct DB field names
+    const updateData = {
+      username: empName,
+      email: empEmail,
+      reporting_head: reportingHead,
+      doj: formatDate(doj),
+      dol: formatDate(dol),
+      ctc: ctc ? parseFloat(ctc) : null,
+      phone_no: phone,
+      designation,
+      dob: formatDate(dob),
+      gender,
+      qualification,
+   status: status === "Active" ? true : false,  
+      updated_at: new Date(),
+    };
+
+    //   Password: only update if provided
+    if (password && password.trim() !== "") {
+      updateData.password = password; // ya bcrypt use karo agar chahiye
+    }
+
+    //   Image: only update if new file uploaded
     if (req.file) {
-      const newImageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-      updateData.user_img = newImageUrl;
+      updateData.user_img = req.file.filename;
 
+      // Delete old image
       if (existingUser.user_img) {
-        const oldImagePath = path.join(
-          process.cwd(),
-          "uploads",
-          existingUser.user_img.split("/uploads/")[1]
-        );
-
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
+        const oldPath = path.join(process.cwd(), "uploads", existingUser.user_img);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
     }
 
@@ -150,22 +186,18 @@ export const updateUser = async (req, res) => {
       data: updateData,
     });
 
-    res.json({
-      message: "User updated successfully",
-      user: updatedUser,
-    });
+    res.json({ message: "Employee updated successfully  ", user: updatedUser });
 
   } catch (error) {
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
-
+    console.error("Update Error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
 
-// ✅ DELETE USER
+
+
+//   DELETE USER
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -206,13 +238,13 @@ export const deleteUser = async (req, res) => {
 
 
 
-// ✅ OPTIONAL: CHANGE STATUS (ACTIVE / INACTIVE)
+//   OPTIONAL: CHANGE STATUS (ACTIVE / INACTIVE)
 export const changeUserStatus = async (req, res) => {
   try {
     const { id } = req.params;
     let { status } = req.body;
 
-    // ✅ Convert string to boolean if coming from frontend
+    //   Convert string to boolean if coming from frontend
     if (typeof status === "string") {
       status = status === "true";
     }
