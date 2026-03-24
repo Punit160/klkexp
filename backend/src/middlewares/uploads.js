@@ -18,10 +18,21 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image/")) {
+  const allowedTypes = [
+    "image/",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ];
+
+  const isAllowed = allowedTypes.some(type =>
+    file.mimetype.startsWith(type) || file.mimetype === type
+  );
+
+  if (isAllowed) {
     cb(null, true);
   } else {
-    cb(new Error("Only image files allowed"), false);
+    cb(new Error("Only images, PDF, and DOC files allowed"), false);
   }
 };
 

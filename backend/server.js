@@ -4,25 +4,28 @@ import session from "express-session";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
+dotenv.config({ path: "./.env" });
 
 import userRoutes from "./src/routes/user.routes.js";
 import loginRoutes from "./src/routes/auth/login.routes.js";
 import projectRoutes from "./src/routes/project.routes.js";
 import interventionRoutes from "./src/routes/intervention.routes.js";
 
-dotenv.config();
+
 
 const app = express();
 
 // middleware
-app.use(cors());
 app.use(express.json());
 
+console.log("ENV JWT_SECRET:", process.env.JWT_SECRET);
 
 app.use(
   cors({
     origin: ["http://localhost:5174", "http://klkexpense.cloud"],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 

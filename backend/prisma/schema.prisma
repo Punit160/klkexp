@@ -15,6 +15,7 @@ datasource db {
 
 model User {
   id             Int      @id @default(autoincrement())
+  company_id       String
   user_id        String   @unique
   username       String
   email          String   @unique
@@ -31,6 +32,7 @@ model User {
   user_img       String?
   pfesi          Boolean  @default(false)
   status         Boolean  @default(true)
+  created_by     String
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
 
@@ -40,6 +42,7 @@ model User {
 
 model Project {
   id          Int      @id @default(autoincrement())
+  company_id       String
   project_id  String   @unique
   name        String
   description String?
@@ -47,11 +50,12 @@ model Project {
   end_date    DateTime?
   financial_year        String
   funder_name        String
-  manager_id  Int
+  manager_id  String
   contact_person        String
   contact_person_number        String
-  mou       String
+  mou       String?
   status         Boolean  @default(true)
+  created_by     String?
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
@@ -60,8 +64,10 @@ model Project {
 
 model Intervention {
   id          Int      @id @default(autoincrement())
+  company_id       String
   name        String
   status         Boolean  @default(true)
+  created_by     String?
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
@@ -70,6 +76,7 @@ model Intervention {
 
 model ExpensePayment {
   id                       Int      @id @default(autoincrement())
+  company_id               String
   project_name             String
   project_state            String
   project_district         String
@@ -79,7 +86,7 @@ model ExpensePayment {
   amount_change_by         Int?
   requested_by             Int
   requested_date           DateTime
-  manager_id               Int
+  manager_id               String
   approval_status          Boolean  @default(true)
   manager_remarks          String?
   review_assign            Boolean  @default(true)
@@ -92,6 +99,7 @@ model ExpensePayment {
   accountant_remarks       String?
   remarks                  String?
   document                 String?
+  created_by               String?
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 

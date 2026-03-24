@@ -259,8 +259,8 @@ const AddEmployee = () => {
                     onChange={handleChange}
                   >
                     <option value="">Select</option>
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
+                    <option value="0">Active</option>
+                    <option value="1">Inactive</option>
                   </select>
                 </div>
 
