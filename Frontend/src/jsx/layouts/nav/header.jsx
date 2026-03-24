@@ -4,31 +4,22 @@ import { Dropdown } from "react-bootstrap";
 import { SVGICON } from "../../constant/theme";
 import avatar1 from '../../../assets/images/user.jpg'
 import { ThemeContext } from "../../../context/ThemeContext";
-import { useNavigate } from "react-router-dom";
 import fscreen from "fscreen";
-
-
-const Dashboard = () => {
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/");
-  };
-
-  return (
-    <div>
-      <h1>Dashboard</h1>
-
-      <button onClick={handleLogout}>
-        Logout
-      </button>
-    </div>
-  );
-};
+import { useNavigate } from "react-router-dom";
 
 
 function Header({ onNote }) {
+
+   const navigate = useNavigate();
+
+const handleLogout = () => {
+
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+
+  navigate("/"); 
+};
+
 	const { background, changeBackground } = useContext(ThemeContext);
 	const handleThemeMode = () => {
 		if (background.value === 'dark') {
@@ -310,7 +301,7 @@ function Header({ onNote }) {
 														</div>
 													</li>
 													<li>
-														<Link to="/page-login">
+														<Link to="/page-login" onClick={handleLogout} style={{ cursor: "pointer" }}>
 															<div className="icon-box-lg"> {SVGICON.logout} <p> Logout </p> </div>
 														</Link>
 													</li>

@@ -56,10 +56,10 @@ const AddEmployee = () => {
       const data = new FormData();
 
       // ✅ FIELD MAPPING (IMPORTANT)
-      data.append("username", formData.empName);
-      data.append("email", formData.empEmail);
+      data.append("empName", formData.empName);
+      data.append("empEmail", formData.empEmail);
       data.append("password", formData.password);
-      data.append("reporting_head", formData.reportingHead);
+      data.append("reportingHead", formData.reportingHead);
       data.append("doj", formData.doj);
       data.append("dol", formData.dol);
       data.append("ctc", formData.ctc);
@@ -77,7 +77,7 @@ const AddEmployee = () => {
       const token = localStorage.getItem("token");
       
       console.log("TOKEN:", token);
-      
+
       const response = await fetch(
   
         `${import.meta.env.VITE_BACKEND_API_URL}users/create-user`,
@@ -116,13 +116,13 @@ const AddEmployee = () => {
         setPreview(null);
 
         // ✅ Redirect
-        navigate("/employees");
+        navigate("/employee-List");
       } else {
         alert(result.message || "Error occurred ❌");
       }
     } catch (error) {
   console.log("FULL ERROR:", error);
-  alert(error.message || "Server error ❌");
+  alert({message : error.message});
 } finally {
       setLoading(false);
     }
@@ -320,8 +320,8 @@ const AddEmployee = () => {
                     onChange={handleChange}
                   >
                     <option value="">Select</option>
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
+                    <option value="0">Active</option>
+                    <option value="1">Inactive</option>
                   </select>
                 </div>
 

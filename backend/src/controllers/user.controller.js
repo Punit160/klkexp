@@ -1,7 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import fs from 'fs';
 import path from "path";
-import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
@@ -24,19 +23,17 @@ export const createUser = async (req, res) => {
       status,
     } = req.body;
 
-    // ✅ Session values
-    const company_id = req.session.company_id;
-    const created_by = req.session.user_id;
+    // ✅ FROM JWT (FIXED)
+    const company_id = req.user.company_id;
+    const created_by =  req.user.email;
+    console.log(company_id, created_by);
 
     if (!company_id) {
       return res.status(401).json({ message: "Unauthorized ❌" });
     }
 
-    // 🔥 Convert values
-    const statusValue = status === "Active" ? 1 : 0;
-
+    const statusValue = status == 1;
     const photo = req.file ? req.file.filename : null;
-
     const user_id = "EMP" + Date.now();
 
     const employee = await prisma.user.create({
@@ -45,7 +42,7 @@ export const createUser = async (req, res) => {
         user_id,
         username: empName,
         email: empEmail,
-        password: password, // plain (as per your requirement)
+        password: password,
         reporting_head: reportingHead,
         doj: new Date(doj),
         dol: dol ? new Date(dol) : null,
@@ -56,8 +53,9 @@ export const createUser = async (req, res) => {
         gender,
         qualification,
         user_img: photo,
-        pfesi: 0,
+        pfesi: false,
         status: statusValue,
+        created_by,
         created_at: new Date(),
         updated_at: new Date(),
       },

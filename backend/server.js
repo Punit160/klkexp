@@ -4,13 +4,14 @@ import session from "express-session";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
+dotenv.config({ path: "./.env" });
 
 import userRoutes from "./src/routes/user.routes.js";
 import loginRoutes from "./src/routes/auth/login.routes.js";
 import projectRoutes from "./src/routes/project.routes.js";
 import interventionRoutes from "./src/routes/intervention.routes.js";
 
-dotenv.config();
+
 
 const app = express();
 
@@ -18,6 +19,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+console.log("ENV JWT_SECRET:", process.env.JWT_SECRET);
 
 app.use(
   cors({
