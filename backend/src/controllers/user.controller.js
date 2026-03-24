@@ -5,65 +5,74 @@ import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
-
+// ✅ CREATE EMPLOYEE
 export const createUser = async (req, res) => {
   try {
     const {
-      user_id,
-      username,
-      email,
+      empName,
+      empEmail,
       password,
-      reporting_head,
+      reportingHead,
       doj,
+      dol,
       ctc,
-      phone_no,
+      phone,
       designation,
       dob,
       gender,
       qualification,
+      status,
     } = req.body;
 
-    // ✅ Get uploaded image
-    const user_img = req.file
-      ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
-      : null;
+    // ✅ Session values
+    const company_id = req.session.company_id;
+    const created_by = req.session.user_id;
 
-    // 🔍 Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      return res.status(400).json({ message: "Email already exists" });
+    if (!company_id) {
+      return res.status(401).json({ message: "Unauthorized ❌" });
     }
 
-    // ✅ Create user
-    const newUser = await prisma.user.create({
+    // 🔥 Convert values
+    const statusValue = status === "Active" ? 1 : 0;
+
+    const photo = req.file ? req.file.filename : null;
+
+    const user_id = "EMP" + Date.now();
+
+    const employee = await prisma.user.create({
       data: {
+        company_id,
         user_id,
-        username,
-        email,
-        password,
-        reporting_head,
-        doj: doj ? new Date(doj) : null,
-        ctc,
-        phone_no,
+        username: empName,
+        email: empEmail,
+        password: password, // plain (as per your requirement)
+        reporting_head: reportingHead,
+        doj: new Date(doj),
+        dol: dol ? new Date(dol) : null,
+        ctc: ctc ? parseFloat(ctc) : null,
+        phone_no: phone,
         designation,
         dob: dob ? new Date(dob) : null,
         gender,
         qualification,
-        user_img, // ✅ store image URL
-        status: true,
+        user_img: photo,
+        pfesi: 0,
+        status: statusValue,
+        created_at: new Date(),
+        updated_at: new Date(),
       },
     });
 
     res.status(201).json({
-      message: "User created successfully",
-      user: newUser,
+      message: "Employee created successfully ✅",
+      employee,
     });
 
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(error);
+    res.status(500).json({
+      message: "Server error ❌",
+    });
   }
 };
 

@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import session from "express-session";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
@@ -16,6 +17,25 @@ const app = express();
 // middleware
 app.use(cors());
 app.use(express.json());
+
+
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://klkexpense.cloud"],
+    credentials: true,
+  })
+);
+
+
+// Configure session
+app.use(session({
+  secret: "your_secret_key",
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, httpOnly: true } 
+}));
+
+
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/test", (req, res) => {
@@ -32,9 +52,13 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+app.use("/api/login", loginRoutes);
+
+import {auth} from "./src/middlewares/auth.js"
+
+app.use(auth)
 // routes
 app.use("/api/users", userRoutes);
-app.use("/api/login", loginRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/interventions", interventionRoutes);
 
