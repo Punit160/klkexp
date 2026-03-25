@@ -4,34 +4,42 @@ const prisma = new PrismaClient();
 
 export const createIntervention = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, status } = req.body;
 
-    // Check if already exists
+    if (!name) {
+      return res.status(400).json({ message: "Name is required" });
+    }
+
+    // 🔍 Check duplicate (case insensitive optional)
     const existingIntervention = await prisma.intervention.findFirst({
-      where: { name }
+      where: {
+        name: name,
+      },
     });
 
     if (existingIntervention) {
       return res.status(400).json({
-        message: "Intervention Already Exists !!"
+        message: "Intervention Already Exists !!",
       });
     }
 
-    // Create new intervention
     const newIntervention = await prisma.intervention.create({
       data: {
-        ...req.body
-      }
+        name,
+        status: status == 1, // ✅ convert to boolean
+        company_id: req.user?.company_id,
+        created_by: req.user?.email,
+      },
     });
 
-    return res.status(200).json({
+    return res.status(201).json({
       message: "Intervention Added Successfully !!!",
-      data: newIntervention
+      data: newIntervention,
     });
 
   } catch (error) {
     return res.status(500).json({
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -61,19 +69,26 @@ export const fetchIntervention = async (req, res) => {
 
 export const getAllInterventions = async (req, res) => {
   try {
-    const interventions = await prisma.intervention.findMany();
+    const company_id = req.user?.company_id;
 
-    if (!interventions || interventions.length === 0) {
-      return res.status(404).json({
-        message: "No Interventions Found !!"
+    if (!company_id) {
+      return res.status(401).json({
+        message: "Unauthorized: company_id missing",
       });
     }
+
+    const interventions = await prisma.intervention.findMany({
+      where: {
+        company_id: company_id, 
+      },
+      orderBy: { created_at: "desc" },
+    });
 
     return res.status(200).json(interventions);
 
   } catch (error) {
     return res.status(500).json({
-      message: error.message
+      message: error.message,
     });
   }
 };
