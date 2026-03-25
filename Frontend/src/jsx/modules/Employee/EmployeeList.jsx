@@ -101,25 +101,15 @@ const EmployeeList = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           <img
-                        src={
-  emp.user_img
-    ? `${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${emp.user_img}`
-    : avatar1
-}
+                            src={
+                              emp.user_img
+                                ? `${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${emp.user_img}`
+                                : avatar1
+                            }
                             className="rounded-lg me-2"
                             width="30"
                             alt=""
                           />
-
-                          <img
-// src={
-//   emp.user_img
-//     ? `${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${emp.user_img}`
-//     : avatar1
-// }
-/>
-
-
                           <span>{emp.username || "N/A"}</span>
                         </div>
                       </td>

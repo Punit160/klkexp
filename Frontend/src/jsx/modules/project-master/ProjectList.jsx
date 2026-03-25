@@ -3,11 +3,14 @@ import { Col, Card, Table } from "react-bootstrap";
 import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { getAllProjects, deleteProject } from "./projectApi";
+
 
 const ProjectMasterList = () => {
   const navigate = useNavigate();
+    const location = useLocation(); // add this
+
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +25,7 @@ const ProjectMasterList = () => {
   /* ================= FETCH PROJECTS ================= */
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, [location.key]);
 
   const fetchProjects = async () => {
     try {
@@ -61,26 +64,27 @@ const ProjectMasterList = () => {
   };
 
   /* ================= DELETE ================= */
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete?");
-    if (!confirmDelete) return;
+const handleDelete = async (id) => {
+  const confirmDelete = window.confirm("Are you sure you want to delete?");
+  if (!confirmDelete) return;
 
-    try {
-      const data = await deleteProject(id);
+  // Pehle UI se remove karo (optimistic)
+  setProjects((prev) => prev.filter((p) => p.id !== id));
 
-      // Backend "Project not found" ya error bheje tabhi rok
-      if (data?.message?.toLowerCase().includes("not found")) {
-        alert(data.message || "Delete failed");
-        return;
-      }
+  try {
+    const data = await deleteProject(id);
 
-      alert("Project Deleted ✅");
-      setProjects((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      console.error(err);
-      alert("Error deleting project");
+    // Agar delete fail hua to wapas add karo
+    if (data && data.success === false) {
+      alert(data.message || "Delete failed");
+      fetchProjects(); // revert
     }
-  };
+  } catch (err) {
+    console.error(err);
+    alert("Error deleting project");
+    fetchProjects(); // revert on error
+  }
+};
 
   const currentProjects = projects.slice(indexOfFirst, indexOfLast);
 

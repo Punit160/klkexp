@@ -58,7 +58,7 @@ export const createProject = async (req, res) => {
         contact_person,
         contact_person_number,
         mou: mouFile, 
-        status: projectStatus == 1, 
+        status: projectStatus, 
         created_by,
       },
     });

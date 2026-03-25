@@ -60,6 +60,10 @@ const ProjectMasterForm = () => {
     if (!formData.description.trim())
       newErrors.description = "Description is required";
 
+    // ✅ MOU validation add
+    if (!formData.mou)
+      newErrors.mou = "MOU file is required";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -110,8 +114,7 @@ const ProjectMasterForm = () => {
       }
 
       alert("Project created successfully ✅");
-      navigate("/project-list");
-
+      navigate("/project-list", { replace: true });
     } catch (error) {
       console.error(error);
       alert("Error creating project");
@@ -221,13 +224,16 @@ const ProjectMasterForm = () => {
                   </div>
 
                   <div className="col-md-6 mb-3">
-                    <label className="form-label">Upload MOU</label>
+                    <label className="form-label">
+                      Upload MOU <span className="text-danger">*</span>
+                    </label>
                     <input
                       type="file"
-                      className="form-control"
+                      className={`form-control ${errors.mou ? "is-invalid" : ""}`}
                       name="mou"
                       onChange={handleChange}
                     />
+                    {errors.mou && <div className="invalid-feedback">{errors.mou}</div>}
                   </div>
 
                   <div className="col-md-6 mb-3">
