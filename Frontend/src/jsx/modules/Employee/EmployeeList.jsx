@@ -1,69 +1,72 @@
 import React, { useState, useEffect } from "react";
 import { Col, Card, Table } from "react-bootstrap";
+import { useNavigate, useLocation } from "react-router-dom";
 import avatar1 from "../../../assets/images/User.jpg";
 import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
-import { getEmployees, deleteEmployee } from "./APIS";
-import { useNavigate, useLocation } from "react-router-dom";
+import { getAllEmployees, deleteEmployee } from "./employeeApi";
 
 const EmployeeList = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const fetchUser = async () => {
+  const navigate = useNavigate();
+  const location = useLocation(); // ✅ important
+
+  // 🔥 FETCH USERS
+  const fetchUsers = async () => {
     setLoading(true);
     try {
-      const { ok, result } = await getEmployees();
-      if (ok) setData(result.data || result || []);
+      const res = await getAllEmployees();
+      setData(res);
+    } catch (err) {
+      console.error(err);
+      setError(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Initial fetch
+  // ✅ REFRESH AFTER UPDATE
   useEffect(() => {
-    fetchUser();
-  }, []);
+    fetchUsers();
+  }, [location.state]); // 🔥 THIS IS MAIN FIX
 
-  // Refetch if navigated after update
-  useEffect(() => {
-    if (location.state?.updated) {
-      fetchUser();
-    }
-  }, [location.state]);
-
+  // 🔥 DELETE
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this employee?")) return;
+
     const { ok, result } = await deleteEmployee(id);
     if (ok) {
-      alert(result.message || "Deleted successfully");
-      fetchUser();
+      alert("Employee deleted ✅");
+      fetchUsers();
     } else {
-      alert(result.message || "Failed to delete");
+      alert(result.message || "Failed ❌");
     }
   };
 
-  const handleEdit = (id) => navigate(`/update-employee/${id}`);
-
+  // 🔥 PAGINATION
   const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
+
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentEmployees = data.slice(indexOfFirst, indexOfLast);
 
   if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error loading data</p>;
 
   return (
     <>
       <PageTitle activeMenu="Employee List" motherMenu="Employee" />
+
       <Col lg={12}>
         <Card>
           <Card.Header className="d-flex justify-content-between">
             <Card.Title>Employee List</Card.Title>
+
             <TableExportActions
               data={data}
               columns={[
@@ -76,6 +79,7 @@ const EmployeeList = () => {
               fileName="Employee_List"
             />
           </Card.Header>
+
           <Card.Body>
             <Table responsive className="text-nowrap">
               <thead>
@@ -90,45 +94,82 @@ const EmployeeList = () => {
                   <th>Action</th>
                 </tr>
               </thead>
+
               <tbody>
-                {currentEmployees.length > 0 ? currentEmployees.map((emp, index) => (
-                  <tr key={emp.id || index}>
-                    <td>{indexOfFirst + index + 1}</td>
-                    <td>
-                      <div className="d-flex align-items-center">
-                        <img src={emp.user_img || avatar1} className="rounded-lg me-2" width="30" alt="" />
-                        <span>{emp.username || "N/A"}</span>
-                      </div>
-                    </td>
-                    <td>{emp.email || "N/A"}</td>
-                    <td>{emp.phone_no || "N/A"}</td>
-                    <td>{emp.designation || "N/A"}</td>
-                    <td>{emp.reporting_head || "N/A"}</td>
-                    <td>
-                      <div className="d-flex align-items-center">
-                        <i className={`fa fa-circle me-1 ${emp.status === "Active" ? "text-success" : "text-danger"}`} />
-                        {emp.status || "Inactive"}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="d-flex">
-                        <button className="btn btn-primary shadow btn-xs sharp me-1" onClick={() => handleEdit(emp.id)}>
-                          <i className="fas fa-pencil-alt"></i>
-                        </button>
-                        <button className="btn btn-danger shadow btn-xs sharp" onClick={() => handleDelete(emp.id)}>
-                          <i className="fa fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )) : (
+                {currentEmployees.length > 0 ? (
+                  currentEmployees.map((emp, index) => (
+                    <tr key={emp.id || index}>
+                      <td>{indexOfFirst + index + 1}</td>
+
+                      <td>
+                        <div className="d-flex align-items-center">
+                          <img
+                            src={
+                              emp.user_img
+                                ? `${import.meta.env.VITE_BACKEND_API_URL}uploads/${emp.user_img}?t=${Date.now()}`
+                                : avatar1
+                            }
+                            className="rounded-lg me-2"
+                            width="30"
+                            alt=""
+                          />
+                          <span>{emp.username || "N/A"}</span>
+                        </div>
+                      </td>
+
+                      <td>{emp.email || "N/A"}</td>
+                      <td>{emp.phone_no || "N/A"}</td>
+                      <td>{emp.designation || "N/A"}</td>
+                      <td>{emp.reporting_head || "N/A"}</td>
+
+                      <td>
+                        <div className="d-flex align-items-center">
+                          <i
+                            className={`fa fa-circle me-1 ${
+                              emp.status ? "text-success" : "text-danger"
+                            }`}
+                          ></i>
+                          {emp.status ? "Active" : "Inactive"}
+                        </div>
+                      </td>
+
+                      <td>
+                        <div className="d-flex">
+                          <button
+                            className="btn btn-primary shadow btn-xs sharp me-1"
+                            onClick={() =>
+                              navigate(`/update-employee/${emp.id}`)
+                            }
+                          >
+                            <i className="fas fa-pencil-alt"></i>
+                          </button>
+
+                          <button
+                            className="btn btn-danger shadow btn-xs sharp"
+                            onClick={() => handleDelete(emp.id)}
+                          >
+                            <i className="fa fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
-                    <td colSpan="8" className="text-center">No Data Found</td>
+                    <td colSpan="8" className="text-center">
+                      No Data Found
+                    </td>
                   </tr>
                 )}
               </tbody>
             </Table>
-            <Pagination totalItems={data.length} itemsPerPage={itemsPerPage} currentPage={currentPage} onPageChange={setCurrentPage} />
+
+            <Pagination
+              totalItems={data.length}
+              itemsPerPage={itemsPerPage}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
           </Card.Body>
         </Card>
       </Col>
@@ -136,4 +177,4 @@ const EmployeeList = () => {
   );
 };
 
-export default EmployeeList;  
+export default EmployeeList;

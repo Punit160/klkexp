@@ -134,34 +134,69 @@ export const updateUser = async (req, res) => {
       qualification,
     } = req.body;
 
-    const updatedData = {
-      username: empName,
-      email: empEmail,
-      password: password || undefined,
-      reporting_head: reportingHead,
-      doj: doj ? new Date(doj) : undefined,
-      dol: dol ? new Date(dol) : undefined,
-      ctc: ctc ? parseFloat(ctc) : undefined, // ✅ convert to number
-      phone_no: phone,
-      designation,
-      gender,
-      status,
-      dob: dob ? new Date(dob) : undefined,
-      qualification: qualification || undefined,
-      updated_at: new Date(),
-    };
+    // 🔥 SAFE STATUS CONVERSION (NO JSON.parse, NO ERROR)
+    let parsedStatus;
+    if (status !== undefined) {
+      if (
+        status === true ||
+        status === "true" ||
+        status === "1" ||
+        status === 1
+      ) {
+        parsedStatus = true;
+      } else if (
+        status === false ||
+        status === "false" ||
+        status === "0" ||
+        status === 0
+      ) {
+        parsedStatus = false;
+      }
+    }
 
-    // ✅ If file uploaded
-    if (req.file) updatedData.user_img = req.file.filename;
+    // 🔥 CLEAN OBJECT (NO undefined)
+    const updatedData = {};
+
+    if (empName) updatedData.username = empName;
+    if (empEmail) updatedData.email = empEmail;
+    if (password) updatedData.password = password;
+    if (reportingHead) updatedData.reporting_head = reportingHead;
+    if (phone) updatedData.phone_no = phone;
+    if (designation) updatedData.designation = designation;
+    if (gender) updatedData.gender = gender;
+    if (qualification) updatedData.qualification = qualification;
+
+    if (ctc) updatedData.ctc = parseFloat(ctc);
+    if (doj) updatedData.doj = new Date(doj);
+    if (dol) updatedData.dol = new Date(dol);
+    if (dob) updatedData.dob = new Date(dob);
+
+    if (parsedStatus !== undefined) {
+      updatedData.status = parsedStatus;
+    }
+
+    // ✅ image update
+    if (req.file) {
+      updatedData.user_img = req.file.filename;
+    }
+
+    updatedData.updated_at = new Date();
+
+    // 🔍 DEBUG (VERY IMPORTANT)
+    console.log("FINAL UPDATE DATA:", updatedData);
 
     const user = await prisma.user.update({
       where: { id: Number(id) },
       data: updatedData,
     });
 
-    res.json({ message: "User updated successfully ✅", data: user });
+    res.json({
+      message: "User updated successfully ✅",
+      data: user,
+    });
+
   } catch (err) {
-    console.error(err);
+    console.error("UPDATE ERROR:", err);
     res.status(500).json({ message: err.message });
   }
 };

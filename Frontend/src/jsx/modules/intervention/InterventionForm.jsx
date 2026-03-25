@@ -2,26 +2,79 @@ import React, { useState } from "react";
 import PageTitle from "../../layouts/PageTitle";
 
 const InterventionForm = () => {
-
   const [formData, setFormData] = useState({
-    intervention: "",
-    amount: "",
-    status: ""
+    name: "",
+    status: "",
   });
 
+  const [loading, setLoading] = useState(false);
+
+  // ✅ Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = (e) => {
+  // ✅ Submit form
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(formData);
+
+    if (!formData.name || formData.status === "") {
+      alert("Please fill all fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const token = localStorage.getItem("token");
+
+      const payload = {
+        name: formData.name,
+        status: formData.status == 1, // ✅ convert to boolean
+      };
+
+      const res = await fetch(
+         `${import.meta.env.VITE_BACKEND_API_URL}interventions/create-intervention`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // ✅ JWT
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message || "Something went wrong");
+        return;
+      }
+
+      alert("Intervention created successfully ✅");
+
+      // ✅ Reset form
+      setFormData({
+        name: "",
+        status: "",
+      });
+
+    } catch (error) {
+      console.error(error);
+      alert("Error creating intervention");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <>
-      <PageTitle activeMenu="Intervention Form" motherMenu="Intervention" />
+      <PageTitle
+        activeMenu="Intervention Form"
+        motherMenu="Intervention"
+      />
 
       <div className="row">
         <div className="col-xl-12">
@@ -36,26 +89,15 @@ const InterventionForm = () => {
               <form onSubmit={handleSubmit}>
                 <div className="row">
 
-                  {/* Intervention */}
+                  {/* Intervention Name */}
                   <div className="col-md-6 mb-3">
                     <label className="form-label">Intervention</label>
                     <input
                       type="text"
                       className="form-control"
-                      name="intervention"
+                      name="name"
+                      value={formData.name}
                       placeholder="Enter Intervention"
-                      onChange={handleChange}
-                    />
-                  </div>
-
-                  {/* Amount */}
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">Amount</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      name="amount"
-                      placeholder="Enter Amount"
                       onChange={handleChange}
                     />
                   </div>
@@ -66,19 +108,25 @@ const InterventionForm = () => {
                     <select
                       className="form-control"
                       name="status"
+                      value={formData.status}
                       onChange={handleChange}
                     >
                       <option value="">Select Status</option>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
+                      <option value="1">Active</option>
+                      <option value="0">Inactive</option>
                     </select>
                   </div>
 
                 </div>
 
+                {/* Submit Button */}
                 <div className="text-end mt-3">
-                  <button className="btn btn-primary">
-                    Save Intervention
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={loading}
+                  >
+                    {loading ? "Saving..." : "Save Intervention"}
                   </button>
                 </div>
 

@@ -1,119 +1,185 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Col, Card, Table } from "react-bootstrap";
 import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
 
 const InterventionList = () => {
+  const [interventions, setInterventions] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-    const interventions = [
-        { id: 1, intervention: "Solar Maintenance", amount: "50000", status: "Active" },
-        { id: 2, intervention: "Panel Cleaning", amount: "15000", status: "Active" },
-        { id: 3, intervention: "Repair Work", amount: "25000", status: "Inactive" },
-        { id: 4, intervention: "Inspection", amount: "10000", status: "Active" },
-        { id: 5, intervention: "Upgrade", amount: "70000", status: "Inactive" }
-    ];
+  /* PAGINATION */
+  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
 
-    const columns = [
-        { label: "Intervention", key: "intervention" },
-        { label: "Amount", key: "amount" },
-        { label: "Status", key: "status" }
-    ];
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
 
-    /* PAGINATION */
-    const itemsPerPage = 10;
-    const [currentPage, setCurrentPage] = useState(1);
+  const currentData = interventions.slice(indexOfFirst, indexOfLast);
 
-    const indexOfLast = currentPage * itemsPerPage;
-    const indexOfFirst = indexOfLast - itemsPerPage;
+  // ✅ FETCH DATA
+  const fetchInterventions = async () => {
+    try {
+      setLoading(true);
 
-    const currentData = interventions.slice(indexOfFirst, indexOfLast);
+      const token = localStorage.getItem("token");
 
-    return (
-        <>
-            <PageTitle activeMenu="Intervention List" motherMenu="Intervention" />
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_API_URL}interventions/get-interventions`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-            <Col lg={12}>
-                <Card>
+      const data = await res.json();
 
-                    {/* SAME HEADER STYLE */}
-                    <Card.Header className="d-flex justify-content-between">
-                        <Card.Title>Intervention List</Card.Title>
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
 
-                        <TableExportActions
-                            data={interventions}
-                            columns={columns}
-                            fileName="Intervention_List"
-                        />
-                    </Card.Header>
+      setInterventions(data);
 
-                    <Card.Body>
+    } catch (error) {
+      console.error(error);
+      alert("Error fetching data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                        {/* SAME TABLE STYLE */}
-                        <Table responsive className="text-nowrap">
+  // ✅ DELETE
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure to delete?")) return;
 
-                            <thead>
-                                <tr>
-                                    <th>Sno</th>
-                                    <th>Intervention</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
-                                    <th className="text-end">Action</th>
-                                </tr>
-                            </thead>
+    try {
+      const token = localStorage.getItem("token");
 
-                            <tbody>
-                                {currentData.map((item, index) => (
-                                    <tr key={item.id}>
-                                        <td>{indexOfFirst + index + 1}</td>
-                                        <td>{item.intervention}</td>
-                                        <td>₹ {item.amount}</td>
-                                        <td>
-                                            <div className="d-flex align-items-center">
-                                                <i
-                                                    className={`fa fa-circle me-1 ${item.status === "Active"
-                                                        ? "text-success"
-                                                        : "text-danger"
-                                                        }`}
-                                                ></i>
-                                                {item.status}
-                                            </div>
-                                        </td>
+      const res = await fetch(
+        `http://localhost:5001/api/interventions/delete/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
+      const data = await res.json();
 
-                                        <td>
-                                            <div className="d-flex justify-content-end align-items-center gap-2">
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
 
-                                                <button className="btn btn-primary shadow btn-xs sharp">
-                                                    <i className="fas fa-pencil-alt"></i>
-                                                </button>
+      alert("Deleted successfully ✅");
 
-                                                <button className="btn btn-danger shadow btn-xs sharp">
-                                                    <i className="fa fa-trash"></i>
-                                                </button>
+      // refresh list
+      fetchInterventions();
 
-                                            </div>
-                                        </td>
+    } catch (error) {
+      console.error(error);
+      alert("Delete failed");
+    }
+  };
 
-                                    </tr>
-                                ))}
-                            </tbody>
+  useEffect(() => {
+    fetchInterventions();
+  }, []);
 
-                        </Table>
+  const columns = [
+    { label: "Intervention", key: "name" },
+    { label: "Status", key: "status" }
+  ];
 
-                        {/* SAME PAGINATION */}
-                        <Pagination
-                            totalItems={interventions.length}
-                            itemsPerPage={itemsPerPage}
-                            currentPage={currentPage}
-                            onPageChange={setCurrentPage}
-                        />
+  return (
+    <>
+      <PageTitle activeMenu="Intervention List" motherMenu="Intervention" />
 
-                    </Card.Body>
-                </Card>
-            </Col>
-        </>
-    );
+      <Col lg={12}>
+        <Card>
+
+          <Card.Header className="d-flex justify-content-between">
+            <Card.Title>Intervention List</Card.Title>
+
+            <TableExportActions
+              data={interventions}
+              columns={columns}
+              fileName="Intervention_List"
+            />
+          </Card.Header>
+
+          <Card.Body>
+
+            {loading ? (
+              <p>Loading...</p>
+            ) : (
+              <Table responsive className="text-nowrap">
+                <thead>
+                  <tr>
+                    <th>Sno</th>
+                    <th>Intervention</th>
+                    <th>Status</th>
+                    <th className="text-end">Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {currentData.map((item, index) => (
+                    <tr key={item.id}>
+                      <td>{indexOfFirst + index + 1}</td>
+
+                      <td>{item.name}</td>
+
+                      <td>
+                        <div className="d-flex align-items-center">
+                          <i
+                            className={`fa fa-circle me-1 ${
+                              item.status ? "text-success" : "text-danger"
+                            }`}
+                          ></i>
+                          {item.status ? "Active" : "Inactive"}
+                        </div>
+                      </td>
+
+                      <td>
+                        <div className="d-flex justify-content-end gap-2">
+
+                          {/* EDIT */}
+                          <button className="btn btn-primary shadow btn-xs sharp">
+                            <i className="fas fa-pencil-alt"></i>
+                          </button>
+
+                          {/* DELETE */}
+                          <button
+                            className="btn btn-danger shadow btn-xs sharp"
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            <i className="fa fa-trash"></i>
+                          </button>
+
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+
+            <Pagination
+              totalItems={interventions.length}
+              itemsPerPage={itemsPerPage}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
+
+          </Card.Body>
+        </Card>
+      </Col>
+    </>
+  );
 };
 
 export default InterventionList;
