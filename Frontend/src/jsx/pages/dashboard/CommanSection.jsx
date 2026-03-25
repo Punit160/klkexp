@@ -10,37 +10,37 @@ function Dashboard() {
 	return (
 		<>
 
-			
-<div className="page-head">
-	<div className="row align-items-center">
-		
-		<div className="col-sm-6 mb-sm-4 mb-3">
-			<h3 className="mb-0">Good Morning, SuperAdmin.</h3>
-			<p className="mb-0">
-				Here’s what’s happening with your store today
-			</p>
-		</div>
 
-		<div className="col-sm-6 mb-4 text-sm-end">
-			<div className="d-inline-flex align-items-center gap-2">
+			<div className="page-head">
+				<div className="row align-items-center">
 
-				<select className="form-select w-auto">
-					<option value="">Select Financial Year</option>
-					<option value="2025-26">2025 - 2026</option>
-					<option value="2024-25">2024 - 2025</option>
-					<option value="2023-24">2023 - 2024</option>
-					<option value="2022-23">2022 - 2023</option>
-				</select>
+					<div className="col-sm-6 mb-sm-4 mb-3">
+						<h3 className="mb-0">Good Morning, SuperAdmin.</h3>
+						<p className="mb-0">
+							Here’s what’s happening with your store today
+						</p>
+					</div>
 
-				<Link to="/add-expense" className="btn btn-primary">
-					+ Add Expense
-				</Link>
+					<div className="col-sm-6 mb-4 text-sm-end">
+						<div className="d-inline-flex align-items-center gap-2">
 
+							<select className="form-select w-auto">
+								<option value="">Select Financial Year</option>
+								<option value="2025-26">2025 - 2026</option>
+								<option value="2024-25">2024 - 2025</option>
+								<option value="2023-24">2023 - 2024</option>
+								<option value="2022-23">2022 - 2023</option>
+							</select>
+
+							<Link to="/add-expense" className="btn btn-primary">
+								+ Add Expense
+							</Link>
+
+						</div>
+					</div>
+
+				</div>
 			</div>
-		</div>
-
-	</div>
-</div>
 
 			<div className="row">
 				{/* Total Expense */}
