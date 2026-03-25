@@ -71,6 +71,7 @@ const EmployeeList = () => {
                 { label: "Email", key: "email" },
                 { label: "Phone", key: "phone_no" },
                 { label: "Designation", key: "designation" },
+                { label: "Reporting Head", key: "reporting_head" },
                 { label: "Status", key: "status" },
               ]}
               fileName="Employee_List"
@@ -86,7 +87,7 @@ const EmployeeList = () => {
                   <th>Email</th>
                   <th>Phone</th>
                   <th>Designation</th>
-                  <th>Manager</th>
+                  <th>Reporting Head</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
