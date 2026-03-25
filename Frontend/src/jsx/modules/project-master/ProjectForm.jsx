@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import PageTitle from "../../layouts/PageTitle";
+import { createProject } from "./projectApi";
+import { useNavigate } from "react-router-dom";
 
 const ProjectMasterForm = () => {
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     project_name: "",
@@ -13,9 +16,8 @@ const ProjectMasterForm = () => {
     contact_person_number: "",
     mou: null,
     manager_id: "",
-    description:"",
-    projectStatus: ""
-
+    description: "",
+    projectStatus: "",
   });
 
   const handleChange = (e) => {
@@ -29,69 +31,44 @@ const ProjectMasterForm = () => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const form = new FormData();
+    try {
+      const form = new FormData();
 
-    form.append("project_name", formData.project_name);
-    form.append("start_date", formData.start_date);
-    form.append("end_date", formData.end_date);
-    form.append("financial_year", formData.financial_year);
-    form.append("funder_name", formData.funder_name);
-    form.append("contact_person", formData.contact_person);
-    form.append("contact_person_number", formData.contact_person_number);
-    form.append("manager_id", formData.manager_id);
-    form.append("description", formData.description);
+      form.append("project_name", formData.project_name);
+      form.append("start_date", formData.start_date);
+      form.append("end_date", formData.end_date);
+      form.append("financial_year", formData.financial_year);
+      form.append("funder_name", formData.funder_name);
+      form.append("contact_person", formData.contact_person);
+      form.append("contact_person_number", formData.contact_person_number);
+      form.append("manager_id", formData.manager_id);
+      form.append("description", formData.description);
+      form.append("status", formData.projectStatus === "Ongoing" ? 1 : 0);
 
-    // ✅ convert status to backend boolean (1/0)
-    form.append("projectStatus", formData.projectStatus === "Ongoing" ? 1 : 0);
+      if (formData.mou) {
+        form.append("mou", formData.mou);
+      }
 
-    // 📄 file
-    if (formData.mou) {
-      form.append("mou", formData.mou);
+      const data = await createProject(form);
+
+      // Backend success === false hone par hi error
+      if (data?.success === false) {
+        alert(data.message || "Something went wrong");
+        return;
+      }
+
+      alert("Project created successfully ");
+      navigate("/project-list");
+
+    } catch (error) {
+      console.error(error);
+      alert("Error creating project");
     }
-
-      const token = localStorage.getItem("token");
-      
-      console.log("TOKEN:", token);
-    
-      const response = await fetch(
-  
-        `${import.meta.env.VITE_BACKEND_API_URL}projects/create-project`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: form,
-        }
-      );
-
-    
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      alert(data.message || "Something went wrong");
-      return;
-    }
-
-    alert("Project created successfully ✅");
-
-    console.log(data);
-
-  } catch (error) {
-    console.error(error);
-    alert("Error creating project");
-  }
-};
+  };
 
   return (
-
-  
-
-
     <>
       <PageTitle activeMenu="Project Master Form" motherMenu="Project Master" />
 
@@ -104,7 +81,6 @@ const ProjectMasterForm = () => {
             </div>
 
             <div className="card-body">
-
               <form onSubmit={handleSubmit}>
                 <div className="row">
 
@@ -192,7 +168,6 @@ const ProjectMasterForm = () => {
                       type="file"
                       className="form-control"
                       name="mou"
-                      value={formData.contact_personmou_number}
                       onChange={handleChange}
                     />
                   </div>
@@ -224,28 +199,28 @@ const ProjectMasterForm = () => {
                   </div>
 
                   <div className="col-md-12 mb-3">
-                  <label className="form-label">Description</label>
-                  <textarea
-                    className="form-control"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    rows={4} 
-                    maxLength={150}
-                  ></textarea>
-                </div>
+                    <label className="form-label">Description</label>
+                    <textarea
+                      className="form-control"
+                      name="description"
+                      value={formData.description}
+                      onChange={handleChange}
+                      rows={4}
+                      maxLength={150}
+                    />
+                  </div>
 
                 </div>
 
                 <div className="text-end mt-3">
-                  <button className="btn btn-primary">
+                  <button type="submit" className="btn btn-primary">
                     Save Project
                   </button>
                 </div>
 
               </form>
-
             </div>
+
           </div>
         </div>
       </div>

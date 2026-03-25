@@ -11,12 +11,14 @@ import 'lightgallery/css/lg-thumbnail.css';
 import "nouislider/distribute/nouislider.css"; 
 import "react-range-slider-input/dist/style.css";
 import "react-datepicker/dist/react-datepicker.css"; 
-
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 function App() {
 
   return (
     <>
       <Markup/>
+      <ToastContainer position="top-right" autoClose={3000} />
     </>
   )
 }

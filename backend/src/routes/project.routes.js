@@ -7,7 +7,7 @@ const router = express.Router()
 router.post("/create-project", upload.single("mou"), createProject);
 router.get("/get-projects", getProjects);
 router.get("/fetch-project/:id", getProjectById);
-router.put("/fetch-project/:id", upload.single("mou"), updateProject);
+router.put("/update-project/:id", upload.single("mou"), updateProject);
 router.delete("/delete-project/:id", deleteProject);
 
 export default router

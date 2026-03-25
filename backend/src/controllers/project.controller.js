@@ -90,8 +90,8 @@ export const getProjects = async (req, res) => {
           { funder_name: { contains: search } },
         ],
       },
-      skip: (page - 1) * limit,
-      take: limit,
+      // skip: (page - 1) * limit,
+      // take: limit,
       orderBy: {
         created_at: "desc",
       },
@@ -109,7 +109,7 @@ export const getProjects = async (req, res) => {
     return res.json({
       total,
       page,
-      limit,
+      // limit,
       data: projects,
     });
 
@@ -182,7 +182,8 @@ export const updateProject = async (req, res) => {
         contact_person,
         contact_person_number,
         mou,
-        status,
+        // ✅ String "true"/"1" → Boolean
+        status: status === "true" || status === true || status === 1 || status === "1",
       },
     });
 
