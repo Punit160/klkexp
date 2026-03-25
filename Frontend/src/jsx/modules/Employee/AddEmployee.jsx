@@ -63,7 +63,7 @@ const AddEmployee = () => {
       data.append("doj", formData.doj);
       data.append("dol", formData.dol);
       data.append("ctc", formData.ctc);
-      data.append("phone_no", formData.phone);
+      data.append("phone", formData.phone);
       data.append("designation", formData.designation);
       data.append("dob", formData.dob);
       data.append("gender", formData.gender);

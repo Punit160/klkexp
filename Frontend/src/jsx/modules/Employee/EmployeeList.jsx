@@ -120,17 +120,15 @@ const EmployeeList = () => {
                       <td>{emp.phone_no || "N/A"}</td>
                       <td>{emp.designation || "N/A"}</td>
                        <td>{emp.reporting_head || "N/A"}</td>
-
                       <td>
                         <div className="d-flex align-items-center">
                           <i
                             className={`fa fa-circle me-1 ${
-                              emp.status == "1"
-                                ? "text-success"
-                                : "text-danger"
+                              emp.status == 1 ? "text-success" : "text-danger"
                             }`}
                           ></i>
-                          {emp.status || "Inactive"}
+
+                          {emp.status == 1 ? "Active" : "Inactive"}
                         </div>
                       </td>
 
