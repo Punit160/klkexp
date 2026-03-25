@@ -20,7 +20,7 @@ const AddEmployee = () => {
     dob: "",
     gender: "",
     qualification: "",
-    status: "1",  //   Default Active
+    status: "1",  
     photo: null,
   });
 
@@ -91,13 +91,13 @@ const AddEmployee = () => {
           dob: "",
           gender: "",
           qualification: "",
-          status: "1",  //   Default Active
+          status: "1",  
           photo: null,
         });
         setPreview(null);
         navigate("/employee-List");
       } else {
-        alert(result.message || "Error occurred ❌");
+        alert(result.message || "Error occurred ");
       }
     } catch (error) {
       console.error("Submit Error:", error);

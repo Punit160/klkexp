@@ -13,7 +13,7 @@ const EmployeeList = () => {
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
-  const location = useLocation(); 
+  const location = useLocation();
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -30,7 +30,7 @@ const EmployeeList = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [location.state]); 
+  }, [location.state]);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this employee?")) return;
@@ -101,15 +101,25 @@ const EmployeeList = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           <img
-                            src={
-                              emp.user_img
-                                ? `${import.meta.env.VITE_BACKEND_API_URL}uploads/${emp.user_img}?t=${Date.now()}`
-                                : avatar1
-                            }
+                        src={
+  emp.user_img
+    ? `${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${emp.user_img}`
+    : avatar1
+}
                             className="rounded-lg me-2"
                             width="30"
                             alt=""
                           />
+
+                          <img
+// src={
+//   emp.user_img
+//     ? `${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${emp.user_img}`
+//     : avatar1
+// }
+/>
+
+
                           <span>{emp.username || "N/A"}</span>
                         </div>
                       </td>
@@ -122,9 +132,8 @@ const EmployeeList = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           <i
-                            className={`fa fa-circle me-1 ${
-                              emp.status ? "text-success" : "text-danger"
-                            }`}
+                            className={`fa fa-circle me-1 ${emp.status ? "text-success" : "text-danger"
+                              }`}
                           ></i>
                           {emp.status ? "Active" : "Inactive"}
                         </div>
