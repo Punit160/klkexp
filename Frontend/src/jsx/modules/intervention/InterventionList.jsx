@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Col, Card, Table } from "react-bootstrap";
+import { Link } from "react-router-dom";
 import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
@@ -14,14 +15,12 @@ const InterventionList = () => {
 
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
-
   const currentData = interventions.slice(indexOfFirst, indexOfLast);
 
-  // ✅ FETCH DATA
+  // FETCH DATA
   const fetchInterventions = async () => {
     try {
       setLoading(true);
-
       const token = localStorage.getItem("token");
 
       const res = await fetch(
@@ -41,7 +40,6 @@ const InterventionList = () => {
       }
 
       setInterventions(data);
-
     } catch (error) {
       console.error(error);
       alert("Error fetching data");
@@ -50,15 +48,15 @@ const InterventionList = () => {
     }
   };
 
-  // ✅ DELETE
+  // DELETE (Fixed URL)
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure to delete?")) return;
+    if (!window.confirm("Are you sure to delete this intervention?")) return;
 
     try {
       const token = localStorage.getItem("token");
 
       const res = await fetch(
-        `http://localhost:5001/api/interventions/delete/${id}`,
+        `${import.meta.env.VITE_BACKEND_API_URL}interventions/delete-intervention/${id}`,
         {
           method: "DELETE",
           headers: {
@@ -74,11 +72,8 @@ const InterventionList = () => {
         return;
       }
 
-      alert("Deleted successfully ✅");
-
-      // refresh list
-      fetchInterventions();
-
+      alert("Deleted successfully ");
+      fetchInterventions(); 
     } catch (error) {
       console.error(error);
       alert("Delete failed");
@@ -91,7 +86,7 @@ const InterventionList = () => {
 
   const columns = [
     { label: "Intervention", key: "name" },
-    { label: "Status", key: "status" }
+    { label: "Status", key: "status" },
   ];
 
   return (
@@ -100,21 +95,22 @@ const InterventionList = () => {
 
       <Col lg={12}>
         <Card>
-
           <Card.Header className="d-flex justify-content-between">
             <Card.Title>Intervention List</Card.Title>
-
-            <TableExportActions
-              data={interventions}
-              columns={columns}
-              fileName="Intervention_List"
-            />
+            <div>
+              <TableExportActions
+                data={interventions}
+                columns={columns}
+                fileName="Intervention_List"
+              />
+            </div>
           </Card.Header>
 
           <Card.Body>
-
             {loading ? (
-              <p>Loading...</p>
+              <p className="text-center">Loading...</p>
+            ) : interventions.length === 0 ? (
+              <p className="text-center text-muted">No interventions found</p>
             ) : (
               <Table responsive className="text-nowrap">
                 <thead>
@@ -130,36 +126,35 @@ const InterventionList = () => {
                   {currentData.map((item, index) => (
                     <tr key={item.id}>
                       <td>{indexOfFirst + index + 1}</td>
-
                       <td>{item.name}</td>
-
                       <td>
                         <div className="d-flex align-items-center">
                           <i
-                            className={`fa fa-circle me-1 ${
-                              item.status ? "text-success" : "text-danger"
-                            }`}
+                            className={`fa fa-circle me-1 ${item.status ? "text-success" : "text-danger"
+                              }`}
                           ></i>
                           {item.status ? "Active" : "Inactive"}
                         </div>
                       </td>
-
                       <td>
                         <div className="d-flex justify-content-end gap-2">
-
-                          {/* EDIT */}
-                          <button className="btn btn-primary shadow btn-xs sharp">
+                        
+                          <Link
+                            to={`/intervention-form?id=${item.id}`}  
+                            className="btn btn-primary shadow btn-xs sharp"
+                            title="Edit"
+                          >
                             <i className="fas fa-pencil-alt"></i>
-                          </button>
+                          </Link>
 
                           {/* DELETE */}
                           <button
                             className="btn btn-danger shadow btn-xs sharp"
                             onClick={() => handleDelete(item.id)}
+                            title="Delete"
                           >
                             <i className="fa fa-trash"></i>
                           </button>
-
                         </div>
                       </td>
                     </tr>
@@ -174,7 +169,6 @@ const InterventionList = () => {
               currentPage={currentPage}
               onPageChange={setCurrentPage}
             />
-
           </Card.Body>
         </Card>
       </Col>
