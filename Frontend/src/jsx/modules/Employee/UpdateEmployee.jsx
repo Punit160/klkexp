@@ -21,7 +21,7 @@ const UpdateEmployee = () => {
     dob: "",
     gender: "",
     qualification: "",
-    status: "1", // default Active
+    status: "1", 
     photo: null,
   });
 
@@ -55,6 +55,7 @@ const UpdateEmployee = () => {
         if (data.user_img) {
           setPreview(`${import.meta.env.VITE_BACKEND_API_URL}uploads/${data.user_img}`);
         }
+      // eslint-disable-next-line no-unused-vars
       } catch (err) {
         alert("Failed to fetch employee");
       }
@@ -88,7 +89,6 @@ const handleSubmit = async (e) => {
             data.append("user_img", value);
             break;
 
-          // ✅ IMPORTANT: send SAME keys as backend expects
           case "empName":
             data.append("empName", value);
             break;
@@ -106,7 +106,7 @@ const handleSubmit = async (e) => {
             break;
 
           case "status":
-            data.append("status", value); // send "1" or "0"
+            data.append("status", value); 
             break;
 
           case "ctc":
@@ -122,15 +122,15 @@ const handleSubmit = async (e) => {
     const { ok, result } = await updateEmployee(id, data);
 
     if (ok) {
-      alert("Employee updated successfully ✅");
+      alert("Employee updated successfully");
      navigate("/employee-List", { state: { updated: true } });
     } else {
-      alert(result.message || "Update failed ❌");
+      alert(result.message || "Update failed");
     }
 
   } catch (error) {
     console.error(error);
-    alert("Update failed ❌");  
+    alert("Update failed ");  
   } finally {
     setLoading(false);
   }

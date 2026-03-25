@@ -13,9 +13,8 @@ const EmployeeList = () => {
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
-  const location = useLocation(); // ✅ important
+  const location = useLocation(); 
 
-  // 🔥 FETCH USERS
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -29,25 +28,23 @@ const EmployeeList = () => {
     }
   };
 
-  // ✅ REFRESH AFTER UPDATE
   useEffect(() => {
     fetchUsers();
-  }, [location.state]); // 🔥 THIS IS MAIN FIX
+  }, [location.state]); 
 
-  // 🔥 DELETE
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this employee?")) return;
 
     const { ok, result } = await deleteEmployee(id);
     if (ok) {
-      alert("Employee deleted ✅");
+      alert("Employee deleted ");
       fetchUsers();
     } else {
-      alert(result.message || "Failed ❌");
+      alert(result.message || "Failed ");
     }
   };
 
-  // 🔥 PAGINATION
+  // PAGINATION
   const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
 

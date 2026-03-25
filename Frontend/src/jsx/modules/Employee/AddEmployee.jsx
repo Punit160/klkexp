@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { Card, Col } from "react-bootstrap";
 import PageTitle from "../../layouts/PageTitle";
 import { useNavigate } from "react-router-dom";
+import { createEmployee } from "./employeeApi"; 
 
 const AddEmployee = () => {
   const navigate = useNavigate();
@@ -18,21 +20,20 @@ const AddEmployee = () => {
     dob: "",
     gender: "",
     qualification: "",
-    status: "",
+    status: "1",  //   Default Active
     photo: null,
   });
 
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Handle input change
+  //   Handle input change
   const handleChange = (e) => {
     const { name, value, files } = e.target;
 
     if (name === "photo") {
       const file = files[0];
       setFormData({ ...formData, photo: file });
-
       if (file) {
         setPreview(URL.createObjectURL(file));
       }
@@ -41,7 +42,7 @@ const AddEmployee = () => {
     }
   };
 
-  // ✅ Submit form
+  //   Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -54,8 +55,6 @@ const AddEmployee = () => {
       setLoading(true);
 
       const data = new FormData();
-
-      // ✅ FIELD MAPPING (IMPORTANT)
       data.append("empName", formData.empName);
       data.append("empEmail", formData.empEmail);
       data.append("password", formData.password);
@@ -69,33 +68,16 @@ const AddEmployee = () => {
       data.append("gender", formData.gender);
       data.append("qualification", formData.qualification);
       data.append("status", formData.status);
-
       if (formData.photo) {
-        data.append("photo", formData.photo);
+        data.append("user_img", formData.photo); 
       }
 
-      const token = localStorage.getItem("token");
-      
-      console.log("TOKEN:", token);
+      //  
+      const { ok, result } = await createEmployee(data);
 
-      const response = await fetch(
-  
-        `${import.meta.env.VITE_BACKEND_API_URL}users/create-user`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: data,
-        }
-      );
+      if (ok) {
+        alert("Employee added successfully  ");
 
-      const result = await response.json();
-
-      if (response.ok) {
-        alert("Employee added successfully ✅");
-
-        // Reset form
         setFormData({
           empName: "",
           empEmail: "",
@@ -109,21 +91,18 @@ const AddEmployee = () => {
           dob: "",
           gender: "",
           qualification: "",
-          status: "",
+          status: "1",  //   Default Active
           photo: null,
         });
-
         setPreview(null);
-
-        // ✅ Redirect
         navigate("/employee-List");
       } else {
         alert(result.message || "Error occurred ❌");
       }
     } catch (error) {
-  console.log("FULL ERROR:", error);
-  alert({message : error.message});
-} finally {
+      console.error("Submit Error:", error);
+      alert(error.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -132,23 +111,23 @@ const AddEmployee = () => {
     <>
       <PageTitle activeMenu="Add Employee" motherMenu="Employee" />
 
-      <div className="container-fluid">
-        <div className="card shadow-sm">
-          <div className="card-header">
-            <h4 className="card-title">Add Employee</h4>
-          </div>
+      <Col lg={12}>
+        <Card>
+          <Card.Header>
+            <Card.Title>Add Employee</Card.Title>
+          </Card.Header>
 
-          <div className="card-body">
+          <Card.Body>
             <form onSubmit={handleSubmit}>
               <div className="row">
 
-                {/* Name */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Employee Name *</label>
+                {/* Employee Name */}
+                <div className="col-lg-6 mb-3">
+                  <label>Employee Name *</label>
                   <input
                     type="text"
-                    className="form-control"
                     name="empName"
+                    className="form-control"
                     value={formData.empName}
                     onChange={handleChange}
                     placeholder="Enter employee name"
@@ -156,12 +135,12 @@ const AddEmployee = () => {
                 </div>
 
                 {/* Email */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Email *</label>
+                <div className="col-lg-6 mb-3">
+                  <label>Email *</label>
                   <input
                     type="email"
-                    className="form-control"
                     name="empEmail"
+                    className="form-control"
                     value={formData.empEmail}
                     onChange={handleChange}
                     placeholder="Enter email"
@@ -169,12 +148,12 @@ const AddEmployee = () => {
                 </div>
 
                 {/* Password */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Password *</label>
+                <div className="col-lg-6 mb-3">
+                  <label>Password *</label>
                   <input
                     type="password"
-                    className="form-control"
                     name="password"
+                    className="form-control"
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="Enter password"
@@ -182,169 +161,175 @@ const AddEmployee = () => {
                 </div>
 
                 {/* Reporting Head */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Reporting Head</label>
+                <div className="col-lg-6 mb-3">
+                  <label>Reporting Head</label>
                   <input
                     type="text"
-                    className="form-control"
                     name="reportingHead"
+                    className="form-control"
                     value={formData.reportingHead}
                     onChange={handleChange}
-                  />
-                </div>
-
-                {/* Joining Date */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Joining Date</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    name="doj"
-                    value={formData.doj}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                {/* Leaving Date */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Leaving Date</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    name="dol"
-                    value={formData.dol}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                {/* CTC */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">CTC</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    name="ctc"
-                    value={formData.ctc}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                {/* Phone */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Phone</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
+                    placeholder="Enter reporting head"
                   />
                 </div>
 
                 {/* Designation */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Designation</label>
+                <div className="col-lg-6 mb-3">
+                  <label>Designation</label>
                   <input
                     type="text"
-                    className="form-control"
                     name="designation"
+                    className="form-control"
                     value={formData.designation}
                     onChange={handleChange}
+                    placeholder="Enter designation"
                   />
                 </div>
 
-                {/* DOB */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Date of Birth</label>
+                {/* Phone */}
+                <div className="col-lg-6 mb-3">
+                  <label>Phone</label>
+                  <input
+                    type="text"
+                    name="phone"
+                    className="form-control"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="Enter phone number"
+                  />
+                </div>
+
+                {/* Date of Birth */}
+                <div className="col-lg-6 mb-3">
+                  <label>Date of Birth</label>
                   <input
                     type="date"
-                    className="form-control"
                     name="dob"
+                    className="form-control"
                     value={formData.dob}
                     onChange={handleChange}
                   />
                 </div>
 
                 {/* Gender */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Gender</label>
+                <div className="col-lg-6 mb-3">
+                  <label>Gender</label>
                   <select
-                    className="form-control"
                     name="gender"
+                    className="form-control"
                     value={formData.gender}
                     onChange={handleChange}
                   >
-                    <option value="">Select</option>
+                    <option value="">Select Gender</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
                 </div>
 
-                {/* Qualification */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Qualification</label>
+                {/* Joining Date */}
+                <div className="col-lg-6 mb-3">
+                  <label>Joining Date</label>
                   <input
-                    type="text"
+                    type="date"
+                    name="doj"
                     className="form-control"
-                    name="qualification"
-                    value={formData.qualification}
+                    value={formData.doj}
                     onChange={handleChange}
                   />
                 </div>
 
-                {/* Photo */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Photo</label>
+                {/* Leaving Date */}
+                <div className="col-lg-6 mb-3">
+                  <label>Leaving Date</label>
+                  <input
+                    type="date"
+                    name="dol"
+                    className="form-control"
+                    value={formData.dol}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                {/* CTC */}
+                <div className="col-lg-6 mb-3">
+                  <label>CTC</label>
+                  <input
+                    type="number"
+                    name="ctc"
+                    className="form-control"
+                    value={formData.ctc}
+                    onChange={handleChange}
+                    placeholder="Enter CTC"
+                  />
+                </div>
+
+                {/* Qualification */}
+                <div className="col-lg-6 mb-3">
+                  <label>Qualification</label>
+                  <input
+                    type="text"
+                    name="qualification"
+                    className="form-control"
+                    value={formData.qualification}
+                    onChange={handleChange}
+                    placeholder="Enter qualification"
+                  />
+                </div>
+
+                {/* Status */}
+                <div className="col-lg-6 mb-3">
+                  <label>Status</label>
+                  <select
+                    name="status"
+                    className="form-control"
+                    value={formData.status}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select Status</option>
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                  </select>
+                </div>
+
+                {/* Photo Upload */}
+                <div className="col-lg-6 mb-3">
+                  <label>Photo</label>
                   <input
                     type="file"
-                    className="form-control"
                     name="photo"
+                    className="form-control"
                     onChange={handleChange}
                   />
                   {preview && (
                     <img
                       src={preview}
                       alt="preview"
-                      style={{ width: "100px", marginTop: "10px" }}
+                      style={{ width: "100px", marginTop: "10px", borderRadius: "6px" }}
                     />
                   )}
                 </div>
 
-                {/* Status */}
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Status</label>
-                  <select
-                    className="form-control"
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
+                {/* Submit Button */}
+                <div className="text-end mt-2">
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={
+                      loading ||
+                      !formData.empName ||
+                      !formData.empEmail ||
+                      !formData.password
+                    }
                   >
-                    <option value="">Select</option>
-                    <option value="0">Active</option>
-                    <option value="1">Inactive</option>
-                  </select>
+                    {loading ? "Saving..." : "Save Employee"}
+                  </button>
                 </div>
 
               </div>
-
-              <div className="text-end mt-3">
-                <button
-                  className="btn btn-primary"
-                  disabled={
-                    loading ||
-                    !formData.empName ||
-                    !formData.empEmail ||
-                    !formData.password
-                  }
-                >
-                  {loading ? "Saving..." : "Save Employee"}
-                </button>
-              </div>
-
             </form>
-          </div>
-        </div>
-      </div>
+          </Card.Body>
+        </Card>
+      </Col>
     </>
   );
 };

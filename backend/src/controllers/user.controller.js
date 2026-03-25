@@ -4,7 +4,7 @@ import path from "path";
 
 const prisma = new PrismaClient();
 
-// ✅ CREATE EMPLOYEE
+//  CREATE EMPLOYEE
 export const createUser = async (req, res) => {
   try {
     const {
@@ -23,7 +23,7 @@ export const createUser = async (req, res) => {
       status,
     } = req.body;
 
-    // ✅ FROM JWT (FIXED)
+    //  FROM JWT (FIXED)
     const company_id = req.user.company_id;
     const created_by =  req.user.email;
     console.log(company_id, created_by);
@@ -62,20 +62,20 @@ export const createUser = async (req, res) => {
     });
 
     res.status(201).json({
-      message: "Employee created successfully ✅",
+      message: "Employee created successfully",
       employee,
     });
 
   } catch (error) {
     console.error(error);
     res.status(500).json({
-      message: "Server error ❌",
+      message: "Server error ",
     });
   }
 };
 
 
-// ✅ GET ALL USERS
+//  GET ALL USERS
 export const getAllUsers = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
@@ -91,7 +91,7 @@ export const getAllUsers = async (req, res) => {
 
 
 
-// ✅ GET SINGLE USER
+//  GET SINGLE USER
 export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -175,7 +175,7 @@ export const updateUser = async (req, res) => {
       updatedData.status = parsedStatus;
     }
 
-    // ✅ image update
+    //  image update
     if (req.file) {
       updatedData.user_img = req.file.filename;
     }
@@ -203,7 +203,7 @@ export const updateUser = async (req, res) => {
 
 
 
-// ✅ DELETE USER
+//  DELETE USER
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -244,13 +244,13 @@ export const deleteUser = async (req, res) => {
 
 
 
-// ✅ OPTIONAL: CHANGE STATUS (ACTIVE / INACTIVE)
+//  OPTIONAL: CHANGE STATUS (ACTIVE / INACTIVE)
 export const changeUserStatus = async (req, res) => {
   try {
     const { id } = req.params;
     let { status } = req.body;
 
-    // ✅ Convert string to boolean if coming from frontend
+    //  Convert string to boolean if coming from frontend
     if (typeof status === "string") {
       status = status === "true";
     }
