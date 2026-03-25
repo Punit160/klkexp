@@ -36,6 +36,7 @@ import ReviewerList from "../modules/klk-emp-payment/ReviewerList";
 import AccountsList from "../modules/klk-emp-payment/AccountsList";
 import ManagerList from "../modules/klk-emp-payment/ManagerList";
 import AddExpense from "../modules/klk-emp-payment/AddExpense";
+import UpdateEmployee from "../modules/Employee/UpdateEmployee";
 
 const Markup = () => {
     const menu = [
@@ -44,8 +45,9 @@ const Markup = () => {
         { path: 'dashboard-dark', element: <DashboardDark /> },
 
 
-        { path: '/add-employee', element: <AddEmployee /> },
-        { path: '/employee-List', element: <EmployeeList /> },
+      { path: '/add-employee', element: <AddEmployee /> },
+{ path: '/employee-List', element: <EmployeeList /> },     
+{ path: '/update-employee/:id', element: <UpdateEmployee /> }, 
 
 
         { path: '/project-master', element: <ProjectMasterForm /> },

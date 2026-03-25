@@ -111,56 +111,61 @@ export const getUserById = async (req, res) => {
 };
 
 
+
+
+
 export const updateUser = async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const { id } = req.params;
+    const {
+      empName,
+      empEmail,
+      password,
+      reportingHead,
+      doj,
+      dol,
+      ctc,
+      phone,
+      designation,
+      gender,
+      status,
+      dob,
+      qualification,
+    } = req.body;
 
-    const existingUser = await prisma.user.findUnique({
+    const updatedData = {
+      username: empName,
+      email: empEmail,
+      password: password || undefined,
+      reporting_head: reportingHead,
+      doj: doj ? new Date(doj) : undefined,
+      dol: dol ? new Date(dol) : undefined,
+      ctc: ctc ? parseFloat(ctc) : undefined, // ✅ convert to number
+      phone_no: phone,
+      designation,
+      gender,
+      status,
+      dob: dob ? new Date(dob) : undefined,
+      qualification: qualification || undefined,
+      updated_at: new Date(),
+    };
+
+    // ✅ If file uploaded
+    if (req.file) updatedData.user_img = req.file.filename;
+
+    const user = await prisma.user.update({
       where: { id: Number(id) },
+      data: updatedData,
     });
 
-    if (!existingUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const updateData = { ...req.body };
-
-    // 🖼️ Handle new image upload
-    if (req.file) {
-      const newImageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-      updateData.user_img = newImageUrl;
-
-      if (existingUser.user_img) {
-        const oldImagePath = path.join(
-          process.cwd(),
-          "uploads",
-          existingUser.user_img.split("/uploads/")[1]
-        );
-
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
-      }
-    }
-
-    const updatedUser = await prisma.user.update({
-      where: { id: Number(id) },
-      data: updateData,
-    });
-
-    res.json({
-      message: "User updated successfully",
-      user: updatedUser,
-    });
-
-  } catch (error) {
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
-
-    res.status(500).json({ message: error.message });
+    res.json({ message: "User updated successfully ✅", data: user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
   }
 };
+
 
 
 // ✅ DELETE USER
