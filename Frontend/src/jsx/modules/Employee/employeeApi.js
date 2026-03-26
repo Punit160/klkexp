@@ -45,6 +45,7 @@ export const updateEmployee = async (id, formData) => {
         "Content-Type": "multipart/form-data",
       },
     });
+    
     return { ok: true, result: res.data };
   } catch (error) {
     console.error("Update Employee Error:", error.response || error);
@@ -77,5 +78,21 @@ export const deleteEmployee = async (id) => {
   } catch (error) {
     console.error("Delete Employee Error:", error.response || error);
     return { ok: false, result: error.response?.data || error.message };
+  }
+};
+
+
+
+// Get Reporting Heads for Dropdown
+export const getReportingHeads = async () => {
+  const token = localStorage.getItem("token");
+  try {
+    const res = await axios.get(`${BASE_URL}users/get-reporting-heads`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return { ok: true, result: res.data };
+  } catch (error) {
+    console.error("Get Reporting Heads Error:", error);
+    return { ok: false, result: [] };
   }
 };

@@ -75,11 +75,36 @@ export const createUser = async (req, res) => {
 };
 
 
-//  GET ALL USERS
 export const getAllUsers = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
+      where: {
+        company_id: req.user.company_id,
+      },
       orderBy: { created_at: "desc" },
+    });
+
+    res.json(users);
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+//  GET REPORTING HEADS (FOR DROPDOWN)
+export const getReportingHeads = async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        company_id: req.user.company_id,
+      },
+      orderBy: { username: "asc" },
+      select: {
+        id:true,
+        username: true,
+        email: true,
+      },
     });
 
     res.json(users);
@@ -95,6 +120,18 @@ export const getAllUsers = async (req, res) => {
 export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
+      // Reporting heads
+    const reportingHeads = await prisma.user.findMany({
+      where: {
+        company_id: req.user.company_id,
+      },
+      orderBy: { username: "asc" },
+      select: {
+        id:true,
+        username: true,
+        email: true,
+      },
+    });
 
     const user = await prisma.user.findUnique({
       where: { id: Number(id) },
@@ -103,13 +140,12 @@ export const getUserById = async (req, res) => {
     if (!user)
       return res.status(404).json({ message: "User not found" });
 
-    res.json(user);
+    res.json({ user, reportingHeads });
 
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 
 

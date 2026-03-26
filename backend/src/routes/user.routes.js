@@ -9,6 +9,7 @@ import {
   updateUser,
   deleteUser,
   changeUserStatus,
+   getReportingHeads,
 } from "../controllers/user.controller.js";
 
 const router = Router();
@@ -19,5 +20,7 @@ router.get("/fetch-user/:id", getUserById);
 router.put("/update-user/:id", upload.single("user_img"), updateUser);
 router.delete("/delete-user/:id", deleteUser);
 router.patch("/change/:id/status", changeUserStatus);
+router.get("/get-reporting-heads", getReportingHeads);
+ 
 
 export default router;

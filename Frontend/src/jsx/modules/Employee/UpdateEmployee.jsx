@@ -2,11 +2,16 @@ import React, { useEffect, useState } from "react";
 import { Col, Card } from "react-bootstrap";
 import PageTitle from "../../layouts/PageTitle";
 import { useNavigate, useParams } from "react-router-dom";
-import { getEmployeeById, updateEmployee } from "./employeeApi";
+import { getEmployeeById, updateEmployee, getReportingHeads } from "./employeeApi";
 
 const UpdateEmployee = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  const [reportingHeads, setReportingHeads] = useState([]);
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     empName: "",
@@ -21,43 +26,53 @@ const UpdateEmployee = () => {
     dob: "",
     gender: "",
     qualification: "",
-    status: "1", 
+    status: "1",
     photo: null,
   });
 
-  const [preview, setPreview] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-
-  // Fetch employee on mount
+  // Fetch Reporting Heads
   useEffect(() => {
+    const fetchReportingHeads = async () => {
+      const { ok, result } = await getReportingHeads();
+      if (ok) setReportingHeads(result);
+    };
+    fetchReportingHeads();
+  }, []);
+
+  // Fetch Employee by ID
+  useEffect(() => {
+    if (!id) return;
+
     const fetchEmployee = async () => {
       try {
-        const data = await getEmployeeById(id);
+        const res = await getEmployeeById(id);
+        // Handle nested response structure
+        const data = res?.data || res?.user || res?.result || res;
         setFormData({
-          empName: data.username || "",
-          empEmail: data.email || "",
-          password: "", // leave blank
-          reportingHead: data.reporting_head || "",
+          empName: data.username || data.empName || data.name || "",
+          empEmail: data.email || data.empEmail || "",
+          password: data.password || "",
+          reportingHead: data.reporting_head || data.reportingHead || "",
           doj: data.doj ? data.doj.split("T")[0] : "",
           dol: data.dol ? data.dol.split("T")[0] : "",
-          ctc: data.ctc || "",
-          phone: data.phone_no || "",
+          ctc: data.ctc !== undefined ? String(data.ctc) : "",
+          phone: data.phone_no || data.phone || "",
           designation: data.designation || "",
           dob: data.dob ? data.dob.split("T")[0] : "",
           gender: data.gender || "",
           qualification: data.qualification || "",
-        //   status: data.status === 1 ? "1" : "0",
-         status: "1",
+          status: data.status === true || data.status === 1 ? "1" : "0",
           photo: null,
         });
 
         if (data.user_img) {
-          setPreview(`${import.meta.env.VITE_BACKEND_API_URL}uploads/${data.user_img}`);
+          setPreview(
+            `${import.meta.env.VITE_BACKEND_API_URL}uploads/${data.user_img}`
+          );
         }
-      // eslint-disable-next-line no-unused-vars
       } catch (err) {
-        alert("Failed to fetch employee");
+        console.error("Fetch Employee Error:", err);
+        alert("Failed to fetch employee details");
       }
     };
 
@@ -75,66 +90,58 @@ const UpdateEmployee = () => {
     }
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-  try {
-    const data = new FormData();
+    try {
+      const data = new FormData();
 
-    Object.entries(formData).forEach(([key, value]) => {
-      if (value !== null && value !== "") {
-        switch (key) {
-          case "photo":
-            data.append("user_img", value);
-            break;
-
-          case "empName":
-            data.append("empName", value);
-            break;
-
-          case "empEmail":
-            data.append("empEmail", value);
-            break;
-
-          case "reportingHead":
-            data.append("reportingHead", value);
-            break;
-
-          case "phone":
-            data.append("phone", value);
-            break;
-
-          case "status":
-            data.append("status", value); 
-            break;
-
-          case "ctc":
-            data.append("ctc", value);
-            break;
-
-          default:
-            data.append(key, value);
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== null && value !== "") {
+          switch (key) {
+            case "photo":
+              data.append("user_img", value);
+              break;
+            case "empName":
+              data.append("empName", value);
+              break;
+            case "empEmail":
+              data.append("empEmail", value);
+              break;
+            case "reportingHead":
+              data.append("reportingHead", value);
+              break;
+            case "phone":
+              data.append("phone", value);
+              break;
+            case "status":
+              data.append("status", value);
+              break;
+            case "ctc":
+              data.append("ctc", value);
+              break;
+            default:
+              data.append(key, value);
+          }
         }
+      });
+
+      const { ok, result } = await updateEmployee(id, data);
+
+      if (ok) {
+        alert("Employee updated successfully");
+        navigate("/employee-List", { state: { updated: true } });
+      } else {
+        alert(result.message || "Update failed");
       }
-    });
-
-    const { ok, result } = await updateEmployee(id, data);
-
-    if (ok) {
-      alert("Employee updated successfully");
-     navigate("/employee-List", { state: { updated: true } });
-    } else {
-      alert(result.message || "Update failed");
+    } catch (error) {
+      console.error(error);
+      alert("Update failed");
+    } finally {
+      setLoading(false);
     }
-
-  } catch (error) {
-    console.error(error);
-    alert("Update failed ");  
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <>
@@ -147,35 +154,36 @@ const handleSubmit = async (e) => {
           <Card.Body>
             <form onSubmit={handleSubmit}>
               <div className="row">
+
                 {/* Employee Name */}
                 <div className="col-lg-6 mb-3">
-                  <label>Employee Name *</label>
+                  <label>Employee Name</label>
                   <input
                     type="text"
                     className="form-control"
                     name="empName"
                     value={formData.empName}
                     onChange={handleChange}
-                    required
                   />
                 </div>
 
                 {/* Email */}
                 <div className="col-lg-6 mb-3">
-                  <label>Email *</label>
+                  <label>Email</label>
                   <input
                     type="email"
                     className="form-control"
                     name="empEmail"
                     value={formData.empEmail}
                     onChange={handleChange}
-                    required
                   />
                 </div>
 
                 {/* Password */}
                 <div className="col-lg-6 mb-3">
-                  <label>Password <small>(leave blank to keep current)</small></label>
+                  <label>
+                    Password <small>(leave blank to keep current)</small>
+                  </label>
                   <div className="input-group">
                     <input
                       type={showPassword ? "text" : "password"}
@@ -188,23 +196,85 @@ const handleSubmit = async (e) => {
                     <button
                       type="button"
                       className="btn btn-outline-secondary"
-                      onClick={() => setShowPassword(prev => !prev)}
+                      onClick={() => setShowPassword((prev) => !prev)}
                     >
                       <i className={`fa ${showPassword ? "fa-eye-slash" : "fa-eye"}`} />
                     </button>
                   </div>
                 </div>
 
-                {/* Reporting Head */}
+                {/* Reporting Head Dropdown */}
                 <div className="col-lg-6 mb-3">
                   <label>Reporting Head</label>
-                  <input
-                    type="text"
+                  <select
                     className="form-control"
                     name="reportingHead"
                     value={formData.reportingHead}
                     onChange={handleChange}
+                  >
+                    <option value="">Select Reporting Head</option>
+                    {reportingHeads.map((head, index) => (
+                      <option key={index} value={head.username}>
+                        {head.username} ({head.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Designation */}
+                <div className="col-lg-6 mb-3">
+                  <label>Designation</label>
+                  <select
+                    name="designation"
+                    className="form-control"
+                    value={formData.designation}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select Designation</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Employee">Employee</option>
+                    <option value="Reviewer">Reviewer</option>
+                  </select>
+                </div>
+
+                {/* Phone */}
+                <div className="col-lg-6 mb-3">
+                  <label>Phone</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
                   />
+                </div>
+
+                {/* Date of Birth */}
+                <div className="col-lg-6 mb-3">
+                  <label>Date of Birth</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    name="dob"
+                    value={formData.dob}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                {/* Gender */}
+                <div className="col-lg-6 mb-3">
+                  <label>Gender</label>
+                  <select
+                    className="form-control"
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
                 </div>
 
                 {/* Joining Date */}
@@ -243,43 +313,16 @@ const handleSubmit = async (e) => {
                   />
                 </div>
 
-                {/* Phone */}
+                {/* Qualification */}
                 <div className="col-lg-6 mb-3">
-                  <label>Phone</label>
+                  <label>Qualification</label>
                   <input
                     type="text"
                     className="form-control"
-                    name="phone"
-                    value={formData.phone}
+                    name="qualification"
+                    value={formData.qualification}
                     onChange={handleChange}
                   />
-                </div>
-
-                {/* Designation */}
-                <div className="col-lg-6 mb-3">
-                  <label>Designation</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="designation"
-                    value={formData.designation}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                {/* Gender */}
-                <div className="col-lg-6 mb-3">
-                  <label>Gender</label>
-                  <select
-                    className="form-control"
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                  >
-                    <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
                 </div>
 
                 {/* Status */}
@@ -306,8 +349,15 @@ const handleSubmit = async (e) => {
                     accept="image/*"
                     onChange={handleChange}
                   />
-                  {preview && <img src={preview} alt="preview" style={{ width: "100px", marginTop: "10px" }} />}
+                  {preview && (
+                    <img
+                      src={preview}
+                      alt="preview"
+                      style={{ width: "100px", marginTop: "10px", borderRadius: "6px" }}
+                    />
+                  )}
                 </div>
+
               </div>
 
               <div className="text-end mt-3">
@@ -318,7 +368,11 @@ const handleSubmit = async (e) => {
                 >
                   Cancel
                 </button>
-                <button className="btn btn-primary" type="submit" disabled={loading}>
+                <button
+                  className="btn btn-primary"
+                  type="submit"
+                  disabled={loading}
+                >
                   {loading ? "Updating..." : "Update Employee"}
                 </button>
               </div>
