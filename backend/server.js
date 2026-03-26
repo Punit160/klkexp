@@ -10,6 +10,7 @@ import userRoutes from "./src/routes/user.routes.js";
 import loginRoutes from "./src/routes/auth/login.routes.js";
 import projectRoutes from "./src/routes/project.routes.js";
 import interventionRoutes from "./src/routes/intervention.routes.js";
+import expenseRoutes from "./src/routes/expense.routes.js"
 
 
 
@@ -24,7 +25,7 @@ app.use(
   cors({
     origin: ["http://localhost:5173", "http://klkexpense.cloud"],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
@@ -63,7 +64,8 @@ app.use(auth)
 // routes
 app.use("/api/users", userRoutes);
 app.use("/api/projects", projectRoutes);
-app.use("/api/interventions", interventionRoutes);
+app.use("/api/interventions", interventionRoutes); 
+app.use("/api/expense", expenseRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running...");

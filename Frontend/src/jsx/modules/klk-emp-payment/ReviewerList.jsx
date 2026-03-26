@@ -1,49 +1,88 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Table, Card, Col, Modal, Button, Form } from "react-bootstrap";
+import axios from "axios";
 import PageTitle from "../../layouts/PageTitle";
 
 const ReviewerList = () => {
 
+  const [data, setData] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
   const [reviewData, setReviewData] = useState({
-    paymentMode: "Cash",
-    amount: "",
-    reference: "",
+    reviewerApproval: "1",
+    approvedamount: "",
     remark: "",
   });
 
-  const data = [
-    {
-      id: 1,
-      project: "Solar Plant",
-      amount: "50000",
-      remarks: "Check documents",
-    },
-  ];
+  // ✅ FETCH DATA
+  useEffect(() => {
+    fetchReviewerExpenses();
+  }, []);
 
-  /* ---------------- OPEN MODAL ---------------- */
-  const handleOpenModal = (item) => {
-    setSelectedItem(item);
-    setShowModal(true);
+  const fetchReviewerExpenses = async () => {
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_API_URL}expense/review-expenses`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      setData(res.data);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  /* ---------------- HANDLE CHANGE ---------------- */
+  // ✅ OPEN MODAL
+  const handleOpenModal = (item) => {
+  setSelectedItem(item);
+
+  setReviewData({
+    reviewerApproval: "1",
+    approvedamount: item.approved_amount || item.amount, // ✅ prefill
+    remark: "",
+  });
+
+  setShowModal(true);
+};
+
+  // ✅ HANDLE CHANGE
   const handleChange = (e) => {
     const { name, value } = e.target;
     setReviewData({ ...reviewData, [name]: value });
   };
 
-  /* ---------------- SUBMIT ---------------- */
-  const handleSubmit = () => {
-    console.log("Reviewer Data:", {
-      ...reviewData,
-      id: selectedItem.id,
-    });
+const handleSubmit = async () => {
+  try {
+    await axios.patch(
+      `${import.meta.env.VITE_BACKEND_API_URL}expense/reviewer-approval/${selectedItem.id}`,
+      {
+        reviewer_approval_status: Number(reviewData.reviewerApproval),
+        reviewer_remarks: reviewData.remark,
+        approved_amount: Number(reviewData.approvedamount),
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+
+    alert("Review submitted successfully ✅");
 
     setShowModal(false);
-  };
+
+    fetchReviewerExpenses(); // 🔁 refresh table
+
+  } catch (error) {
+    console.error(error);
+    alert("Something went wrong ❌");
+  }
+};
 
   return (
     <>
@@ -56,44 +95,95 @@ const ReviewerList = () => {
           </Card.Header>
 
           <Card.Body>
-            <Table responsive>
+            <Table responsive className="text-nowrap">
               <thead>
                 <tr>
                   <th>Sno</th>
+                  <th>Raised By</th>
+                  <th>Manager</th>
+                  <th>Reviewer</th>
                   <th>Project</th>
+                  <th>Intervention</th>
+                  <th>State</th>
+                  <th>District</th>
+                  <th>Village</th>
                   <th>Amount</th>
-                  <th>Remarks</th>
+                  <th>Approved Amount</th>
+                  <th>Manager Remark</th>
+                  <th>Reviewer Approval</th>
+                  <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
 
               <tbody>
-                {data.map((item, index) => (
-                  <tr key={item.id}>
-                    <td>{index + 1}</td>
-                    <td>{item.project}</td>
-                    <td>₹ {item.amount}</td>
-                    <td>{item.remarks}</td>
+                {data.length > 0 ? (
+                  data.map((item, index) => (
+                    <tr key={item.id}>
+                      <td>{index + 1}</td>
+                      <td>{item.raised_by}</td>
+                      <td>{item.manager_name}</td>
+                      <td>{item.reviewer_name}</td>
+                      <td>{item.project}</td>
+                      <td>{item.intervention}</td>
+                      <td>{item.state}</td>
+                      <td>{item.district}</td>
+                      <td>{item.village}</td>
+                      <td>₹ {item.amount}</td>
+                      <td>₹ {item.approved_amount}</td>
+                      <td>{item.manager_remark}</td>
 
-                    <td>
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        onClick={() => handleOpenModal(item)}
-                      >
-                        Review
-                      </Button>
+                     <td>
+                      {item.reviewer_remarks} 
                     </td>
 
+                      {/* STATUS */}
+                      <td>
+                        <span
+                          className={`badge ${
+                            item.reviewer_status === "Approved"
+                              ? "bg-success"
+                              : item.reviewer_status === "Rejected"
+                              ? "bg-danger"
+                              : "bg-warning"
+                          }`}
+                        >
+                          {item.reviewer_status}
+                        </span>
+                      </td>
+
+                      {/* ACTION */}
+                      <td>
+                        {item.reviewer_status === "Pending" ? (
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => handleOpenModal(item)}
+                          >
+                            Review
+                          </Button>
+                        ) : (
+                          <span className="badge bg-secondary">
+                            Done
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="10" className="text-center">
+                      No Data Found
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </Table>
           </Card.Body>
         </Card>
       </Col>
 
-      {/* ---------------- REVIEW MODAL ---------------- */}
+      {/* ✅ MODAL */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Reviewer Form</Modal.Title>
@@ -102,45 +192,32 @@ const ReviewerList = () => {
         <Modal.Body>
           {selectedItem && (
             <>
-              {/* Top Info */}
               <div className="d-flex justify-content-between mb-3">
                 <span><strong>Project:</strong> {selectedItem.project}</span>
                 <span><strong>Amount:</strong> ₹ {selectedItem.amount}</span>
               </div>
 
               <Form>
-                {/* Payment Mode */}
+                {/* Approval */}
                 <Form.Group className="mb-3">
-                  <Form.Label>Payment Mode</Form.Label>
+                  <Form.Label>Approval</Form.Label>
                   <Form.Select
-                    name="paymentMode"
-                    value={reviewData.paymentMode}
+                    name="reviewerApproval"
+                    value={reviewData.reviewerApproval}
                     onChange={handleChange}
                   >
-                    <option>Cash</option>
-                    <option>Bank</option>
-                    <option>UPI</option>
+                    <option value="1">Approved</option>
+                    <option value="2">Rejected</option>
                   </Form.Select>
                 </Form.Group>
 
                 {/* Amount */}
                 <Form.Group className="mb-3">
-                  <Form.Label>Amount</Form.Label>
+                  <Form.Label>Approved Amount</Form.Label>
                   <Form.Control
                     type="number"
-                    name="amount"
-                    value={reviewData.amount}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-
-                {/* Reference */}
-                <Form.Group className="mb-3">
-                  <Form.Label>Reference</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="reference"
-                    value={reviewData.reference}
+                    name="approvedamount"
+                    value={reviewData.approvedamount}
                     onChange={handleChange}
                   />
                 </Form.Group>

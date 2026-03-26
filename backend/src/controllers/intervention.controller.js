@@ -26,7 +26,7 @@ export const createIntervention = async (req, res) => {
     const newIntervention = await prisma.intervention.create({
       data: {
         name,
-        status: status == 1, // ✅ convert to boolean
+        status: status == 1,
         company_id: req.user?.company_id,
         created_by: req.user?.email,
       },
@@ -154,4 +154,7 @@ export const deleteIntervention = async (req, res) => {
     });
   }
 };
+
+
+
 
