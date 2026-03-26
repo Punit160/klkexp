@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 const BASE_URL = import.meta.env.VITE_BACKEND_API_URL;
 
 const getToken = () => localStorage.getItem("token");
@@ -63,4 +65,32 @@ export const deleteProject = async (id) => {
   });
 
   return res.json();
+};
+
+
+
+
+export const getManagers = async () => {
+  const token = localStorage.getItem("token");
+
+  try {
+    const res = await axios.get(`${BASE_URL}project/get-managers`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return {
+      ok: true,
+      result: res.data?.data || res.data, 
+    };
+
+} catch (error) {
+  console.error("Get Managers Error:", error);
+
+  return {
+    ok: false,
+    result: [],
+  };
+}
 };

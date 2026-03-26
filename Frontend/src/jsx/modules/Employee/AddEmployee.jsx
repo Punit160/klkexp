@@ -1,14 +1,17 @@
-import  { useState } from "react";
+import { useState } from "react";
 import { Card, Col } from "react-bootstrap";
 import PageTitle from "../../layouts/PageTitle";
 import { useNavigate } from "react-router-dom";
-import { createEmployee,getReportingHeads  } from "./employeeApi"; 
+import { createEmployee, getReportingHeads } from "./employeeApi";
 import { useEffect } from "react";
 
 
 const AddEmployee = () => {
   const navigate = useNavigate();
-  const [reportingHeads, setReportingHeads] = useState([]); 
+  const [reportingHeads, setReportingHeads] = useState([]);
+
+
+  const [errors, setErrors] = useState({});
 
   const [formData, setFormData] = useState({
     empName: "",
@@ -23,7 +26,7 @@ const AddEmployee = () => {
     dob: "",
     gender: "",
     qualification: "",
-    status: "1",  
+    status: "1",
     photo: null,
   });
 
@@ -46,7 +49,7 @@ const AddEmployee = () => {
   };
 
 
-    useEffect(() => {
+  useEffect(() => {
     const fetchReportingHeads = async () => {
       const { ok, result } = await getReportingHeads();
       if (ok) setReportingHeads(result);
@@ -59,10 +62,16 @@ const AddEmployee = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.empName || !formData.empEmail || !formData.password) {
-      alert("Please fill required fields");
-      return;
-    }
+    let newErrors = {};
+
+    if (!formData.phone.trim())
+      newErrors.phone = "Phone number is required";
+    else if (!/^\d{10}$/.test(formData.phone))
+      newErrors.phone = "Enter valid 10-digit number";
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) return;
 
     try {
       setLoading(true);
@@ -82,7 +91,7 @@ const AddEmployee = () => {
       data.append("qualification", formData.qualification);
       data.append("status", formData.status);
       if (formData.photo) {
-        data.append("user_img", formData.photo); 
+        data.append("user_img", formData.photo);
       }
 
       //  
@@ -104,7 +113,7 @@ const AddEmployee = () => {
           dob: "",
           gender: "",
           qualification: "",
-          status: "1",  
+          status: "1",
           photo: null,
         });
         setPreview(null);
@@ -174,49 +183,53 @@ const AddEmployee = () => {
                 </div>
 
                 {/* Reporting Head */}
-                    <div className="col-lg-6 mb-3">
-        <label>Reporting Head</label>
-        <select
-          name="reportingHead"
-          className="form-control"
-          value={formData.reportingHead}
-          onChange={handleChange}
-        >
-          <option value="">Select Reporting Head</option>
-          {reportingHeads.map((head, index) => (
-            <option key={index} value={head.username}>
-              {head.username} ({head.email})
-            </option>
-          ))}
-        </select>
-      </div>
+                <div className="col-lg-6 mb-3">
+                  <label>Reporting Head</label>
+                  <select
+                    name="reportingHead"
+                    className="form-control"
+                    value={formData.reportingHead}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select Reporting Head</option>
+                    {reportingHeads.map((head, index) => (
+                      <option key={index} value={head.username}>
+                        {head.username} ({head.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 {/* Designation */}
-<div className="col-lg-6 mb-3">
-  <label>Designation</label>
-  <select
-    name="designation"
-    className="form-control"
-    value={formData.designation}
-    onChange={handleChange}
-  >
-    <option value="">Select Designation</option>
-    <option value="Admin">Admin</option>
-    <option value="Manager">Manager</option>
-    <option value="Employee">Employee</option>
-    <option value="Reviewer">Reviewer</option>
-  </select>
-</div>
+                <div className="col-lg-6 mb-3">
+                  <label>Designation</label>
+                  <select
+                    name="designation"
+                    className="form-control"
+                    value={formData.designation}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select Designation</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Employee">Employee</option>
+                    <option value="Reviewer">Reviewer</option>
+                  </select>
+                </div>
                 {/* Phone */}
                 <div className="col-lg-6 mb-3">
                   <label>Phone</label>
                   <input
                     type="text"
                     name="phone"
-                    className="form-control"
+                    className={`form-control ${errors.phone ? "is-invalid" : ""}`}
                     value={formData.phone}
                     onChange={handleChange}
-                    placeholder="Enter phone number"
+                    maxLength={10}
                   />
+
+                  {errors.phone && (
+                    <div className="invalid-feedback">{errors.phone}</div>
+                  )}
                 </div>
 
                 {/* Date of Birth */}

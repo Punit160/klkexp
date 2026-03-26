@@ -79,7 +79,7 @@ export const getAllInterventions = async (req, res) => {
 
     const interventions = await prisma.intervention.findMany({
       where: {
-        company_id: company_id, 
+                company_id: req.user.company_id,
       },
       orderBy: { created_at: "desc" },
     });

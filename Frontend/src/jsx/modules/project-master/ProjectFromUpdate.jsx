@@ -16,6 +16,7 @@ const ProjectFormUpdate = () => {
     contact_person: "",
     contact_person_number: "",
     mou: null,
+     existingMou: "",
     manager_id: "",
     description: "",
     projectStatus: "",
@@ -44,6 +45,7 @@ const ProjectFormUpdate = () => {
           contact_person: proj.contact_person || "",
           contact_person_number: proj.contact_person_number || "",
           mou: null,
+          existingMou: proj.mou || "",
           manager_id: proj.manager_id || "",
           description: proj.description || "",
           projectStatus: proj.status ? "Ongoing" : "Completed",
@@ -99,7 +101,7 @@ const ProjectFormUpdate = () => {
         return;
       }
 
-      alert("Project Updated Successfully ✅");
+      alert("Project Updated Successfully");
       navigate("/project-list");
 
     } catch (err) {
@@ -193,16 +195,29 @@ const ProjectFormUpdate = () => {
                   onChange={handleChange}
                 />
               </div>
-
-              <div className="col-md-6 mb-3">
-                <label>Upload New MOU (optional)</label>
-                <input
-                  type="file"
-                  name="mou"
-                  className="form-control"
-                  onChange={handleChange}
-                />
-              </div>
+<div className="col-md-6 mb-3">
+  <label>Upload New MOU (optional)</label>
+  <input
+    type="file"
+    name="mou"
+    className="form-control"
+    onChange={handleChange}
+  />
+  {/*  Purana MOU dikh raha hai user ko */}
+  {formData.existingMou && !formData.mou && (
+    <small className="text-muted mt-1 d-block">
+      Current MOU:{" "}
+      <a href={formData.existingMou} target="_blank" rel="noopener noreferrer">
+        View Existing File
+      </a>
+    </small>
+  )}
+  {formData.mou && (
+    <small className="text-success mt-1 d-block">
+      ew file selected: {formData.mou.name}
+    </small>
+  )}
+</div>
 
               <div className="col-md-6 mb-3">
                 <label>Manager ID</label>

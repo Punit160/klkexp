@@ -20,7 +20,7 @@ export const createProject = async (req, res) => {
     } = req.body;
 
     const company_id = req.user.company_id;
-    const created_by =  req.user.email;
+    const created_by = req.user.email;
 
     // 📄 Handle MOU file
     const mouFile = req.file
@@ -57,8 +57,8 @@ export const createProject = async (req, res) => {
         manager_id,
         contact_person,
         contact_person_number,
-        mou: mouFile, 
-        status: projectStatus, 
+        mou: mouFile,
+        status: projectStatus,
         created_by,
       },
     });
@@ -84,7 +84,9 @@ export const getProjects = async (req, res) => {
     limit = parseInt(limit);
 
     const projects = await prisma.project.findMany({
+
       where: {
+        company_id: req.user.company_id,
         OR: [
           { name: { contains: search } },
           { funder_name: { contains: search } },
@@ -118,12 +120,44 @@ export const getProjects = async (req, res) => {
   }
 };
 
+//  GET MANAGERS (FOR DROPDOWN)
+export const getManagers = async (req, res) => {
+  try {
+    const managers = await prisma.user.findMany({
+      where: {
+        company_id: req.user.company_id,
+      },
+      orderBy: { username: "asc" },
+      select: {
+        id:true,
+        username: true,
+        email: true,
+      },
+    });
+
+    res.json(managers);
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 
 // ✅ GET SINGLE PROJECT
 export const getProjectById = async (req, res) => {
   try {
     const { id } = req.params;
+     const managers = await prisma.user.findMany({
+      where: {
+        company_id: req.user.company_id,
+      },
+      orderBy: { username: "asc" },
+      select: {
+        id:true,
+        username: true,
+        email: true,
+      },
+    });
 
     const project = await prisma.project.findUnique({
       where: { id: Number(id) },
@@ -133,7 +167,7 @@ export const getProjectById = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    return res.json(project);
+    return res.json({project,managers});
 
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import PageTitle from "../../layouts/PageTitle";
-import { createProject } from "./projectApi";
+import { createProject, getManagers } from "./projectApi";
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 const ProjectMasterForm = () => {
   const navigate = useNavigate();
+
+  const [Manager, setManager] = useState([]);
 
   const [formData, setFormData] = useState({
     project_name: "",
@@ -60,7 +63,7 @@ const ProjectMasterForm = () => {
     if (!formData.description.trim())
       newErrors.description = "Description is required";
 
-    // ✅ MOU validation add
+    // MOU validation add
     if (!formData.mou)
       newErrors.mou = "MOU file is required";
 
@@ -82,6 +85,16 @@ const ProjectMasterForm = () => {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
+
+
+  useEffect(() => {
+    const fetchManagers = async () => {
+      const { ok, result } = await getManagers();
+      console.log("Managers API response:", ok, result);
+      if (ok) setManager(result);
+    };
+    fetchManagers();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -238,15 +251,31 @@ const ProjectMasterForm = () => {
 
                   <div className="col-md-6 mb-3">
                     <label className="form-label">Project Manager <span className="text-danger">*</span></label>
-                    <input
+                    {/* <input
                       type="text"
                       className={`form-control ${errors.manager_id ? "is-invalid" : ""}`}
                       name="manager_id"
                       value={formData.manager_id}
                       onChange={handleChange}
-                    />
+                    /> */}
+
+                    <select
+                      name="manager_id"
+                      className={`form-control ${errors.manager_id ? "is-invalid" : ""}`}
+                      value={formData.manager_id}
+                      onChange={handleChange}
+                    >
+                      <option value="">Select Manager</option>
+                      {Manager.map((head) => (
+                        <option key={head.id} value={head.id}>  
+                          {head.username} ({head.email})
+                        </option>
+                      ))}
+                    </select>
                     {errors.manager_id && <div className="invalid-feedback">{errors.manager_id}</div>}
                   </div>
+
+
 
                   <div className="col-md-6 mb-3">
                     <label className="form-label">Project Status <span className="text-danger">*</span></label>
