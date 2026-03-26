@@ -9,8 +9,6 @@ import { BsCurrencyDollar, BsTools, BsCupStraw, BsTruck, BsHouse, BsLightningCha
 function Dashboard() {
 	return (
 		<>
-
-
 			<div className="page-head">
 				<div className="row align-items-center">
 

@@ -267,7 +267,7 @@ const ProjectMasterForm = () => {
                     >
                       <option value="">Select Manager</option>
                       {Manager.map((head) => (
-                        <option key={head.id} value={head.id}>  
+                        <option key={head.id} value={head.id}>
                           {head.username} ({head.email})
                         </option>
                       ))}

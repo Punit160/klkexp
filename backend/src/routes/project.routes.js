@@ -1,5 +1,5 @@
 import express from "express"
-import { createProject, getProjects,  getProjectById, updateProject, deleteProject, getManagers} from "../controllers/project.controller.js";
+import { createProject, getProjects,  getProjectById, updateProject, deleteProject,getManagers} from "../controllers/project.controller.js";
 import upload from "../middlewares/uploads.js";
 
 const router = express.Router()

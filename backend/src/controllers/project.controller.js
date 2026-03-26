@@ -120,7 +120,7 @@ export const getProjects = async (req, res) => {
   }
 };
 
-//  GET MANAGERS (FOR DROPDOWN)
+//  GET MANAGERSS (FOR DROPDOWN)
 export const getManagers = async (req, res) => {
   try {
     const managers = await prisma.user.findMany({
