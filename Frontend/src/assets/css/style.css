@@ -30558,7 +30558,7 @@ table.dataTable > tfoot > tr > th, table.dataTable > tfoot > tr > td {
 .authincation .login-aside {
   background: var(--card);
   padding-top: 2rem;
-  max-width: 35rem;
+  max-width: 45rem;
   width: 100%;
   z-index: 1;
   position: relative;
@@ -30580,7 +30580,7 @@ table.dataTable > tfoot > tr > th, table.dataTable > tfoot > tr > td {
 }
 
 .authincation .login-aside .aside-image {
-  min-height: 28.125rem;
+  min-height: 34.125rem;
   margin: auto 0;
   min-width: 0;
   background-size: contain;
@@ -30637,13 +30637,13 @@ table.dataTable > tfoot > tr > th, table.dataTable > tfoot > tr > td {
   text-align: center;
   color: white;
   margin-right: auto;
-  margin-top: -6.25rem;
+  margin-top: -1.25rem;
   margin-bottom: 1.25rem;
 }
 .authincation-content.style-2 {
   background: transparent;
   box-shadow: none;
-  max-width: 33.125rem;
+  max-width: 35.125rem;
   width: 100%;
 }
 .authincation-content.style-2 .form-control {

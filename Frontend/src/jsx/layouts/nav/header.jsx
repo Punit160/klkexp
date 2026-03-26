@@ -6,19 +6,46 @@ import avatar1 from '../../../assets/images/user.jpg'
 import { ThemeContext } from "../../../context/ThemeContext";
 import fscreen from "fscreen";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-toastify"; 
 
 
 function Header({ onNote }) {
 
    const navigate = useNavigate();
 
-const handleLogout = () => {
+   const handleLogout = async () => {
+      try {
+         const token = localStorage.getItem("token");
 
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
+         
+         await axios.get(
+            `${import.meta.env.VITE_BACKEND_API_URL}login/logout`,
+            {
+               headers: {
+                  Authorization: `Bearer ${token}`,
+               },
+            }
+         );
 
-  navigate("/"); 
-};
+      } catch (error) {
+         console.error("Logout API error:", error);
+      } finally {
+     
+         localStorage.removeItem("token");
+         localStorage.removeItem("user");
+
+      
+         toast.success("Logged out successfully!", {
+            position: "top-right",
+            autoClose: 3000,
+         });
+
+         setTimeout(() => {
+            navigate("/login", { replace: true });
+         }, 2000);
+      }
+   };
 
 	const { background, changeBackground } = useContext(ThemeContext);
 	const handleThemeMode = () => {
@@ -37,6 +64,7 @@ const handleLogout = () => {
 			fscreen.exitFullscreen();
 		}
 	};
+
 	return (
 		<>
 			<div className="header">
@@ -74,6 +102,7 @@ const handleLogout = () => {
 										<span className="badge text-white bg-secondary">27</span>
 									</Dropdown.Toggle>
 								</Dropdown>
+
 								<li className="nav-item dropdown header-profile">
 									<Link className="nav-link" to={"#"} role="button" data-bs-toggle="dropdown">
 										<img src={avatar1} width="20" alt="user" />
@@ -107,14 +136,18 @@ const handleLogout = () => {
 															<div className="icon-box-lg"> {SVGICON.msg} <p>Message</p> </div>
 														</Link>
 													</li>
-																									
-												
-											
+
+													{/* ✅ Logout button */}
 													<li>
-														<Link to="/page-login">
-															<div className="icon-box-lg"> {SVGICON.logout} <p> Logout </p> </div>
-														</Link>
+														<div
+															className="icon-box-lg"
+															onClick={handleLogout}
+															style={{ cursor: "pointer" }}
+														>
+															{SVGICON.logout} <p>Logout</p>
+														</div>
 													</li>
+
 												</ul>
 											</div>
 										</div>
@@ -128,4 +161,5 @@ const handleLogout = () => {
 		</>
 	);
 };
+
 export default Header;
