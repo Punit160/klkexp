@@ -79,30 +79,37 @@ model ExpensePayment {
   company_id               String
   project_name             String
   project_state            String
+  intervention             Int @default(0)
   project_district         String
   project_village          String
   amount                   Float
-  old_amount               Float?
+  approved_amount          Float?
   amount_change_by         Int?
   requested_by             Int
-  requested_date           DateTime
-  manager_id               String
-  approval_status          Boolean  @default(true)
+  requested_date DateTime @default(now())
+  manager_id               Int
+
+  approval_status          Boolean  @default(false) // ✅ 0
   manager_remarks          String?
-  review_assign            Boolean  @default(true)
+
+  review_assign            Boolean  @default(false) // ✅ 0
+  managertoreviewer String @default("")
   reviewer_id              Int?
   reviewer_remarks         String?
-  reviewer_approval_status Boolean  @default(true)
-  reviewer_status          Boolean  @default(true)
+
+  reviewer_approval_status Int  @default(0) // ✅ 0
+  reviewer_status          Boolean  @default(false) // ✅ 0
+
   accountant_id            Int?
-  payment_status           Boolean  @default(true)
+  payment_status           Boolean  @default(false) // ✅ 0
   accountant_remarks       String?
+
   remarks                  String?
   document                 String?
   created_by               String?
+
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 
   @@map("ExpensePayment")
-  
 }

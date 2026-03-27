@@ -1,19 +1,51 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, Col } from "react-bootstrap";
 
 const AddExpense = () => {
+  const [projects, setProjects] = useState([]);
+  const [interventions, setInterventions] = useState([]);
+
   const [formData, setFormData] = useState({
-    projectName: "",
-    state: "",
-    district: "",
-    village: "",
+    project_name: "",
+    project_state: "",
+    project_district: "",
+    project_village: "",
     intervention: "",
     amount: "",
     document: null,
-    requestedBy: "",
     remarks: "",
+    requested_date: "",
   });
 
+  // 🔥 FETCH DROPDOWN DATA
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_BACKEND_API_URL}expense/add-expense`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+
+        const data = await res.json();
+
+        console.log("API DATA", data);
+
+        setProjects(data.projects || []);
+        setInterventions(data.interventions || []);
+
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // 🔥 HANDLE CHANGE
   const handleChange = (e) => {
     const { name, value, files } = e.target;
 
@@ -24,9 +56,63 @@ const AddExpense = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  // 🔥 SUBMIT FORM
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form Data:", formData);
+
+    try {
+      const form = new FormData();
+
+      form.append("project_name", formData.project_name);
+      form.append("project_state", formData.project_state);
+      form.append("project_district", formData.project_district);
+      form.append("project_village", formData.project_village);
+      form.append("amount", formData.amount);
+      form.append("intervention", formData.intervention);
+      form.append("remarks", formData.remarks);
+      form.append("requested_date", formData.requested_date);
+
+
+      if (formData.document) {
+        form.append("document", formData.document);
+      }
+
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_API_URL}expense/create`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: form,
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message);
+        return;
+      }
+
+      alert("Expense Created Successfully ✅");
+
+      // 🔄 RESET FORM
+      setFormData({
+        project_name: "",
+        project_state: "",
+        project_district: "",
+        project_village: "",
+        intervention: "",
+        amount: "",
+        document: null,
+        remarks: "",
+      });
+
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong");
+    }
   };
 
   return (
@@ -40,34 +126,34 @@ const AddExpense = () => {
           <form onSubmit={handleSubmit}>
             <div className="row">
 
-              {/* Project Name */}
+              {/* Project */}
               <div className="col-lg-6 mb-3">
                 <label>Project Name</label>
                 <select
-                  name="projectName"
+                  name="project_name"
                   className="form-control"
-                  value={formData.projectName}
+                  value={formData.project_name}
                   onChange={handleChange}
                 >
                   <option value="">Select Project</option>
-                  <option value="Project A">Project A</option>
-                  <option value="Project B">Project B</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               {/* State */}
               <div className="col-lg-6 mb-3">
                 <label>State</label>
-                <select
-                  name="state"
+                <input
+                  type="text"
+                  name="project_state"
                   className="form-control"
-                  value={formData.state}
+                  value={formData.project_state}
                   onChange={handleChange}
-                >
-                  <option value="">Select State</option>
-                  <option value="UP">Uttar Pradesh</option>
-                  <option value="Delhi">Delhi</option>
-                </select>
+                />
               </div>
 
               {/* District */}
@@ -75,9 +161,9 @@ const AddExpense = () => {
                 <label>District</label>
                 <input
                   type="text"
-                  name="district"
+                  name="project_district"
                   className="form-control"
-                  value={formData.district}
+                  value={formData.project_district}
                   onChange={handleChange}
                 />
               </div>
@@ -87,10 +173,22 @@ const AddExpense = () => {
                 <label>Village</label>
                 <input
                   type="text"
-                  name="village"
+                  name="project_village"
                   className="form-control"
-                  value={formData.village}
+                  value={formData.project_village}
                   onChange={handleChange}
+                />
+              </div>
+
+              <div className="col-lg-6 mb-3">
+                <label>Requested Date</label>
+                <input
+                  type="date"
+                  name="requested_date"
+                  className="form-control"
+                  value={formData.requested_date}
+                  onChange={handleChange}
+                  required
                 />
               </div>
 
@@ -102,10 +200,14 @@ const AddExpense = () => {
                   className="form-control"
                   value={formData.intervention}
                   onChange={handleChange}
+                  required
                 >
                   <option value="">Select Intervention</option>
-                  <option value="Training">Training</option>
-                  <option value="Workshop">Workshop</option>
+                  {interventions.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -132,20 +234,6 @@ const AddExpense = () => {
                 />
               </div>
 
-              {/* Requested By */}
-              <div className="col-lg-6 mb-3">
-                <label>Requested By</label>
-                <input
-                  type="text"
-                  name="requestedBy"
-                  className="form-control"
-                  value={formData.requestedBy}
-                  onChange={handleChange}
-                />
-              </div>
-
-            
-
               {/* Remarks */}
               <div className="col-lg-12 mb-3">
                 <label>Remarks</label>
@@ -158,7 +246,6 @@ const AddExpense = () => {
                 ></textarea>
               </div>
 
-              {/* Submit */}
               <div className="text-end">
                 <button type="submit" className="btn btn-primary">
                   Submit Request
