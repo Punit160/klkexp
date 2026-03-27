@@ -4,12 +4,15 @@ import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getAllProjects, deleteProject } from "./projectApi";
+import { getAllProjects, deleteProject ,getManagers} from "./projectApi";
 
 
 const ProjectMasterList = () => {
   const navigate = useNavigate();
-    const location = useLocation(); // add this
+    const location = useLocation(); 
+
+    const [managers, setManagers] = useState([]);
+
 
 
   const [projects, setProjects] = useState([]);
@@ -21,6 +24,22 @@ const ProjectMasterList = () => {
 
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
+
+
+  //  managers fetch 
+useEffect(() => {
+  const fetchManagers = async () => {
+    const { ok, result } = await getManagers();
+    if (ok) setManagers(result);
+  };
+  fetchManagers();
+}, []);
+
+//  Helper function 
+const getManagerName = (managerId) => {
+  const found = managers.find((m) => m.id === managerId || m.id === Number(managerId));
+  return found ? found.username : managerId; // fallback: id dikhao
+};
 
   /* ================= FETCH PROJECTS ================= */
   useEffect(() => {
@@ -174,7 +193,8 @@ const handleDelete = async (id) => {
                         )}
                       </td>
 
-                      <td>{proj.projectManager}</td>
+                      <td>{getManagerName(proj.projectManager)}</td>
+
 
                       {/* STATUS */}
                       <td>

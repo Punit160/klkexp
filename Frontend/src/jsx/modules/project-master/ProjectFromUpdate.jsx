@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import PageTitle from "../../layouts/PageTitle";
 import { useParams, useNavigate } from "react-router-dom";
-import { getProjectById, updateProject } from "./projectApi";
+import { getProjectById, updateProject ,getManagers} from "./projectApi";
 
 const ProjectFormUpdate = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-
+  const [Manager, setManager] = useState([]);
   const [formData, setFormData] = useState({
     project_name: "",
     start_date: "",
@@ -22,40 +22,49 @@ const ProjectFormUpdate = () => {
     projectStatus: "",
   });
 
+    //Managers fetch
+  useEffect(() => {
+    const fetchManagers = async () => {
+      const { ok, result } = await getManagers();
+      if (ok) setManager(result);
+    };
+    fetchManagers();
+  }, []);
+  
+
   /* ================= FETCH PROJECT BY ID ================= */
   useEffect(() => {
     if (!id) return;
 
-    const fetchProject = async () => {
-      try {
-        // Backend direct object return karta hai (no wrapper)
-        const proj = await getProjectById(id);
+const fetchProject = async () => {
+  try {
+    const res = await getProjectById(id);
+    const proj = res?.project || res?.data || res;
+    if (!proj || !proj.id) {
+      alert("Failed to fetch project");
+      return;
+    }
 
-        if (!proj || !proj.id) {
-          alert("Failed to fetch project");
-          return;
-        }
+    setFormData({
+      project_name: proj.name || "",
+      start_date: proj.start_date?.split("T")[0] || "",
+      end_date: proj.end_date?.split("T")[0] || "",
+      financial_year: proj.financial_year || "",
+      funder_name: proj.funder_name || "",
+      contact_person: proj.contact_person || "",
+      contact_person_number: proj.contact_person_number || "",
+      mou: null,
+      existingMou: proj.mou || "",
+      manager_id: proj.manager_id || "",
+      description: proj.description || "",
+      projectStatus: proj.status === true ? "Ongoing" : "Completed",
+    });
 
-        setFormData({
-          project_name: proj.name || "",
-          start_date: proj.start_date?.split("T")[0] || "",
-          end_date: proj.end_date?.split("T")[0] || "",
-          financial_year: proj.financial_year || "",
-          funder_name: proj.funder_name || "",
-          contact_person: proj.contact_person || "",
-          contact_person_number: proj.contact_person_number || "",
-          mou: null,
-          existingMou: proj.mou || "",
-          manager_id: proj.manager_id || "",
-          description: proj.description || "",
-          projectStatus: proj.status ? "Ongoing" : "Completed",
-        });
-
-      } catch (err) {
-        console.error(err);
-        alert("Error loading project");
-      }
-    };
+  } catch (err) {
+    console.error("Fetch error:", err);
+    alert("Error loading project");
+  }
+};
 
     fetchProject();
   }, [id]);
@@ -219,16 +228,22 @@ const ProjectFormUpdate = () => {
   )}
 </div>
 
-              <div className="col-md-6 mb-3">
-                <label>Manager ID</label>
-                <input
-                  type="text"
-                  name="manager_id"
-                  className="form-control"
-                  value={formData.manager_id}
-                  onChange={handleChange}
-                />
-              </div>
+       <div className="col-md-6 mb-3">
+      <label>Project Manager</label>
+      <select
+        name="manager_id"
+        className="form-control"
+        value={formData.manager_id}
+        onChange={handleChange}
+      >
+        <option value="">Select Manager</option>
+        {Manager.map((head) => (
+          <option key={head.id} value={head.id}>
+            {head.username} ({head.email})
+          </option>
+        ))}
+      </select>
+    </div>
 
               <div className="col-md-6 mb-3">
                 <label>Status</label>

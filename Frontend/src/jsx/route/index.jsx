@@ -97,11 +97,14 @@ const Markup = () => {
     return (
         <>
             <Routes>
-                <Route path="/" element={
+                {/* <Route path="/" element={
                     <PublicRoute>
                         <Login />
                     </PublicRoute>}
-                />
+                /> */}
+
+                <Route path="/" element={<Navigate to="/login" replace />} />
+
 
 
                 <Route path="/login" element={
