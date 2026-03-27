@@ -1,73 +1,237 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dropdown, Nav, Tab } from "react-bootstrap";
-import { Link } from "react-router-dom";
 import { SVGICON } from "../../constant/theme";
 import InvoiceChart from "../../components/dashboard/invoicechart";
 import EarningsChart from "../../components/dashboard/earningschart";
 import {
-  BsCurrencyDollar,
-  BsClockHistory,
   BsCheckCircle,
   BsXCircle,
   BsReceipt,
+  BsArrowClockwise,
 } from "react-icons/bs";
-import EarningPredictionChart from "../../components/dashboard/earningpredictionchart";
+import ReactApexChart from "react-apexcharts";
 
-// ─── Dummy Data (replace with API) ───────────────────────────────────────────
-const allExpenses = {
-  "2025-26": [
-    { id: 1, title: "Team Lunch", category: "Food", amount: 1500, date: "15 Mar 2026", status: "Approved", project: "Solar Panel Installation", description: "Lunch with client" },
-    { id: 2, title: "Cab to Client", category: "Travel", amount: 3200, date: "18 Mar 2026", status: "Pending", project: "Wind Turbine Setup", description: "Cab fare" },
-    { id: 3, title: "Office Supplies", category: "Stationery", amount: 850, date: "20 Mar 2026", status: "Rejected", project: "Battery Storage", description: "Notebooks & pens" },
-    { id: 4, title: "Software License", category: "Software", amount: 4999, date: "22 Mar 2026", status: "Pending", project: "Solar Panel Installation", description: "Annual subscription" },
-    { id: 5, title: "Hotel Stay", category: "Accommodation", amount: 6500, date: "24 Mar 2026", status: "Approved", project: "Wind Turbine Setup", description: "Site visit stay" },
-    { id: 6, title: "Medical Kit", category: "Medical", amount: 1200, date: "25 Mar 2026", status: "Approved", project: "Battery Storage", description: "First aid supplies" },
-  ],
-  "2024-25": [
-    { id: 7, title: "Training Materials", category: "Training", amount: 2800, date: "10 Jan 2025", status: "Approved", project: "Solar Panel Installation", description: "Workshop materials" },
-    { id: 8, title: "Flight Ticket", category: "Travel", amount: 8500, date: "15 Feb 2025", status: "Approved", project: "Wind Turbine Setup", description: "Delhi site visit" },
-    { id: 9, title: "Canteen Bill", category: "Food", amount: 600, date: "20 Mar 2025", status: "Rejected", project: "Battery Storage", description: "Monthly canteen" },
-  ],
-  "2023-24": [
-    { id: 10, title: "Equipment Purchase", category: "Tools", amount: 12000, date: "05 Aug 2023", status: "Approved", project: "Solar Panel Installation", description: "Safety equipment" },
-  ],
-  "2022-23": [
-    { id: 11, title: "Conference Fee", category: "Training", amount: 5000, date: "12 Nov 2022", status: "Approved", project: "Wind Turbine Setup", description: "Annual energy conference" },
-  ],
-};
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Derive a display status from raw API boolean fields */
+function deriveStatus(exp) {
+  if (exp.payment_status) return "Paid";
+  if (exp.approval_status) return "Approved";
+  if (exp.reviewer_status) return "Under Review";
+  return "Pending";
+}
 
 const statusBadgeClass = {
-  Approved: "badge badge-success light border-0",
+  Paid: "badge badge-success light border-0",
+  Approved: "badge badge-info light border-0",
+  "Under Review": "badge badge-warning light border-0",
   Pending: "badge badge-warning light border-0",
   Rejected: "badge badge-danger light border-0",
 };
 
-function computeStats(expenses) {
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
-  const paid = expenses.filter((e) => e.status === "Approved").reduce((s, e) => s + e.amount, 0);
-  const pending = expenses.filter((e) => e.status === "Pending").reduce((s, e) => s + e.amount, 0);
-  const rejected = expenses.filter((e) => e.status === "Rejected").reduce((s, e) => s + e.amount, 0);
-  return { total, paid, pending, rejected };
+function formatINR(amount) {
+  return Number(amount || 0).toLocaleString("en-IN");
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/** Build month-wise chart data from AllExpenseData using requested_date */
+function buildMonthlyChartData(allExpenseData) {
+  const monthOrder = [
+    "Apr","May","Jun","Jul","Aug","Sep",
+    "Oct","Nov","Dec","Jan","Feb","Mar",
+  ];
+  const monthMap = {};
+  monthOrder.forEach((m) => (monthMap[m] = { total: 0, paid: 0, pending: 0 }));
+
+  allExpenseData.forEach((exp) => {
+    const date = new Date(exp.requested_date || exp.created_at);
+    if (isNaN(date)) return;
+    const month = date.toLocaleString("en-IN", { month: "short" });
+    if (!monthMap[month]) return;
+    const amount = Number(exp.amount || 0);
+    monthMap[month].total += amount;
+    if (exp.payment_status) monthMap[month].paid += amount;
+    else monthMap[month].pending += amount;
+  });
+
+  return {
+    categories: monthOrder,
+    total: monthOrder.map((m) => monthMap[m].total),
+    paid: monthOrder.map((m) => monthMap[m].paid),
+    pending: monthOrder.map((m) => monthMap[m].pending),
+  };
+}
+
+/** Build project-wise bar chart data from projectWiseData */
+function buildProjectChartData(projectWiseData) {
+  return {
+    labels: projectWiseData.map((p) => p.project_name),
+    totalAmount: projectWiseData.map((p) => p.totalAmount),
+    pendingAmount: projectWiseData.map((p) => p.pendingAmount),
+    paidAmount: projectWiseData.map((p) => p.totalPaid),
+  };
+}
+
+// ─── Monthly Area Chart ───────────────────────────────────────────────────────
+function MonthlyTrendChart({ data }) {
+  const options = {
+    chart: { type: "area", toolbar: { show: false }, zoom: { enabled: false } },
+    dataLabels: { enabled: false },
+    stroke: { curve: "smooth", width: 2 },
+    colors: ["#6571ff", "#22c55e", "#f59e0b"],
+    fill: {
+      type: "gradient",
+      gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.05 },
+    },
+    xaxis: { categories: data.categories },
+    yaxis: { labels: { formatter: (val) => `₹${(val / 1000).toFixed(0)}k` } },
+    tooltip: { y: { formatter: (val) => `₹ ${formatINR(val)}` } },
+    legend: { position: "top" },
+    grid: { borderColor: "#f1f1f1" },
+  };
+
+  const series = [
+    { name: "Total", data: data.total },
+    { name: "Paid", data: data.paid },
+    { name: "Pending", data: data.pending },
+  ];
+
+  return (
+    <ReactApexChart options={options} series={series} type="area" height={300} />
+  );
+}
+
+// ─── Project Bar Chart ────────────────────────────────────────────────────────
+function ProjectBarChart({ data }) {
+  const options = {
+    chart: { type: "bar", toolbar: { show: false } },
+    plotOptions: { bar: { horizontal: false, columnWidth: "50%", borderRadius: 4 } },
+    dataLabels: { enabled: false },
+    colors: ["#6571ff", "#22c55e", "#f59e0b"],
+    xaxis: { categories: data.labels },
+    yaxis: { labels: { formatter: (val) => `₹${(val / 1000).toFixed(0)}k` } },
+    tooltip: { y: { formatter: (val) => `₹ ${formatINR(val)}` } },
+    legend: { position: "top" },
+    grid: { borderColor: "#f1f1f1" },
+  };
+
+  const series = [
+    { name: "Total Amount", data: data.totalAmount },
+    { name: "Paid", data: data.paidAmount },
+    { name: "Pending", data: data.pendingAmount },
+  ];
+
+  return (
+    <ReactApexChart options={options} series={series} type="bar" height={300} />
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 function UserCommanSection() {
   const [selectedYear, setSelectedYear] = useState("2025-26");
   const [filterStatus, setFilterStatus] = useState("All");
-  const [expenses, setExpenses] = useState(allExpenses);
   const [submitMsg, setSubmitMsg] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
+  const [stats, setStats] = useState({
+    totalExpense: 0,
+    paidAmount: 0,
+    pendingAmount: 0,
+    rejectedAmount: 0,
+    approvedAmount: 0,
+  });
+  const [allExpenses, setAllExpenses] = useState([]);
+  const [projectWiseData, setProjectWiseData] = useState([]);
 
-  const yearExpenses = expenses[selectedYear] || [];
-  const stats = computeStats(yearExpenses);
+  // ── Fetch Dashboard Data ──
+  const fetchDashboard = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_API_URL}dashboard/users`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data;
+        setStats({
+          totalExpense: d.totalExpense ?? 0,
+          paidAmount: d.paidAmount ?? 0,
+          pendingAmount: d.pendingAmount ?? 0,
+          rejectedAmount: d.rejectedAmount ?? 0,
+          approvedAmount: d.approvedAmount ?? 0,
+        });
+        setAllExpenses(d.AllExpenseData ?? []);
+        setProjectWiseData(d.projectWiseData ?? []);
+      }
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+      setError("Failed to load dashboard data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    fetchDashboard();
+  }, [selectedYear]);
+
+  // ── Derived: attach _status to each expense ──
+  const expensesWithStatus = useMemo(
+    () => allExpenses.map((e) => ({ ...e, _status: deriveStatus(e) })),
+    [allExpenses]
+  );
+
+  // ── Filtered table rows ──
   const filtered =
     filterStatus === "All"
-      ? yearExpenses
-      : yearExpenses.filter((e) => e.status === filterStatus);
+      ? expensesWithStatus
+      : expensesWithStatus.filter((e) => e._status === filterStatus);
 
+  const countByStatus = (status) =>
+    expensesWithStatus.filter((e) => e._status === status).length;
 
+  // ── Chart data ──
+  const monthlyChartData = useMemo(
+    () => buildMonthlyChartData(allExpenses),
+    [allExpenses]
+  );
+  const projectChartData = useMemo(
+    () => buildProjectChartData(projectWiseData),
+    [projectWiseData]
+  );
+
+  // ── Donut chart series ──
+  const donutSeries = [
+    stats.totalExpense,
+    stats.paidAmount,
+    stats.pendingAmount,
+    stats.rejectedAmount,
+    stats.approvedAmount,
+  ];
+  const donutOptions = {
+    chart: { type: "donut" },
+    labels: ["Total", "Paid", "Pending", "Rejected", "Approved"],
+    colors: ["#6571ff", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4"],
+    legend: { position: "bottom" },
+    dataLabels: { enabled: true },
+    tooltip: { y: { formatter: (val) => `₹ ${formatINR(val)}` } },
+  };
 
   return (
     <>
@@ -83,7 +247,10 @@ function UserCommanSection() {
               <select
                 className="form-select w-auto"
                 value={selectedYear}
-                onChange={(e) => { setSelectedYear(e.target.value); setFilterStatus("All"); }}
+                onChange={(e) => {
+                  setSelectedYear(e.target.value);
+                  setFilterStatus("All");
+                }}
               >
                 <option value="">Select Financial Year</option>
                 <option value="2025-26">2025 - 2026</option>
@@ -92,8 +259,14 @@ function UserCommanSection() {
                 <option value="2022-23">2022 - 2023</option>
               </select>
               <button
-                className="btn btn-primary d-flex align-items-center gap-1"
+                className="btn btn-outline-secondary d-flex align-items-center gap-1"
+                onClick={fetchDashboard}
+                disabled={loading}
+                title="Refresh"
               >
+                <BsArrowClockwise className={loading ? "spin" : ""} />
+              </button>
+              <button className="btn btn-primary d-flex align-items-center gap-1">
                 <BsReceipt /> + Raise Expense
               </button>
             </div>
@@ -101,19 +274,23 @@ function UserCommanSection() {
         </div>
       </div>
 
-      {/* ── Success Alert ── */}
+      {/* ── Alerts ── */}
       {submitMsg && (
         <div className="alert alert-success alert-dismissible fade show mb-3" role="alert">
-          <BsCheckCircle className="me-2" />
-          {submitMsg}
+          <BsCheckCircle className="me-2" /> {submitMsg}
           <button type="button" className="btn-close" onClick={() => setSubmitMsg("")} />
         </div>
       )}
+      {error && (
+        <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+          <BsXCircle className="me-2" /> {error}
+          <button type="button" className="btn-close" onClick={() => setError("")} />
+        </div>
+      )}
 
-      {/* ── Summary Cards ── */}
       <div className="row">
 
-        {/* Total Expense Raised */}
+        {/* ── Card 1: Total Expense ── */}
         <div className="col-xl-3 col-sm-6">
           <div className="card">
             <div className="card-header border-0 pb-0">
@@ -122,139 +299,163 @@ function UserCommanSection() {
             <div className="card-body pt-2">
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <h2 className="card-title">₹ {stats.total.toLocaleString("en-IN")}</h2>
-                  <span>
-                    <small className="text-muted me-1">FY {selectedYear}</small>
-                  </span>
+                  {loading
+                    ? <div className="placeholder-glow"><span className="placeholder col-8" style={{ height: 36 }} /></div>
+                    : <h2 className="card-title">₹ {formatINR(stats.totalExpense)}</h2>
+                  }
+                  <small className="text-muted">FY {selectedYear}</small>
                 </div>
-                <div>
-                  <InvoiceChart />
-                </div>
+                <InvoiceChart />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Paid / Approved */}
+        {/* ── Card 2: Paid + Approved sub-info ── */}
         <div className="col-xl-3 col-sm-6">
           <div className="card">
             <div className="card-header border-0 pb-0">
               <h6 className="mb-0">Paid Amount</h6>
               <Dropdown className="dropdown ms-auto c-pointer">
                 <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                <Dropdown.Menu className="dropdown-menu dropdown-menu-end" align="end">
-                  <Dropdown.Item>View Details</Dropdown.Item>
-                </Dropdown.Menu>
+                <Dropdown.Menu align="end"><Dropdown.Item>View Details</Dropdown.Item></Dropdown.Menu>
               </Dropdown>
             </div>
             <div className="card-body pt-2">
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <h2 className="card-title text-success">₹ {stats.paid.toLocaleString("en-IN")}</h2>
+                  {loading
+                    ? <div className="placeholder-glow"><span className="placeholder col-8" style={{ height: 36 }} /></div>
+                    : <h2 className="card-title text-success">₹ {formatINR(stats.paidAmount)}</h2>
+                  }
                   <span>
-                    <small className="text-success font-w600 me-1">
-                      {yearExpenses.filter((e) => e.status === "Approved").length} expenses
-                    </small>
-                    approved
+                    <small className="text-success font-w600 me-1">{countByStatus("Paid")} expenses</small>paid
                   </span>
+                  {/* approvedAmount shown as sub-text */}
+                  <div className="mt-1">
+                    <small className="text-muted">
+                      Approved: <span className="text-info fw-bold">₹ {formatINR(stats.approvedAmount)}</span>
+                    </small>
+                  </div>
                 </div>
-                <div>
-                  <EarningsChart />
-                </div>
+                <EarningsChart />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Pending */}
+        {/* ── Card 3: Pending ── */}
         <div className="col-xl-3 col-sm-6">
           <div className="card">
             <div className="card-header border-0 pb-0">
               <h6 className="mb-0">Pending Approval</h6>
               <Dropdown className="dropdown ms-auto c-pointer">
                 <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                <Dropdown.Menu className="dropdown-menu dropdown-menu-end" align="end">
-                  <Dropdown.Item>View Pending</Dropdown.Item>
-                </Dropdown.Menu>
+                <Dropdown.Menu align="end"><Dropdown.Item>View Pending</Dropdown.Item></Dropdown.Menu>
               </Dropdown>
             </div>
             <div className="card-body pt-2">
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <h2 className="card-title text-warning">₹ {stats.pending.toLocaleString("en-IN")}</h2>
+                  {loading
+                    ? <div className="placeholder-glow"><span className="placeholder col-8" style={{ height: 36 }} /></div>
+                    : <h2 className="card-title text-warning">₹ {formatINR(stats.pendingAmount)}</h2>
+                  }
                   <span>
-                    <small className="text-warning font-w600 me-1">
-                      {yearExpenses.filter((e) => e.status === "Pending").length} expenses
-                    </small>
-                    awaiting
+                    <small className="text-warning font-w600 me-1">{countByStatus("Pending")} expenses</small>awaiting
                   </span>
                 </div>
-                <div>
-                  <EarningsChart />
-                </div>
+                <EarningsChart />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Rejected */}
+        {/* ── Card 4: Rejected ── */}
         <div className="col-xl-3 col-sm-6">
           <div className="card">
             <div className="card-header border-0 pb-0">
               <h6 className="mb-0">Rejected</h6>
               <Dropdown className="dropdown ms-auto c-pointer">
                 <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                <Dropdown.Menu className="dropdown-menu dropdown-menu-end" align="end">
-                  <Dropdown.Item>View Rejected</Dropdown.Item>
-                </Dropdown.Menu>
+                <Dropdown.Menu align="end"><Dropdown.Item>View Rejected</Dropdown.Item></Dropdown.Menu>
               </Dropdown>
             </div>
             <div className="card-body pt-2">
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <h2 className="card-title text-danger">₹ {stats.rejected.toLocaleString("en-IN")}</h2>
+                  {loading
+                    ? <div className="placeholder-glow"><span className="placeholder col-8" style={{ height: 36 }} /></div>
+                    : <h2 className="card-title text-danger">₹ {formatINR(stats.rejectedAmount)}</h2>
+                  }
                   <span>
-                    <small className="text-danger font-w600 me-1">
-                      {yearExpenses.filter((e) => e.status === "Rejected").length} expenses
-                    </small>
-                    rejected
+                    <small className="text-danger font-w600 me-1">{countByStatus("Rejected")} expenses</small>rejected
                   </span>
                 </div>
-                <div>
-                  <InvoiceChart />
-                </div>
+                <InvoiceChart />
               </div>
             </div>
           </div>
         </div>
 
+        {/* ── Monthly Trend Chart (8 col) ── */}
+        <div className="col-xl-8">
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <h4 className="mb-0">Monthly Expense Trend</h4>
+                <small className="text-muted">Based on requested date — FY {selectedYear}</small>
+              </div>
+            </div>
+            <div className="card-body">
+              {loading
+                ? <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>
+                : <MonthlyTrendChart data={monthlyChartData} />
+              }
+            </div>
+          </div>
+        </div>
 
+        {/* ── Donut Breakdown (4 col) ── */}
+        <div className="col-xl-4">
+          <div className="card">
+            <div className="card-header">
+              <h4 className="mb-0">Expense Breakdown</h4>
+            </div>
+            <div className="card-body">
+              {loading
+                ? <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>
+                : <ReactApexChart options={donutOptions} series={donutSeries} type="donut" height={300} />
+              }
+            </div>
+          </div>
+        </div>
 
-      <div className="col-xl-12">
-					<div className="card">
-						<div className="card-header">
-							<h4 className="mb-0">Expense Prediction</h4>
-						</div>
-						<div className="card-body">
-							<div id="EarningsPrediction">
-
-                                <EarningPredictionChart/>
-							</div>
-						</div>
-					</div>
-				</div>
-
-
+        {/* ── Project Wise Bar Chart (full width) ── */}
+        {projectWiseData.length > 0 && (
+          <div className="col-xl-12">
+            <div className="card">
+              <div className="card-header">
+                <h4 className="mb-0">Project Wise Expense</h4>
+              </div>
+              <div className="card-body">
+                {loading
+                  ? <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>
+                  : <ProjectBarChart data={projectChartData} />
+                }
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Expense Table ── */}
         <div className="col-12">
           <div className="card">
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-              <h4 className="mb-0">
-                My Expenses — FY {selectedYear}
-              </h4>
-              {/* <div className="d-flex gap-2 flex-wrap">
-                {["All", "Pending", "Approved", "Rejected"].map((s) => (
+              <h4 className="mb-0">My Expenses — FY {selectedYear}</h4>
+              {/* Status filter pills */}
+              <div className="d-flex gap-2 flex-wrap">
+                {["All", "Pending", "Approved", "Paid", "Rejected", "Under Review"].map((s) => (
                   <button
                     key={s}
                     className={`btn btn-sm ${filterStatus === s ? "btn-primary" : "btn-outline-secondary"}`}
@@ -262,13 +463,11 @@ function UserCommanSection() {
                   >
                     {s}
                     <span className="ms-1 badge bg-white text-dark">
-                      {s === "All"
-                        ? yearExpenses.length
-                        : yearExpenses.filter((e) => e.status === s).length}
+                      {s === "All" ? expensesWithStatus.length : countByStatus(s)}
                     </span>
                   </button>
                 ))}
-              </div> */}
+              </div>
             </div>
             <div className="card-body px-0">
               <Tab.Container defaultActiveKey="table">
@@ -291,44 +490,54 @@ function UserCommanSection() {
                 </Nav>
 
                 <Tab.Content>
-                  {/* ALL EXPENSES */}
+
+                  {/* ALL EXPENSES TAB */}
                   <Tab.Pane eventKey="table">
                     <div className="table-responsive">
                       <table className="table card-table border-no success-tbl">
                         <thead>
                           <tr>
                             <th>#</th>
-                            <th>Title</th>
-                            <th>Category</th>
                             <th>Project</th>
-                            <th>Date</th>
+                            <th>State / District</th>
+                            <th>Requested Date</th>
                             <th>Amount</th>
+                            <th>Approved Amount</th>
                             <th>Status</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {filtered.length === 0 ? (
-                            <tr>
-                              <td colSpan={7} className="text-center text-muted py-4">
-                                No expenses found for this filter.
-                              </td>
-                            </tr>
+                          {loading ? (
+                            <tr><td colSpan={7} className="text-center py-4">
+                              <div className="spinner-border spinner-border-sm text-primary me-2" role="status" />
+                              Loading expenses...
+                            </td></tr>
+                          ) : filtered.length === 0 ? (
+                            <tr><td colSpan={7} className="text-center text-muted py-4">No expenses found.</td></tr>
                           ) : (
                             filtered.map((exp, i) => (
-                              <tr key={exp.id}>
+                              <tr key={exp.id ?? i}>
                                 <td>{i + 1}</td>
                                 <td>
-                                  <h6 className="mb-0">{exp.title}</h6>
-                                  <span className="fs-13 text-muted">{exp.description}</span>
+                                  <h6 className="mb-0">Project #{exp.project_name}</h6>
+                                  <span className="fs-13 text-muted">{exp.created_by}</span>
                                 </td>
                                 <td>
-                                  <span className="badge bg-light text-dark border">{exp.category}</span>
+                                  {exp.project_state}
+                                  <br />
+                                  <small className="text-muted">{exp.project_district}</small>
                                 </td>
-                                <td>{exp.project}</td>
-                                <td>{exp.date}</td>
-                                <td className="fw-bold text-primary">₹ {exp.amount.toLocaleString("en-IN")}</td>
+                                <td>{formatDate(exp.requested_date)}</td>
+                                <td className="fw-bold text-primary">₹ {formatINR(exp.amount)}</td>
+                                <td className="fw-bold text-success">
+                                  {exp.approved_amount != null
+                                    ? `₹ ${formatINR(exp.approved_amount)}`
+                                    : <span className="text-muted">—</span>}
+                                </td>
                                 <td>
-                                  <span className={statusBadgeClass[exp.status]}>{exp.status}</span>
+                                  <span className={statusBadgeClass[exp._status] ?? "badge badge-secondary"}>
+                                    {exp._status}
+                                  </span>
                                 </td>
                               </tr>
                             ))
@@ -338,70 +547,96 @@ function UserCommanSection() {
                     </div>
                   </Tab.Pane>
 
-                  {/* PROJECT WISE */}
+                  {/* PROJECT WISE TAB */}
                   <Tab.Pane eventKey="project">
                     <div className="table-responsive">
                       <table className="table card-table border-no success-tbl">
                         <thead>
                           <tr>
-                            <th>Project</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                            <th>Amount</th>
+                            <th>Project Name</th>
+                            <th>Total Amount</th>
+                            <th>Paid</th>
+                            <th>Pending</th>
+                            <th>Rejected</th>
+                            <th>Approved</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {yearExpenses.map((exp) => (
-                            <tr key={exp.id}>
-                              <td>
-                                <div className="ms-2 cat-name">
-                                  <h6 className="mb-0">{exp.title}</h6>
-                                  <span>{exp.project}</span>
-                                </div>
-                              </td>
-                              <td>{exp.date}</td>
-                              <td>
-                                <span className={statusBadgeClass[exp.status]}>{exp.status}</span>
-                              </td>
-                              <td className="fw-bold text-primary">₹ {exp.amount.toLocaleString("en-IN")}</td>
-                            </tr>
-                          ))}
+                          {loading ? (
+                            <tr><td colSpan={6} className="text-center py-4">
+                              <div className="spinner-border spinner-border-sm text-primary me-2" role="status" />
+                              Loading...
+                            </td></tr>
+                          ) : projectWiseData.length === 0 ? (
+                            <tr><td colSpan={6} className="text-center text-muted py-4">No project data available.</td></tr>
+                          ) : (
+                            projectWiseData.map((p, i) => (
+                              <tr key={i}>
+                                <td><h6 className="mb-0">{p.project_name}</h6></td>
+                                <td className="fw-bold text-primary">₹ {formatINR(p.totalAmount)}</td>
+                                <td className="text-success fw-bold">₹ {formatINR(p.totalPaid)}</td>
+                                <td className="text-warning fw-bold">₹ {formatINR(p.pendingAmount)}</td>
+                                <td className="text-danger fw-bold">₹ {formatINR(p.rejectedAmount)}</td>
+                                <td className="text-info fw-bold">₹ {formatINR(p.approvedAmount)}</td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
                   </Tab.Pane>
 
-                  {/* PAYMENT STATUS */}
+                  {/* PAYMENT STATUS TAB */}
                   <Tab.Pane eventKey="status">
                     <div className="table-responsive">
                       <table className="table card-table border-no success-tbl">
                         <thead>
                           <tr>
-                            <th>Title</th>
-                            <th>Category</th>
-                            <th>Date</th>
-                            <th>Payment Status</th>
+                            <th>Project</th>
+                            <th>Requested Date</th>
                             <th>Amount</th>
+                            <th>Manager Approval</th>
+                            <th>Reviewer</th>
+                            <th>Payment</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {yearExpenses.map((exp) => (
-                            <tr key={exp.id}>
-                              <td>
-                                <h6 className="mb-0">{exp.title}</h6>
-                              </td>
-                              <td>{exp.category}</td>
-                              <td>{exp.date}</td>
-                              <td>
-                                <span className={statusBadgeClass[exp.status]}>{exp.status}</span>
-                              </td>
-                              <td className="fw-bold text-primary">₹ {exp.amount.toLocaleString("en-IN")}</td>
-                            </tr>
-                          ))}
+                          {loading ? (
+                            <tr><td colSpan={6} className="text-center py-4">
+                              <div className="spinner-border spinner-border-sm text-primary me-2" role="status" />
+                              Loading...
+                            </td></tr>
+                          ) : expensesWithStatus.length === 0 ? (
+                            <tr><td colSpan={6} className="text-center text-muted py-4">No payment data available.</td></tr>
+                          ) : (
+                            expensesWithStatus.map((exp, i) => (
+                              <tr key={exp.id ?? i}>
+                                <td><h6 className="mb-0">Project #{exp.project_name}</h6></td>
+                                <td>{formatDate(exp.requested_date)}</td>
+                                <td className="fw-bold text-primary">₹ {formatINR(exp.amount)}</td>
+                                <td>
+                                  <span className={exp.approval_status ? "badge badge-success light border-0" : "badge badge-warning light border-0"}>
+                                    {exp.approval_status ? "Approved" : "Pending"}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className={exp.reviewer_status ? "badge badge-success light border-0" : "badge badge-secondary light border-0"}>
+                                    {exp.reviewer_status ? "Reviewed" : "Not Reviewed"}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className={exp.payment_status ? "badge badge-success light border-0" : "badge badge-warning light border-0"}>
+                                    {exp.payment_status ? "Paid" : "Unpaid"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
                   </Tab.Pane>
+
                 </Tab.Content>
               </Tab.Container>
             </div>
@@ -409,10 +644,10 @@ function UserCommanSection() {
         </div>
       </div>
 
-
-
-
-    
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
+      `}</style>
     </>
   );
 }

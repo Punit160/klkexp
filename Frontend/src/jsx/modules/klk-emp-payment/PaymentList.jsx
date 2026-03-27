@@ -24,7 +24,7 @@ const PaymentList = () => {
 
         const data = await res.json();
 
-        console.log("EXPENSES 👉", data);
+        // console.log("EXPENSES ", data);
 
         setExpenses(data || []);
 

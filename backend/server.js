@@ -11,6 +11,9 @@ import loginRoutes from "./src/routes/auth/login.routes.js";
 import projectRoutes from "./src/routes/project.routes.js";
 import interventionRoutes from "./src/routes/intervention.routes.js";
 import expenseRoutes from "./src/routes/expense.routes.js"
+import dashboardRoutes from "./src/routes/dashboard.routes.js";
+
+
 
 
 
@@ -66,6 +69,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/interventions", interventionRoutes); 
 app.use("/api/expense", expenseRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running...");
