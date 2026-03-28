@@ -37,6 +37,7 @@ import ManagerList from "../modules/klk-emp-payment/ManagerList";
 import AddExpense from "../modules/klk-emp-payment/AddExpense";
 import UpdateEmployee from "../modules/Employee/UpdateEmployee";
 import ProjectFormUpdate from "../modules/project-master/ProjectFromUpdate";
+import RoleList from "../modules/RolePermission/RoleList";
 
 
 
@@ -92,6 +93,8 @@ const Markup = () => {
         { path: 'table-bootstrap-basic', element: <BootstrapTable /> },
         { path: 'table-datatable-basic', element: <DataTable /> },
         { path: 'empty-page', element: <EmptyPage /> },
+        { path: '/role/list', element: <RoleList /> }
+
     ];
 
     return (
