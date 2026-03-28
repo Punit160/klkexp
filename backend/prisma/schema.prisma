@@ -84,12 +84,14 @@ model ExpensePayment {
   project_village          String
   amount                   Float
   approved_amount          Float?
+  final_approved_amount          Float?
   amount_change_by         Int?
   requested_by             Int
   requested_date DateTime @default(now())
+  financial_year String @default("")
   manager_id               Int
 
-  approval_status          Boolean  @default(false) // ✅ 0
+  approval_status          Int  @default(0) // ✅ 0
   manager_remarks          String?
 
   review_assign            Boolean  @default(false) // ✅ 0
@@ -100,10 +102,9 @@ model ExpensePayment {
   reviewer_approval_status Int  @default(0) // ✅ 0
   reviewer_status          Boolean  @default(false) // ✅ 0
 
-  accountant_id            Int?
-  payment_status           Boolean  @default(false) // ✅ 0
-  accountant_remarks       String?
-
+  paid_amount            Float     @default(0)
+  payment_status         Int       @default(0)
+  
   remarks                  String?
   document                 String?
   created_by               String?
@@ -111,5 +112,31 @@ model ExpensePayment {
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 
+  transactions             ExpensePaymentTransaction[]
+
   @@map("ExpensePayment")
 }
+
+model ExpensePaymentTransaction {
+  id              Int       @id @default(autoincrement())
+  expense_id      Int
+  accountant_id   Int?      // ✅ from session (no relation)
+
+  payment_amount  Float
+  payment_mode    String
+  payment_date    DateTime
+
+  reference_no    String?
+  remarks         String?
+
+  created_at      DateTime  @default(now())
+
+  // ✅ ONLY relation with Expense
+  expense         ExpensePayment @relation(fields: [expense_id], references: [id], onDelete: Cascade)
+
+  // ✅ INDEXES
+  @@index([expense_id])
+  @@index([accountant_id])
+}
+
+

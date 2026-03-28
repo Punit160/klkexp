@@ -1,13 +1,17 @@
-import React, { useState } from "react";
-import { Table, Card, Col, Modal, Button, Form } from "react-bootstrap";
+import React, { useState, useEffect } from "react";
+import { Table, Card, Col, Modal, Button, Form, Badge } from "react-bootstrap";
+import axios from "axios";
 import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
 
 const PaymentList = () => {
 
-  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [data, setData] = useState([]);
+  const [history, setHistory] = useState([]);
+
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const [selectedItem, setSelectedItem] = useState(null);
 
@@ -15,39 +19,51 @@ const PaymentList = () => {
     budget: "",
     paymentMode: "Cash",
     paymentDate: "",
+    reference_no: "",
+    remarks: "",
   });
 
-  /* ---------------- DATA ---------------- */
-  const data = [
-    {
-      id: 1,
-      project: "Solar Plant",
-      state: "Uttar Pradesh",
-      district: "Gautam Buddha Nagar",
-      village: "Dadri",
-      intervention: "Maintenance",
-      amount: "50000",
-      requestedBy: "Mohit",
-      requestDate: "2026-03-20",
-      approval: "Pending",
-      remarks: "Urgent work",
-      status: "Pending Manager",
-    },
-    {
-      id: 2,
-      project: "Wind Project",
-      state: "Delhi",
-      district: "New Delhi",
-      village: "Karol Bagh",
-      intervention: "Repair",
-      amount: "20000",
-      requestedBy: "Rahul",
-      requestDate: "2026-03-18",
-      approval: "Approved",
-      remarks: "Approved by manager",
-      status: "Pending Accounts",
-    },
-  ];
+  /* ---------------- FETCH DATA ---------------- */
+  useEffect(() => {
+    fetchAccountsData();
+  }, []);
+
+  const fetchAccountsData = async () => {
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_API_URL}expense/accounts-expenses`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      setData(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  /* ---------------- FETCH HISTORY ---------------- */
+  const fetchHistory = async (id) => {
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_API_URL}expense/payment-history/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      setHistory(res.data);
+      setShowHistoryModal(true);
+
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   /* ---------------- PAGINATION ---------------- */
   const itemsPerPage = 10;
@@ -59,13 +75,20 @@ const PaymentList = () => {
 
   /* ---------------- HANDLERS ---------------- */
 
-  const handleAssign = (item) => {
-    setSelectedItem(item);
-    setShowAssignModal(true);
-  };
-
   const handleAccount = (item) => {
     setSelectedItem(item);
+
+    const remaining =
+      item.final_approved_amount - (item.paid_amount || 0);
+
+    setAccountData({
+      budget: remaining,
+      paymentMode: "Cash",
+      paymentDate: "",
+      reference_no: "",
+      remarks: "",
+    });
+
     setShowAccountModal(true);
   };
 
@@ -74,23 +97,81 @@ const PaymentList = () => {
     setAccountData({ ...accountData, [name]: value });
   };
 
-  const handleAccountSubmit = () => {
-    console.log("Payment Processed:", {
-      ...accountData,
-      id: selectedItem.id,
-    });
-    setShowAccountModal(false);
+  /* ---------------- PAYMENT SUBMIT ---------------- */
+
+  const handleAccountSubmit = async () => {
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_BACKEND_API_URL}expense/process-payment/${selectedItem.id}`,
+        {
+          payment_amount: Number(accountData.budget),
+          payment_mode: accountData.paymentMode,
+          payment_date: accountData.paymentDate,
+          reference_no: accountData.reference_no,
+          remarks: accountData.remarks,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      alert("✅ Payment Processed Successfully");
+
+      setShowAccountModal(false);
+      fetchAccountsData();
+
+    } catch (error) {
+      console.error(error);
+    }
   };
+
+  /* ---------------- PDF VIEW ---------------- */
+
+const handleViewPDF = async (id) => {
+  try {
+    const res = await axios.get(
+      `${import.meta.env.VITE_BACKEND_API_URL}expense/payment-receipt/${id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        responseType: "blob",
+      }
+    );
+
+    const file = new Blob([res.data], { type: "application/pdf" });
+    const fileURL = URL.createObjectURL(file);
+
+    window.open(fileURL);
+
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+  /* ---------------- PAYMENT STATUS ---------------- */
+
+ const getPaymentStatus = (item) => {
+  if (item.payment_status === 2) {
+    return <span className="badge bg-success">Fully Paid</span>;
+  } else if (item.payment_status === 1) {
+    return <span className="badge bg-warning">Partially Paid</span>;
+  } else {
+    return <span className="badge bg-secondary">Unpaid</span>;
+  }
+};
 
   return (
     <>
-      <PageTitle activeMenu="Payment List" motherMenu="Payment" />
+      <PageTitle activeMenu="Payment List" motherMenu="Accounts" />
 
       <Col lg={12}>
         <Card>
 
           <Card.Header className="d-flex justify-content-between">
-            <Card.Title>Payment Workflow</Card.Title>
+            <Card.Title>Accounts</Card.Title>
 
             <TableExportActions
               data={data}
@@ -104,56 +185,73 @@ const PaymentList = () => {
               <thead>
                 <tr>
                   <th>Sno</th>
+                  <th>Raised By</th>
+                  <th>Date</th>
                   <th>Project</th>
-                  <th>State</th>
-                  <th>District</th>
-                  <th>Village</th>
+                  <th>Manager</th>
                   <th>Amount</th>
+                  <th>Paid</th>
                   <th>Status</th>
-                  <th>Assign</th>
-                  <th>Accounts</th>
+                  <th>History</th>
+                  <th>Receipt</th>
+                  <th>Action</th>
                 </tr>
               </thead>
 
               <tbody>
-                {currentData.map((item, index) => (
-                  <tr key={item.id}>
-                    <td>{indexOfFirst + index + 1}</td>
-                    <td>{item.project}</td>
-                    <td>{item.state}</td>
-                    <td>{item.district}</td>
-                    <td>{item.village}</td>
-                    <td>₹ {item.amount}</td>
+                {currentData.map((item, index) => {
+                  const remaining =
+                    item.final_approved_amount - (item.paid_amount || 0);
 
-                    <td>
-                      <span className="badge bg-warning">
-                        {item.status}
-                      </span>
-                    </td>
+                  return (
+                    <tr key={item.id}>
+                      <td>{indexOfFirst + index + 1}</td>
+                      <td>{item.raised_by}</td>
+                      <td>{new Date(item.requested_date).toLocaleDateString()}</td>
+                      <td>{item.project}</td>
+                      <td>{item.manager_name}</td>
 
-                    {/* Assign */}
-                    <td>
-                      <button
-                        className="btn btn-info btn-xs"
-                        onClick={() => handleAssign(item)}
-                      >
-                        Assign
-                      </button>
-                    </td>
+                      <td>₹ {item.final_approved_amount}</td>
+                      <td>₹ {item.paid_amount || 0}</td>
 
-                    {/* Accounts */}
-                    <td>
-                      <button
-                        className="btn btn-success btn-xs"
-                        onClick={() => handleAccount(item)}
-                        disabled={item.status !== "Pending Accounts"}
-                      >
-                        Pay
-                      </button>
-                    </td>
+                      <td>{getPaymentStatus(item)}</td>
 
-                  </tr>
-                ))}
+                      {/* HISTORY */}
+                      <td>
+                        <Button
+                          size="sm"
+                          variant="info"
+                          onClick={() => fetchHistory(item.id)}
+                        >
+                          View
+                        </Button>
+                      </td>
+
+                      {/* PDF */}
+                      <td>
+                        <Button
+                          size="sm"
+                          variant="dark"
+                          onClick={() => handleViewPDF(item.id)}
+                        >
+                          PDF
+                        </Button>
+                      </td>
+
+                      {/* PAY */}
+                      <td>
+                        <Button
+                          size="sm"
+                          variant="success"
+                          onClick={() => handleAccount(item)}
+                          disabled={remaining <= 0}
+                        >
+                          Pay
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </Table>
 
@@ -167,47 +265,25 @@ const PaymentList = () => {
         </Card>
       </Col>
 
-      {/* ---------------- ASSIGN MODAL ---------------- */}
-      <Modal show={showAssignModal} onHide={() => setShowAssignModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Assign Reviewer</Modal.Title>
-        </Modal.Header>
-
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Select Reviewer</Form.Label>
-              <Form.Select>
-                <option>Select</option>
-                <option>Rahul</option>
-                <option>Amit</option>
-              </Form.Select>
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-
-        <Modal.Footer>
-          <Button onClick={() => setShowAssignModal(false)}>Close</Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* ---------------- ACCOUNTS MODAL ---------------- */}
+      {/* ---------------- PAYMENT MODAL ---------------- */}
       <Modal show={showAccountModal} onHide={() => setShowAccountModal(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>Accounts Payment</Modal.Title>
+          <Modal.Title>Process Payment</Modal.Title>
         </Modal.Header>
 
         <Modal.Body>
           {selectedItem && (
             <>
-              <div className="d-flex justify-content-between mb-3">
-                <span><strong>Project:</strong> {selectedItem.project}</span>
-                <span><strong>Amount:</strong> ₹ {selectedItem.amount}</span>
+              <div className="mb-3 p-3 border rounded bg-light">
+                <p><strong>Project:</strong> {selectedItem.project}</p>
+                <p><strong>Final Amount:</strong> ₹ {selectedItem.final_approved_amount}</p>
+                <p><strong>Paid:</strong> ₹ {selectedItem.paid_amount || 0}</p>
               </div>
 
               <Form>
+
                 <Form.Group className="mb-3">
-                  <Form.Label>Budget</Form.Label>
+                  <Form.Label>Payment Amount</Form.Label>
                   <Form.Control
                     type="number"
                     name="budget"
@@ -230,6 +306,16 @@ const PaymentList = () => {
                 </Form.Group>
 
                 <Form.Group className="mb-3">
+                  <Form.Label>Reference No</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="reference_no"
+                    value={accountData.reference_no}
+                    onChange={handleAccountChange}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
                   <Form.Label>Payment Date</Form.Label>
                   <Form.Control
                     type="date"
@@ -238,20 +324,57 @@ const PaymentList = () => {
                     onChange={handleAccountChange}
                   />
                 </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label>Remarks</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    name="remarks"
+                    value={accountData.remarks}
+                    onChange={handleAccountChange}
+                  />
+                </Form.Group>
+
               </Form>
             </>
           )}
         </Modal.Body>
 
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAccountModal(false)}>
-            Cancel
-          </Button>
-
-          <Button variant="primary" onClick={handleAccountSubmit}>
-            Process Payment
-          </Button>
+          <Button onClick={() => setShowAccountModal(false)}>Cancel</Button>
+          <Button onClick={handleAccountSubmit}>Submit</Button>
         </Modal.Footer>
+      </Modal>
+
+      {/* ---------------- HISTORY MODAL ---------------- */}
+      <Modal show={showHistoryModal} onHide={() => setShowHistoryModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Payment History</Modal.Title>
+        </Modal.Header>
+
+        <Modal.Body>
+          <Table>
+            <thead>
+              <tr>
+                <th>Amount</th>
+                <th>Mode</th>
+                <th>Date</th>
+                <th>Ref</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {history.map((h) => (
+                <tr key={h.id}>
+                  <td>₹ {h.payment_amount}</td>
+                  <td>{h.payment_mode}</td>
+                  <td>{new Date(h.payment_date).toLocaleDateString()}</td>
+                  <td>{h.reference_no}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Modal.Body>
       </Modal>
     </>
   );
