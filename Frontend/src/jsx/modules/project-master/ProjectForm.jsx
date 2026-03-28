@@ -126,7 +126,7 @@ const ProjectMasterForm = () => {
         return;
       }
 
-      alert("Project created successfully ✅");
+      alert("Project created successfully  ");
       navigate("/project-list", { replace: true });
     } catch (error) {
       console.error(error);

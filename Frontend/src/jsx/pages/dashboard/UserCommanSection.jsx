@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { Dropdown, Nav, Tab } from "react-bootstrap";
 import { SVGICON } from "../../constant/theme";
 import InvoiceChart from "../../components/dashboard/invoicechart";
 import EarningsChart from "../../components/dashboard/earningschart";
+
 import {
   BsCheckCircle,
   BsXCircle,
-  BsReceipt,
   BsArrowClockwise,
 } from "react-icons/bs";
 import ReactApexChart from "react-apexcharts";
+import SkyGreeting from "../../components/Common/SkyGreeting";
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -45,8 +48,8 @@ function formatDate(dateStr) {
 /** Build month-wise chart data from AllExpenseData using requested_date */
 function buildMonthlyChartData(allExpenseData) {
   const monthOrder = [
-    "Apr","May","Jun","Jul","Aug","Sep",
-    "Oct","Nov","Dec","Jan","Feb","Mar",
+    "Apr", "May", "Jun", "Jul", "Aug", "Sep",
+    "Oct", "Nov", "Dec", "Jan", "Feb", "Mar",
   ];
   const monthMap = {};
   monthOrder.forEach((m) => (monthMap[m] = { total: 0, paid: 0, pending: 0 }));
@@ -70,18 +73,23 @@ function buildMonthlyChartData(allExpenseData) {
   };
 }
 
-/** Build project-wise bar chart data from projectWiseData */
+/** Build project-wise bar chart data from projectWiseData — with null safety */
 function buildProjectChartData(projectWiseData) {
   return {
-    labels: projectWiseData.map((p) => p.project_name),
-    totalAmount: projectWiseData.map((p) => p.totalAmount),
-    pendingAmount: projectWiseData.map((p) => p.pendingAmount),
-    paidAmount: projectWiseData.map((p) => p.totalPaid),
+    labels: projectWiseData.map((p) => p.project_name ?? "Unknown"),
+    totalAmount: projectWiseData.map((p) => Number(p.totalAmount) || 0),
+    pendingAmount: projectWiseData.map((p) => Number(p.pendingAmount) || 0),
+    paidAmount: projectWiseData.map((p) => Number(p.totalPaid) || 0),
   };
 }
 
 // ─── Monthly Area Chart ───────────────────────────────────────────────────────
 function MonthlyTrendChart({ data }) {
+  // Guard: don't render if categories are missing
+  if (!data?.categories?.length) {
+    return <p className="text-center text-muted py-4">No monthly data available.</p>;
+  }
+
   const options = {
     chart: { type: "area", toolbar: { show: false }, zoom: { enabled: false } },
     dataLabels: { enabled: false },
@@ -111,6 +119,11 @@ function MonthlyTrendChart({ data }) {
 
 // ─── Project Bar Chart ────────────────────────────────────────────────────────
 function ProjectBarChart({ data }) {
+  // Guard: don't render if labels are missing or empty
+  if (!data?.labels?.length) {
+    return <p className="text-center text-muted py-4">No project data available.</p>;
+  }
+
   const options = {
     chart: { type: "bar", toolbar: { show: false } },
     plotOptions: { bar: { horizontal: false, columnWidth: "50%", borderRadius: 4 } },
@@ -216,14 +229,16 @@ function UserCommanSection() {
     [projectWiseData]
   );
 
-  // ── Donut chart series ──
+  // ── Donut chart — coerce all values to numbers, guard against all-zero ──
   const donutSeries = [
-    stats.totalExpense,
-    stats.paidAmount,
-    stats.pendingAmount,
-    stats.rejectedAmount,
-    stats.approvedAmount,
+    Number(stats.totalExpense) || 0,
+    Number(stats.paidAmount) || 0,
+    Number(stats.pendingAmount) || 0,
+    Number(stats.rejectedAmount) || 0,
+    Number(stats.approvedAmount) || 0,
   ];
+  const hasDonutData = donutSeries.some((v) => v > 0);
+
   const donutOptions = {
     chart: { type: "donut" },
     labels: ["Total", "Paid", "Pending", "Rejected", "Approved"],
@@ -238,11 +253,14 @@ function UserCommanSection() {
       {/* ── Page Header ── */}
       <div className="page-head">
         <div className="row align-items-center">
-          <div className="col-sm-6 mb-sm-4 mb-3">
-            <h3 className="mb-0">My Expense Dashboard</h3>
-            <p className="mb-0">Track and raise your expense requests</p>
+
+          {/* Bigger column */}
+          <div className="col-sm-8 mb-sm-4 mb-3">
+            <SkyGreeting />
           </div>
-          <div className="col-sm-6 mb-4 text-sm-end">
+
+          {/* Smaller column */}
+          <div className="col-sm-4 mb-4 text-sm-end">
             <div className="d-inline-flex align-items-center gap-2">
               <select
                 className="form-select w-auto"
@@ -258,19 +276,18 @@ function UserCommanSection() {
                 <option value="2023-24">2023 - 2024</option>
                 <option value="2022-23">2022 - 2023</option>
               </select>
-              <button
-                className="btn btn-outline-secondary d-flex align-items-center gap-1"
-                onClick={fetchDashboard}
-                disabled={loading}
-                title="Refresh"
+
+
+
+              <Link
+                to="/add-expense"
+                className="btn btn-primary d-flex align-items-center gap-1"
               >
-                <BsArrowClockwise className={loading ? "spin" : ""} />
-              </button>
-              <button className="btn btn-primary d-flex align-items-center gap-1">
-                <BsReceipt /> + Raise Expense
-              </button>
+                + Raise Expense
+              </Link>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -331,7 +348,6 @@ function UserCommanSection() {
                   <span>
                     <small className="text-success font-w600 me-1">{countByStatus("Paid")} expenses</small>paid
                   </span>
-                  {/* approvedAmount shown as sub-text */}
                   <div className="mt-1">
                     <small className="text-muted">
                       Approved: <span className="text-info fw-bold">₹ {formatINR(stats.approvedAmount)}</span>
@@ -423,10 +439,13 @@ function UserCommanSection() {
               <h4 className="mb-0">Expense Breakdown</h4>
             </div>
             <div className="card-body">
-              {loading
-                ? <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>
-                : <ReactApexChart options={donutOptions} series={donutSeries} type="donut" height={300} />
-              }
+              {loading ? (
+                <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>
+              ) : hasDonutData ? (
+                <ReactApexChart options={donutOptions} series={donutSeries} type="donut" height={300} />
+              ) : (
+                <p className="text-center text-muted py-4">No expense data available.</p>
+              )}
             </div>
           </div>
         </div>
@@ -454,7 +473,7 @@ function UserCommanSection() {
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
               <h4 className="mb-0">My Expenses — FY {selectedYear}</h4>
               {/* Status filter pills */}
-              <div className="d-flex gap-2 flex-wrap">
+              {/* <div className="d-flex gap-2 flex-wrap">
                 {["All", "Pending", "Approved", "Paid", "Rejected", "Under Review"].map((s) => (
                   <button
                     key={s}
@@ -467,7 +486,7 @@ function UserCommanSection() {
                     </span>
                   </button>
                 ))}
-              </div>
+              </div> */}
             </div>
             <div className="card-body px-0">
               <Tab.Container defaultActiveKey="table">
@@ -497,7 +516,7 @@ function UserCommanSection() {
                       <table className="table card-table border-no success-tbl">
                         <thead>
                           <tr>
-                            <th>#</th>
+                            <th>S no</th>
                             <th>Project</th>
                             <th>State / District</th>
                             <th>Requested Date</th>
@@ -519,7 +538,7 @@ function UserCommanSection() {
                               <tr key={exp.id ?? i}>
                                 <td>{i + 1}</td>
                                 <td>
-                                  <h6 className="mb-0">Project #{exp.project_name}</h6>
+                                  <h6 className="mb-0">{exp.project_name}</h6>
                                   <span className="fs-13 text-muted">{exp.created_by}</span>
                                 </td>
                                 <td>
@@ -572,7 +591,7 @@ function UserCommanSection() {
                           ) : (
                             projectWiseData.map((p, i) => (
                               <tr key={i}>
-                                <td><h6 className="mb-0">{p.project_name}</h6></td>
+                                <td><h6 className="mb-0">{p.project_name ?? "—"}</h6></td>
                                 <td className="fw-bold text-primary">₹ {formatINR(p.totalAmount)}</td>
                                 <td className="text-success fw-bold">₹ {formatINR(p.totalPaid)}</td>
                                 <td className="text-warning fw-bold">₹ {formatINR(p.pendingAmount)}</td>

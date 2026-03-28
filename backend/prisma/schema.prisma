@@ -89,19 +89,19 @@ model ExpensePayment {
   requested_date DateTime @default(now())
   manager_id               Int
 
-  approval_status          Boolean  @default(false) // ✅ 0
+  approval_status          Boolean  @default(false) //   0
   manager_remarks          String?
 
-  review_assign            Boolean  @default(false) // ✅ 0
+  review_assign            Boolean  @default(false) //   0
   managertoreviewer String @default("")
   reviewer_id              Int?
   reviewer_remarks         String?
 
-  reviewer_approval_status Int  @default(0) // ✅ 0
-  reviewer_status          Boolean  @default(false) // ✅ 0
+  reviewer_approval_status Int  @default(0) //   0
+  reviewer_status          Boolean  @default(false) //   0
 
   accountant_id            Int?
-  payment_status           Boolean  @default(false) // ✅ 0
+  payment_status           Boolean  @default(false) //   0
   accountant_remarks       String?
 
   remarks                  String?

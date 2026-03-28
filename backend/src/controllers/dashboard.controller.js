@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 //         const company_id = req.user.company_id;
 //         const user_id = req.user.id;
 
-//         // ✅ Fetch grouped data (single query for performance)
+//         //   Fetch grouped data (single query for performance)
 //         const data = await prisma.expensePayment.groupBy({
 //             by: ['approval_status', 'payment_status'],
 //             where: { company_id , requested_by: user_id },
@@ -17,14 +17,14 @@ const prisma = new PrismaClient();
 //             }
 //         });
 
-//         // ✅ Initialize variables
+//         //   Initialize variables
 //         let totalExpense = 0;
 //         let paidAmount = 0;
 //         let pendingAmount = 0;
 //         let rejectedAmount = 0;
 //         let approvedAmount = 0; // optional
 
-//         // ✅ Process data
+//         //   Process data
 //         data.forEach(item => {
 //             const amount = item._sum.amount || 0;
 //             totalExpense += amount;
@@ -47,7 +47,7 @@ const prisma = new PrismaClient();
 //         });
 
 
-//         // ✅ Final response
+//         //   Final response
 //         return res.status(200).json({
 //             success: true,
 //             data: {
@@ -112,7 +112,7 @@ export const Dashboard = async (req, res) => {
             }
         }
 
-        // ✅ Year-wise Paid Data (CORRECT)
+        //   Year-wise Paid Data (CORRECT)
         const yearlyPaidData = await prisma.$queryRaw`
             SELECT 
                 YEAR(created_at) as year,
@@ -149,15 +149,17 @@ export const Dashboard = async (req, res) => {
     GROUP BY p.id, p.name
 `;
 
- const AllExpenseData = await prisma.expensePayment.findMany({
-    where: {
-        company_id,
-        requested_by: user_id,
-    },
-    orderBy: { id: 'desc' },
-    take: 5
-});
-
+const AllExpenseData = await prisma.$queryRaw`
+    SELECT 
+        ep.*,
+        p.name AS project_name
+    FROM expensepayment ep
+    LEFT JOIN project p ON ep.project_name = p.id
+    WHERE ep.company_id = ${company_id}
+      AND ep.requested_by = ${user_id}
+    ORDER BY ep.id DESC
+    LIMIT 5
+`;
 
         return res.status(200).json({
             success: true,

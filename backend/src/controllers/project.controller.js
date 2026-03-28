@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 
-// ✅ CREATE PROJECT
+//   CREATE PROJECT
 export const createProject = async (req, res) => {
   try {
     const {
@@ -75,7 +75,7 @@ export const createProject = async (req, res) => {
 
 
 
-// ✅ GET ALL PROJECTS (with pagination + search)
+//   GET ALL PROJECTS (with pagination + search)
 export const getProjects = async (req, res) => {
   try {
     let { page = 1, limit = 10, search = "" } = req.query;
@@ -143,7 +143,7 @@ export const getManagers = async (req, res) => {
 };
 
 
-// ✅ GET SINGLE PROJECT
+//   GET SINGLE PROJECT
 export const getProjectById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -176,7 +176,7 @@ export const getProjectById = async (req, res) => {
 
 
 
-// ✅ UPDATE PROJECT
+//   UPDATE PROJECT
 export const updateProject = async (req, res) => {
   try {
     const { id } = req.params;
@@ -216,7 +216,7 @@ export const updateProject = async (req, res) => {
         contact_person,
         contact_person_number,
         mou,
-        // ✅ String "true"/"1" → Boolean
+        //   String "true"/"1" → Boolean
         status: status === "true" || status === true || status === 1 || status === "1",
       },
     });
@@ -233,7 +233,7 @@ export const updateProject = async (req, res) => {
 
 
 
-// ✅ DELETE PROJECT
+//   DELETE PROJECT
 export const deleteProject = async (req, res) => {
   try {
     const { id } = req.params;

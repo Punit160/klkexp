@@ -12,7 +12,7 @@ export const getExpenseFormData = async (req, res) => {
       });
     }
 
-    // ✅ Fetch Projects
+    //   Fetch Projects
     const projects = await prisma.project.findMany({
       where: {
         company_id: company_id,
@@ -27,7 +27,7 @@ export const getExpenseFormData = async (req, res) => {
       },
     });
 
-    // ✅ Fetch Interventions
+    //   Fetch Interventions
     const interventions = await prisma.intervention.findMany({
       where: {
         company_id: company_id,
@@ -127,7 +127,7 @@ export const getMyCreatedExpenses = async (req, res) => {
       });
     }
 
-    // ✅ 1. Fetch all data
+    //   1. Fetch all data
     const [expenses, projects, users, interventions] = await Promise.all([
       prisma.expensePayment.findMany({
         where: {
@@ -155,7 +155,7 @@ export const getMyCreatedExpenses = async (req, res) => {
       }),
     ]);
 
-    // ✅ 2. Map data
+    //   2. Map data
     const mappedExpenses = expenses.map((exp) => {
       const project = projects.find(
         (p) => p.id === Number(exp.project_name) // 👈 project_id stored in project_name
@@ -204,7 +204,7 @@ export const getManagerExpenses = async (req, res) => {
       });
     }
 
-    // ✅ Fetch data
+    //   Fetch data
     const [expenses, projects, users] = await Promise.all([
       prisma.expensePayment.findMany({
         where: {
@@ -227,7 +227,7 @@ export const getManagerExpenses = async (req, res) => {
       }),
     ]);
 
-    // ✅ Maps (FAST lookup)
+    //   Maps (FAST lookup)
     const projectMap = Object.fromEntries(
       projects.map((p) => [p.id, p.name])
     );
@@ -236,14 +236,14 @@ export const getManagerExpenses = async (req, res) => {
       users.map((u) => [u.id, u.username])
     );
 
-    // ✅ Status converter
+    //   Status converter
     const getStatusText = (status) => {
       if (status === 1) return "Approved";
       if (status === 2) return "Rejected";
       return "Pending";
     };
 
-    // ✅ Map response
+    //   Map response
     const result = expenses.map((exp) => ({
       id: exp.id,
       project: projectMap[Number(exp.project_name)] || "N/A",
@@ -253,7 +253,7 @@ export const getManagerExpenses = async (req, res) => {
       amount: exp.amount,
       review_assign : exp.review_assign,
 
-      // ✅ FIXED
+      //   FIXED
       reviewer_name: userMap[exp.reviewer_id] || "N/A",
 
       managertoreviewer: exp.managertoreviewer,
@@ -371,7 +371,7 @@ export const getReviewerExpenses = async (req, res) => {
       }),
     ]);
 
-    // ✅ Maps
+    //   Maps
     const projectMap = Object.fromEntries(
       projects.map((p) => [p.id, p.name])
     );
@@ -394,7 +394,7 @@ export const getReviewerExpenses = async (req, res) => {
       return "Pending";
     };
 
-    // ✅ FINAL RESPONSE
+    //   FINAL RESPONSE
     const result = expenses.map((exp) => ({
       id: exp.id,
 
@@ -408,7 +408,7 @@ export const getReviewerExpenses = async (req, res) => {
       village: exp.project_village,
       amount: exp.amount,
 
-      // ✅ ALL 3 NAMES
+      //   ALL 3 NAMES
       raised_by: userMap[exp.requested_by] || exp.requested_by || "N/A",
       manager_name: userMap[exp.manager_id] || "N/A",
       reviewer_name: userMap[exp.reviewer_id] || "N/A",

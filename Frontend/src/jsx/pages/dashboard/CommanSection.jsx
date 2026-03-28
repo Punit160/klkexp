@@ -6,18 +6,22 @@ import InvoiceChart from "../../components/dashboard/invoicechart";
 import EarningsChart from "../../components/dashboard/earningschart";
 import EarningPredictionChart from "../../components/dashboard/earningpredictionchart";
 import { BsCurrencyDollar, BsTools, BsCupStraw, BsTruck, BsHouse, BsLightningCharge, BsCashStack } from "react-icons/bs";
+import SkyGreeting from "../../components/Common/SkyGreeting";
 function Dashboard() {
 	return (
 		<>
 			<div className="page-head">
 				<div className="row align-items-center">
 
-					<div className="col-sm-6 mb-sm-4 mb-3">
+					{/* <div className="col-sm-6 mb-sm-4 mb-3">
 						<h3 className="mb-0">Good Morning, SuperAdmin.</h3>
 						<p className="mb-0">
 							Here’s what’s happening with your store today
 						</p>
-					</div>
+
+					</div> */}
+
+					<SkyGreeting/>
 
 					<div className="col-sm-6 mb-4 text-sm-end">
 						<div className="d-inline-flex align-items-center gap-2">

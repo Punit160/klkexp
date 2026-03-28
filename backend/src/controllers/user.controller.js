@@ -227,7 +227,7 @@ export const updateUser = async (req, res) => {
     });
 
     res.json({
-      message: "User updated successfully ✅",
+      message: "User updated successfully  ",
       data: user,
     });
 

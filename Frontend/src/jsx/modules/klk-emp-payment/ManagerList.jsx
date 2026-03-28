@@ -22,7 +22,7 @@ const ManagerList = () => {
     managertoreviewer: "",
     });
 
-  // ✅ FETCH DATA
+  //   FETCH DATA
   useEffect(() => {
     fetchExpenses();
     fetchReviewers();
@@ -44,7 +44,7 @@ const ManagerList = () => {
     }
   };
 
-  // ✅ FETCH REVIEWERS
+  //   FETCH REVIEWERS
   const fetchReviewers = async () => {
     try {
       const res = await axios.get(
@@ -61,19 +61,19 @@ const ManagerList = () => {
     }
   };
 
-  // ✅ OPEN REVIEW MODAL
+  //   OPEN REVIEW MODAL
   const handleOpenModal = (item) => {
     setSelectedItem(item);
     setShowModal(true);
   };
 
-  // ✅ OPEN ASSIGN MODAL
+  //   OPEN ASSIGN MODAL
   const handleAssign = (item) => {
     setSelectedItem(item);
     setShowAssignModal(true);
   };
 
-  // ✅ HANDLE CHANGE
+  //   HANDLE CHANGE
   const handleChange = (e) => {
     const { name, value } = e.target;
     setReviewData({ ...reviewData, [name]: value });
@@ -84,7 +84,7 @@ const ManagerList = () => {
     setAssignData({ ...assignData, [name]: value });
     };
 
-  // ✅ SUBMIT APPROVAL
+  //   SUBMIT APPROVAL
   const handleSubmit = async () => {
     try {
       await axios.patch(
@@ -107,7 +107,7 @@ const ManagerList = () => {
     }
   };
 
-  // ✅ ASSIGN REVIEWER API
+  //   ASSIGN REVIEWER API
  const handleAssignSubmit = async () => {
   try {
     await axios.patch(
@@ -123,7 +123,7 @@ const ManagerList = () => {
       }
     );
 
-    alert("✅ Reviewer assigned successfully");
+    alert("  Reviewer assigned successfully");
     setShowAssignModal(false);
     setAssignData({
       reviewer_id: "",

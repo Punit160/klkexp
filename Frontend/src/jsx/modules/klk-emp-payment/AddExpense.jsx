@@ -95,7 +95,7 @@ const AddExpense = () => {
         return;
       }
 
-      alert("Expense Created Successfully ✅");
+      alert("Expense Created Successfully  ");
 
       // 🔄 RESET FORM
       setFormData({
