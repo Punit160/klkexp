@@ -139,9 +139,9 @@ export const createExpense = async (req, res) => {
 export const getMyCreatedExpenses = async (req, res) => {
   try {
     const company_id = req.user?.company_id;
-    const created_by = req.user?.email;
+    const user_id = req.user?.id;
 
-    if (!company_id || !created_by) {
+    if (!company_id || ! user_id) {
       return res.status(401).json({
         message: "Unauthorized",
       });
@@ -152,7 +152,7 @@ export const getMyCreatedExpenses = async (req, res) => {
       prisma.expensePayment.findMany({
         where: {
           company_id,
-          created_by,
+          requested_by : user_id,
         },
         orderBy: {
           created_at: "desc",
@@ -292,6 +292,7 @@ const [expenses, projects, interventions, users] = await Promise.all([
   raised_by: userMap[Number(exp.requested_by)] || "N/A",
   manager_name: userMap[Number(exp.manager_id)] || "N/A",
   reviewer_name: userMap[Number(exp.reviewer_id)] || "N/A",
+  document: exp.document,
 
   review_assign: exp.review_assign,
   managertoreviewer: exp.managertoreviewer,
@@ -451,6 +452,7 @@ export const getReviewerExpenses = async (req, res) => {
       district: exp.project_district,
       village: exp.project_village,
       amount: exp.amount,
+      document: exp.document,
 
       // ✅ ALL 3 NAMES
       raised_by: userMap[exp.requested_by] || exp.requested_by || "N/A",
@@ -530,8 +532,6 @@ export const reviewerApprove = async (req, res) => {
   }
 };
 
-
-// controllers/expenseController.js
 
 export const managerApproveExpense = async (req, res) => {
   try {
@@ -656,6 +656,7 @@ export const getAccountsExpenses = async (req, res) => {
 
   amount: exp.amount,
   requested_date: exp.requested_date,
+  document: exp.document,
 
   // ✅ IMPORTANT
   final_approved_amount: exp.final_approved_amount,
@@ -762,13 +763,40 @@ export const processPayment = async (req, res) => {
 export const getPaymentHistory = async (req, res) => {
   try {
     const { id } = req.params;
+    const company_id = req.user.company_id;
 
+    // ✅ Fetch Transactions
     const transactions = await prisma.expensePaymentTransaction.findMany({
       where: { expense_id: Number(id) },
       orderBy: { created_at: "desc" },
     });
 
-    res.json(transactions);
+    // ✅ Fetch Users
+    const users = await prisma.user.findMany({
+      where: { company_id },
+      select: { id: true, username: true },
+    });
+
+    // ✅ Create Map
+    const userMap = Object.fromEntries(
+      users.map((u) => [u.id, u.username])
+    );
+
+    // ✅ Final Response
+    const result = transactions.map((t) => ({
+      id: t.id,
+      payment_amount: t.payment_amount,
+      payment_mode: t.payment_mode,
+      payment_date: t.payment_date,
+      reference_no: t.reference_no,
+      remarks: t.remarks,
+
+      // ✅ MAPPED NAME
+      accountant_name: userMap[Number(t.accountant_id)] || "N/A",
+    }));
+
+    res.json(result);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

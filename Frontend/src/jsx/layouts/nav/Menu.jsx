@@ -27,7 +27,7 @@ export const MenuList = [
 
     {
         title: 'Intervention',
-        iconStyle: <i className="flaticon flaticon-web" />,
+        iconStyle: <i className="flaticon-registration" />,  
         classsChange: 'mm-collapse',
         content: [
             { title: 'Add Intervention', to: 'intervention-form' },
@@ -36,9 +36,11 @@ export const MenuList = [
     },
 
 
+
+
     {
         title: 'Employee Payment',
-        iconStyle: <i className="flaticon flaticon-phone-book" />,
+       iconStyle: <i className="flaticon-grid" />,
         classsChange: 'mm-collapse',
         content: [
             { title: 'Add Expense', to: '/Add-Expense' },
@@ -48,6 +50,19 @@ export const MenuList = [
             { title: 'Accounts List', to: '/account-list' },
 
         ]
+    },    // Settings Panel
+    {
+        title: 'Settings',
+        classsChange: 'mm-collapse',
+  iconStyle: <i className="flaticon-registration" />,
+        content: [
+            {
+                title: 'Role Permission',
+                to: '/role/list',
+            },
+
+        ],
     },
+
 
 ]

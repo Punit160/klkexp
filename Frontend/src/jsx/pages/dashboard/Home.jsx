@@ -3,6 +3,7 @@
 import { useContext, useEffect } from "react";
 import CommanSection from "./CommanSection";
 import { ThemeContext } from "../../../context/ThemeContext";
+import UserCommanSection from "./UserCommanSection";
 
 function Home() {
 	const { changeBackground } = useContext(ThemeContext);
@@ -12,7 +13,8 @@ function Home() {
 
 	return (
 		<>
-			<CommanSection />
+			{/* <CommanSection /> */}
+			<UserCommanSection/>
 		</>
 	)
 }

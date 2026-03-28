@@ -26,7 +26,7 @@ export const createIntervention = async (req, res) => {
     const newIntervention = await prisma.intervention.create({
       data: {
         name,
-        status: status == 1,
+        status: status == 1, //   convert to boolean
         company_id: req.user?.company_id,
         created_by: req.user?.email,
       },
@@ -79,7 +79,7 @@ export const getAllInterventions = async (req, res) => {
 
     const interventions = await prisma.intervention.findMany({
       where: {
-        company_id: company_id, 
+                company_id: req.user.company_id,
       },
       orderBy: { created_at: "desc" },
     });
@@ -154,7 +154,3 @@ export const deleteIntervention = async (req, res) => {
     });
   }
 };
-
-
-
-

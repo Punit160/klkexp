@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import { ThemeContext } from "../../context/ThemeContext";
-import { Routes, Route, Outlet } from "react-router-dom";
+import { Routes, Route, Outlet, Navigate } from "react-router-dom";
 import Nav from "../layouts/nav";
 import Footer from "../layouts/Footer";
 // dashboard 
@@ -24,7 +24,6 @@ import Login from "../pages/authentication/Login";
 import Registration from "../pages/authentication/Registration";
 import ScrollToTop from "../element/scrolltotop";
 
-
 import AddEmployee from "../modules/Employee/AddEmployee";
 import EmployeeList from "../modules/employee/EmployeeList";
 import ProjectMasterForm from "../modules/project-master/ProjectForm";
@@ -36,34 +35,55 @@ import ReviewerList from "../modules/klk-emp-payment/ReviewerList";
 import AccountsList from "../modules/klk-emp-payment/AccountsList";
 import ManagerList from "../modules/klk-emp-payment/ManagerList";
 import AddExpense from "../modules/klk-emp-payment/AddExpense";
+import UpdateEmployee from "../modules/Employee/UpdateEmployee";
+import ProjectFormUpdate from "../modules/project-master/ProjectFromUpdate";
+import RoleList from "../modules/RolePermission/RoleList";
+
+
+
+const ProtectedRoute = ({ children }) => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+
+    if (!token || !user) {
+        return <Navigate to="/login" replace />;
+    }
+    return children;
+};
+
+
+const PublicRoute = ({ children }) => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+
+    if (token && user) {
+        return <Navigate to="/dashboard" replace />;
+    }
+    return children;
+};
+
 
 const Markup = () => {
-    const menu = [
-        { path: '/', element: <Home /> },
+    const protectedMenu = [
         { path: 'dashboard', element: <Home /> },
         { path: 'dashboard-dark', element: <DashboardDark /> },
 
-
         { path: '/add-employee', element: <AddEmployee /> },
         { path: '/employee-List', element: <EmployeeList /> },
-
+        { path: '/update-employee/:id', element: <UpdateEmployee /> },
 
         { path: '/project-master', element: <ProjectMasterForm /> },
-        { path: '/project-list', element: < ProjectMasterList /> },
+        { path: '/project-list', element: <ProjectMasterList /> },
+        { path: '/project-edit/:id', element: <ProjectFormUpdate /> },
 
-
-        { path: '/intervention-Form', element: < InterventionForm /> },
-        { path: '/intervention-List', element: < InterventionList /> },
+        { path: '/intervention-Form', element: <InterventionForm /> },
+        { path: '/intervention-List', element: <InterventionList /> },
 
         { path: '/Add-Expense', element: <AddExpense /> },
         { path: '/payment-list', element: <PaymentList /> },
         { path: '/Reviewer-List', element: <ReviewerList /> },
         { path: '/Manager-List', element: <ManagerList /> },
         { path: '/Account-List', element: <AccountsList /> },
-
-
-
-
 
         { path: 'form-element', element: <Element /> },
         { path: 'form-wizard', element: <Wizard /> },
@@ -72,25 +92,53 @@ const Markup = () => {
         { path: 'form-validation', element: <FormValidation /> },
         { path: 'table-bootstrap-basic', element: <BootstrapTable /> },
         { path: 'table-datatable-basic', element: <DataTable /> },
-        { path: 'error-400', element: <Error400 /> },
-
         { path: 'empty-page', element: <EmptyPage /> },
-        { path: 'login', element: <Login /> },
-        { path: 'registration', element: <Registration /> },
-    ]
+        { path: '/role/list', element: <RoleList /> }
+
+    ];
 
     return (
         <>
             <Routes>
-                <Route path='page-error-400' element={<Error400 />} />
+                {/* <Route path="/" element={
+                    <PublicRoute>
+                        <Login />
+                    </PublicRoute>}
+                /> */}
 
-                <Route path='page-login' element={<Login />} />
-                <Route path='page-register' element={<Registration />} />
-                <Route element={<MainLayout />}>
-                    {menu.map((item, index) => (
+                <Route path="/" element={<Navigate to="/login" replace />} />
+
+
+
+                <Route path="/login" element={
+                    <PublicRoute>
+                        <Login />
+                    </PublicRoute>
+                }
+                />
+
+
+                <Route path="/register" element={
+                    <PublicRoute>
+                        <Registration />
+                    </PublicRoute>
+                }
+                />
+                <Route path="/error-400" element={<Error400 />} />
+                <Route
+                    element={
+                        <ProtectedRoute>
+                            <MainLayout />
+                        </ProtectedRoute>
+                    }
+                >
+                    {protectedMenu.map((item, index) => (
                         <Route key={index} path={item.path} element={item.element} />
                     ))}
                 </Route>
+
+
+                <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
             <ScrollToTop />
         </>
@@ -100,18 +148,18 @@ const Markup = () => {
 function MainLayout() {
     const { menuToggle, sidebariconHover } = useContext(ThemeContext);
     return (
-        <>
-            <div id="main-wrapper" className={`show ${sidebariconHover ? "iconhover-toggle" : ""} ${menuToggle ? "menu-toggle" : ""}`} >
-                <Nav />
-                <div className="content-body" style={{ minHeight: "849px" }}>
-                    <div className="container-fluid">
-                        <Outlet />
-                    </div>
+        <div
+            id="main-wrapper"
+            className={`show ${sidebariconHover ? "iconhover-toggle" : ""} ${menuToggle ? "menu-toggle" : ""}`}
+        >
+            <Nav />
+            <div className="content-body" style={{ minHeight: "849px" }}>
+                <div className="container-fluid">
+                    <Outlet />
                 </div>
-                <Footer />
             </div>
-
-        </>
+            <Footer />
+        </div>
     );
 }
 

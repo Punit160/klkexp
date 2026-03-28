@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 
-// ✅ CREATE PROJECT
+//   CREATE PROJECT
 export const createProject = async (req, res) => {
   try {
     const {
@@ -20,7 +20,7 @@ export const createProject = async (req, res) => {
     } = req.body;
 
     const company_id = req.user.company_id;
-    const created_by =  req.user.email;
+    const created_by = req.user.email;
 
     // 📄 Handle MOU file
     const mouFile = req.file
@@ -57,8 +57,8 @@ export const createProject = async (req, res) => {
         manager_id,
         contact_person,
         contact_person_number,
-        mou: mouFile, 
-        status: projectStatus == 1, 
+        mou: mouFile,
+        status: projectStatus,
         created_by,
       },
     });
@@ -75,7 +75,7 @@ export const createProject = async (req, res) => {
 
 
 
-// ✅ GET ALL PROJECTS (with pagination + search)
+//   GET ALL PROJECTS (with pagination + search)
 export const getProjects = async (req, res) => {
   try {
     let { page = 1, limit = 10, search = "" } = req.query;
@@ -84,14 +84,16 @@ export const getProjects = async (req, res) => {
     limit = parseInt(limit);
 
     const projects = await prisma.project.findMany({
+
       where: {
+        company_id: req.user.company_id,
         OR: [
           { name: { contains: search } },
           { funder_name: { contains: search } },
         ],
       },
-      skip: (page - 1) * limit,
-      take: limit,
+      // skip: (page - 1) * limit,
+      // take: limit,
       orderBy: {
         created_at: "desc",
       },
@@ -109,7 +111,7 @@ export const getProjects = async (req, res) => {
     return res.json({
       total,
       page,
-      limit,
+      // limit,
       data: projects,
     });
 
@@ -118,12 +120,44 @@ export const getProjects = async (req, res) => {
   }
 };
 
+//  GET MANAGERSS (FOR DROPDOWN)
+export const getManagers = async (req, res) => {
+  try {
+    const managers = await prisma.user.findMany({
+      where: {
+        company_id: req.user.company_id,
+      },
+      orderBy: { username: "asc" },
+      select: {
+        id:true,
+        username: true,
+        email: true,
+      },
+    });
+
+    res.json(managers);
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 
-// ✅ GET SINGLE PROJECT
+//   GET SINGLE PROJECT
 export const getProjectById = async (req, res) => {
   try {
     const { id } = req.params;
+     const managers = await prisma.user.findMany({
+      where: {
+        company_id: req.user.company_id,
+      },
+      orderBy: { username: "asc" },
+      select: {
+        id:true,
+        username: true,
+        email: true,
+      },
+    });
 
     const project = await prisma.project.findUnique({
       where: { id: Number(id) },
@@ -133,7 +167,7 @@ export const getProjectById = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    return res.json(project);
+    return res.json({project,managers});
 
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -142,7 +176,7 @@ export const getProjectById = async (req, res) => {
 
 
 
-// ✅ UPDATE PROJECT
+//   UPDATE PROJECT
 export const updateProject = async (req, res) => {
   try {
     const { id } = req.params;
@@ -182,7 +216,8 @@ export const updateProject = async (req, res) => {
         contact_person,
         contact_person_number,
         mou,
-        status,
+        //   String "true"/"1" → Boolean
+        status: status === "true" || status === true || status === 1 || status === "1",
       },
     });
 
@@ -198,7 +233,7 @@ export const updateProject = async (req, res) => {
 
 
 
-// ✅ DELETE PROJECT
+//   DELETE PROJECT
 export const deleteProject = async (req, res) => {
   try {
     const { id } = req.params;

@@ -3,8 +3,17 @@ import { Col, Card, Table } from "react-bootstrap";
 import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
+import { useLocation, useNavigate } from "react-router-dom";
+import { getAllProjects, deleteProject ,getManagers} from "./projectApi";
+
 
 const ProjectMasterList = () => {
+  const navigate = useNavigate();
+    const location = useLocation(); 
+
+    const [managers, setManagers] = useState([]);
+
+
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,69 +25,85 @@ const ProjectMasterList = () => {
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
 
-  /* FETCH PROJECTS */
+
+  //  managers fetch 
+useEffect(() => {
+  const fetchManagers = async () => {
+    const { ok, result } = await getManagers();
+    if (ok) setManagers(result);
+  };
+  fetchManagers();
+}, []);
+
+//  Helper function 
+const getManagerName = (managerId) => {
+  const found = managers.find((m) => m.id === managerId || m.id === Number(managerId));
+  return found ? found.username : managerId; // fallback: id dikhao
+};
+
+  /* ================= FETCH PROJECTS ================= */
   useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const token = localStorage.getItem("token");
-
-        console.log(import.meta.env.VITE_BACKEND_API_URL);
-
-        const response = await fetch(
-          `${import.meta.env.VITE_BACKEND_API_URL}projects/get-projects`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            credentials: "include", 
-          }
-        );
-
-        const data = await response.json();
-
-        console.log("API RESPONSE:", data);
-
-        if (!response.ok) {
-          console.error(data.message);
-          return;
-        }
-
-        // ✅ Map backend data to UI format
-      const formattedData = (data.data || []).map((proj) => ({
-            id: proj.id,
-            projectName: proj.name, // ✅ FIXED
-            startDate: proj.start_date
-                ? new Date(proj.start_date).toLocaleDateString()
-                : "-",
-            endDate: proj.end_date
-                ? new Date(proj.end_date).toLocaleDateString()
-                : "-",
-            financialYear: proj.financial_year,
-            funderName: proj.funder_name,
-            contactPerson: proj.contact_person_number,
-            contactPersonName: proj.contact_person,
-            projectManager: proj.manager_id,
-
-            // ✅ FIXED (status is boolean)
-            projectStatus: proj.status
-                ? "Ongoing"
-                : "Completed",
-
-            mou: proj.mou,
-            }));
-
-        setProjects(formattedData);
-
-      } catch (error) {
-        console.error("Error fetching projects:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProjects();
-  }, []);
+  }, [location.key]);
+
+  const fetchProjects = async () => {
+    try {
+      const data = await getAllProjects();
+
+      if (!data || !data.data) {
+        console.error(data?.message || "Failed to fetch projects");
+        return;
+      }
+
+      const formattedData = data.data.map((proj) => ({
+        id: proj.id,
+        projectName: proj.name,
+        startDate: proj.start_date
+          ? new Date(proj.start_date).toLocaleDateString()
+          : "-",
+        endDate: proj.end_date
+          ? new Date(proj.end_date).toLocaleDateString()
+          : "-",
+        financialYear: proj.financial_year,
+        funderName: proj.funder_name,
+        contactPerson: proj.contact_person_number,
+        contactPersonName: proj.contact_person,
+        projectManager: proj.manager_id,
+        projectStatus: proj.status ? "Ongoing" : "Completed",
+        mou: proj.mou,
+        description: proj.description || "-",
+      }));
+
+      setProjects(formattedData);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= DELETE ================= */
+const handleDelete = async (id) => {
+  const confirmDelete = window.confirm("Are you sure you want to delete?");
+  if (!confirmDelete) return;
+
+  // Pehle UI se remove karo (optimistic)
+  setProjects((prev) => prev.filter((p) => p.id !== id));
+
+  try {
+    const data = await deleteProject(id);
+
+    // Agar delete fail hua to wapas add karo
+    if (data && data.success === false) {
+      alert(data.message || "Delete failed");
+      fetchProjects(); // revert
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Error deleting project");
+    fetchProjects(); // revert on error
+  }
+};
 
   const currentProjects = projects.slice(indexOfFirst, indexOfLast);
 
@@ -94,7 +119,7 @@ const ProjectMasterList = () => {
     { label: "Status", key: "projectStatus" },
   ];
 
-  /* LOADING UI */
+  /* ================= LOADING ================= */
   if (loading) {
     return (
       <>
@@ -110,7 +135,6 @@ const ProjectMasterList = () => {
 
       <Col lg={12}>
         <Card>
-
           <Card.Header className="d-flex justify-content-between">
             <Card.Title>Project Master List</Card.Title>
 
@@ -122,9 +146,7 @@ const ProjectMasterList = () => {
           </Card.Header>
 
           <Card.Body>
-
             <Table responsive className="text-nowrap">
-
               <thead>
                 <tr>
                   <th>Sno</th>
@@ -143,13 +165,10 @@ const ProjectMasterList = () => {
               </thead>
 
               <tbody>
-
                 {currentProjects.length > 0 ? (
                   currentProjects.map((proj, index) => (
                     <tr key={proj.id}>
-
                       <td>{indexOfFirst + index + 1}</td>
-
                       <td>{proj.projectName}</td>
                       <td>{proj.startDate}</td>
                       <td>{proj.endDate}</td>
@@ -158,7 +177,7 @@ const ProjectMasterList = () => {
                       <td>{proj.contactPerson}</td>
                       <td>{proj.contactPersonName}</td>
 
-                      {/* MOU VIEW */}
+                      {/* MOU */}
                       <td>
                         {proj.mou ? (
                           <a
@@ -174,7 +193,8 @@ const ProjectMasterList = () => {
                         )}
                       </td>
 
-                      <td>{proj.projectManager}</td>
+                      <td>{getManagerName(proj.projectManager)}</td>
+
 
                       {/* STATUS */}
                       <td>
@@ -195,16 +215,23 @@ const ProjectMasterList = () => {
                       {/* ACTION */}
                       <td>
                         <div className="d-flex">
-                          <button className="btn btn-primary shadow btn-xs sharp me-1">
+                          {/* EDIT */}
+                          <button
+                            className="btn btn-primary shadow btn-xs sharp me-1"
+                            onClick={() => navigate(`/project-edit/${proj.id}`)}
+                          >
                             <i className="fas fa-pencil-alt"></i>
                           </button>
 
-                          <button className="btn btn-danger shadow btn-xs sharp">
+                          {/* DELETE */}
+                          <button
+                            className="btn btn-danger shadow btn-xs sharp"
+                            onClick={() => handleDelete(proj.id)}
+                          >
                             <i className="fa fa-trash"></i>
                           </button>
                         </div>
                       </td>
-
                     </tr>
                   ))
                 ) : (
@@ -214,9 +241,7 @@ const ProjectMasterList = () => {
                     </td>
                   </tr>
                 )}
-
               </tbody>
-
             </Table>
 
             <Pagination
@@ -225,7 +250,6 @@ const ProjectMasterList = () => {
               currentPage={currentPage}
               onPageChange={setCurrentPage}
             />
-
           </Card.Body>
         </Card>
       </Col>
