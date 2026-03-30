@@ -7,7 +7,6 @@ import Pagination from "../../components/Common/Pagination";
 const PaymentList = () => {
 
   const [expenses, setExpenses] = useState([]);
-  const [showModal, setShowModal] = useState(false);
 
   /* ---------------- FETCH DATA ---------------- */
   useEffect(() => {
