@@ -22,7 +22,7 @@ const ManagerList = () => {
     managertoreviewer: "",
     });
 
-  //   FETCH DATA
+  // ✅ FETCH DATA
   useEffect(() => {
     fetchExpenses();
     fetchReviewers();
@@ -44,7 +44,7 @@ const ManagerList = () => {
     }
   };
 
-  //   FETCH REVIEWERS
+  // ✅ FETCH REVIEWERS
   const fetchReviewers = async () => {
     try {
       const res = await axios.get(
@@ -61,53 +61,84 @@ const ManagerList = () => {
     }
   };
 
-  //   OPEN REVIEW MODAL
-  const handleOpenModal = (item) => {
-    setSelectedItem(item);
-    setShowModal(true);
-  };
 
-  //   OPEN ASSIGN MODAL
+  const getFinalAmount = (item) => {
+  if (
+    item.review_assign === true &&
+    Number(item.reviewer_approval_status) === 1
+  ) {
+    return item.approved_amount;
+  }
+  return item.amount;
+};
+
+  
+
+  // ✅ OPEN REVIEW MODAL
+const handleOpenModal = (item) => {
+  setSelectedItem(item);
+
+  setReviewData({
+    managerApproval: "1",
+    approvedamount: getFinalAmount(item), // ✅ correct now
+    remark: "",
+  });
+
+  setShowModal(true);
+};
+
+  // ✅ OPEN ASSIGN MODAL
   const handleAssign = (item) => {
     setSelectedItem(item);
     setShowAssignModal(true);
   };
 
-  //   HANDLE CHANGE
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setReviewData({ ...reviewData, [name]: value });
-  };
+  // ✅ HANDLE CHANGE
+const handleChange = (e) => {
+  const { name, value } = e.target;
+
+  let updated = { ...reviewData, [name]: value };
+
+  if (name === "managerApproval" && value === "2") {
+    updated.approvedamount = 0;
+  }
+
+  setReviewData(updated);
+};
 
     const handleAssignChange = (e) => {
     const { name, value } = e.target;
     setAssignData({ ...assignData, [name]: value });
     };
 
-  //   SUBMIT APPROVAL
-  const handleSubmit = async () => {
-    try {
-      await axios.patch(
-        `${import.meta.env.VITE_BACKEND_API_URL}expense/manager-approve/${selectedItem.id}`,
-        {
-          approval_status: reviewData.managerApproval === "1",
-          manager_remarks: reviewData.remark,
+  // ✅ SUBMIT APPROVAL
+const handleSubmit = async () => {
+  try {
+    await axios.patch(
+      `${import.meta.env.VITE_BACKEND_API_URL}expense/manager-approve/${selectedItem.id}`,
+      {
+        approval_status: Number(reviewData.managerApproval),
+        manager_remarks: reviewData.remark,
+        final_approved_amount: Number(reviewData.approvedamount),
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      }
+    );
 
-      setShowModal(false);
-      fetchExpenses();
-    } catch (error) {
-      console.error(error);
-    }
-  };
+    alert("✅ Manager decision saved");
 
-  //   ASSIGN REVIEWER API
+    setShowModal(false);
+    fetchExpenses();
+
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+  // ✅ ASSIGN REVIEWER API
  const handleAssignSubmit = async () => {
   try {
     await axios.patch(
@@ -123,7 +154,7 @@ const ManagerList = () => {
       }
     );
 
-    alert("  Reviewer assigned successfully");
+    alert("✅ Reviewer assigned successfully");
     setShowAssignModal(false);
     setAssignData({
       reviewer_id: "",
@@ -152,13 +183,18 @@ const ManagerList = () => {
               <thead>
                 <tr>
                   <th>Sno</th>
+                  <th>Raised By</th>
+                  <th>Manager</th>
                   <th>Project</th>
+                  <th>Intervention</th>
                   <th>State</th>
                   <th>District</th>
                   <th>Village</th>
+                  <th>Document</th>
                   <th>Amount</th>
                   <th>Reviewer</th>
                   <th>Reviewer Detail</th>
+                  <th>Reviewer Response</th>
                   <th>Manager Approval</th>
                   <th>Action</th>
                 </tr>
@@ -169,11 +205,29 @@ const ManagerList = () => {
                   data.map((item, index) => (
                     <tr key={item.id}>
                       <td>{index + 1}</td>
+                      <td>{item.raised_by}</td>
+                      <td>{item.manager_name}</td>
                       <td>{item.project}</td>
+                      <td>{item.intervention}</td>
                       <td>{item.state}</td>
                       <td>{item.district}</td>
                       <td>{item.village}</td>
+                                   <td>
+                        {item.document ? (
+                          <a
+                            href={`http://localhost:5001/uploads/${item.document}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          "N/A"
+                        )}
+                      </td>
                       <td>₹ {item.amount}</td>
+                 
 
                       
                       {/* ASSIGN */}
@@ -193,6 +247,22 @@ const ManagerList = () => {
                      <td>
                       <b> Reviewer : </b> {item.reviewer_name} <br></br>
                       <b> Manager to Reviewer : </b> {item.managertoreviewer} 
+                    </td>
+
+                     <td>
+                      <b> Approval status : </b> <span
+                          className={`badge ${
+                            item.reviewer_approval_text === "Approved"
+                              ? "bg-success"
+                              : item.reviewer_approval_text === "Rejected"
+                              ? "bg-danger"
+                              : "bg-warning"
+                          }`}
+                        >
+                          {item.reviewer_approval_text}
+                        </span><br></br>
+                      <b> Approved Amount : </b> {item.approved_amount} <br></br>
+                      <b> Reviewer to Manager : </b> {item.reviewer_remarks} 
                     </td>
 
                       {/* STATUS */}
@@ -238,36 +308,83 @@ const ManagerList = () => {
 
       {/* REVIEW MODAL */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Manager Review</Modal.Title>
-        </Modal.Header>
+  <Modal.Header closeButton>
+    <Modal.Title>Manager Review</Modal.Title>
+  </Modal.Header>
 
-        <Modal.Body>
-          <Form>
+  <Modal.Body>
+    {selectedItem && (
+      <>
+        {/* 🔹 TOP INFO */}
+        <div className="mb-3 p-3 border rounded bg-light">
+          <div className="d-flex justify-content-between mb-2">
+            <span><strong>Project:</strong> {selectedItem.project}</span>
+            <span><strong>Intervention:</strong> {selectedItem.intervention}</span>
+          </div>
+
+          <div className="d-flex justify-content-between">
+            <span><strong>Amount:</strong> ₹ {selectedItem.amount}</span>
+            <span>
+              <strong>Approved Amount:</strong> ₹{" "}
+              {selectedItem.approved_amount || selectedItem.amount}
+            </span>
+          </div>
+        </div>
+
+        {/* 🔹 FORM */}
+        <Form>
+
+          {/* Approval */}
+          <Form.Group className="mb-3">
+            <Form.Label>Approval</Form.Label>
             <Form.Select
               name="managerApproval"
               value={reviewData.managerApproval}
               onChange={handleChange}
             >
               <option value="1">Approved</option>
-              <option value="0">Rejected</option>
+              <option value="2">Rejected</option>
             </Form.Select>
+          </Form.Group>
 
+          {/* Approved Amount */}
+          <Form.Group className="mb-3">
+            <Form.Label>Approved Amount</Form.Label>
+            <Form.Control
+              type="number"
+              name="approvedamount"
+              value={reviewData.approvedamount || selectedItem.amount}
+              onChange={handleChange}
+              disabled={reviewData.managerApproval === "2"}
+            />
+          </Form.Group>
+
+          {/* Remark */}
+          <Form.Group className="mb-3">
+            <Form.Label>Remarks</Form.Label>
             <Form.Control
               as="textarea"
-              className="mt-3"
+              rows={3}
               name="remark"
-              placeholder="Enter remark"
+              value={reviewData.remark}
               onChange={handleChange}
             />
-          </Form>
-        </Modal.Body>
+          </Form.Group>
 
-        <Modal.Footer>
-          <Button onClick={() => setShowModal(false)}>Cancel</Button>
-          <Button onClick={handleSubmit}>Submit</Button>
-        </Modal.Footer>
-      </Modal>
+        </Form>
+      </>
+    )}
+  </Modal.Body>
+
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowModal(false)}>
+      Cancel
+    </Button>
+    <Button variant="primary" onClick={handleSubmit}>
+      Submit
+    </Button>
+  </Modal.Footer>
+</Modal>
 
       {/* ASSIGN MODAL */}
       <Modal show={showAssignModal} onHide={() => setShowAssignModal(false)}>

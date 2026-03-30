@@ -7,7 +7,7 @@ import Pagination from "../../components/Common/Pagination";
 const PaymentList = () => {
 
   const [expenses, setExpenses] = useState([]);
-  // const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   /* ---------------- FETCH DATA ---------------- */
   useEffect(() => {
@@ -24,7 +24,7 @@ const PaymentList = () => {
 
         const data = await res.json();
 
-        // console.log("EXPENSES ", data);
+        console.log("EXPENSES 👉", data);
 
         setExpenses(data || []);
 

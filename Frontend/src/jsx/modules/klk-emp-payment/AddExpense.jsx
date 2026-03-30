@@ -14,7 +14,6 @@ const AddExpense = () => {
     amount: "",
     document: null,
     remarks: "",
-    requested_date: "",
   });
 
   // 🔥 FETCH DROPDOWN DATA
@@ -22,7 +21,7 @@ const AddExpense = () => {
     const fetchData = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_BACKEND_API_URL}expense/add-expense`,
+           `${import.meta.env.VITE_BACKEND_API_URL}expense/add-expense`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -32,7 +31,7 @@ const AddExpense = () => {
 
         const data = await res.json();
 
-        // console.log("API DATA", data);
+        console.log("API DATA 👉", data);
 
         setProjects(data.projects || []);
         setInterventions(data.interventions || []);
@@ -70,8 +69,6 @@ const AddExpense = () => {
       form.append("amount", formData.amount);
       form.append("intervention", formData.intervention);
       form.append("remarks", formData.remarks);
-      form.append("requested_date", formData.requested_date);
-
 
       if (formData.document) {
         form.append("document", formData.document);
@@ -95,7 +92,7 @@ const AddExpense = () => {
         return;
       }
 
-      alert("Expense Created Successfully  ");
+      alert("Expense Created Successfully ✅");
 
       // 🔄 RESET FORM
       setFormData({
@@ -177,18 +174,6 @@ const AddExpense = () => {
                   className="form-control"
                   value={formData.project_village}
                   onChange={handleChange}
-                />
-              </div>
-
-              <div className="col-lg-6 mb-3">
-                <label>Requested Date</label>
-                <input
-                  type="date"
-                  name="requested_date"
-                  className="form-control"
-                  value={formData.requested_date}
-                  onChange={handleChange}
-                  required
                 />
               </div>
 

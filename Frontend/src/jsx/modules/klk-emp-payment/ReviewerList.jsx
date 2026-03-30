@@ -15,7 +15,7 @@ const ReviewerList = () => {
     remark: "",
   });
 
-  //   FETCH DATA
+  // ✅ FETCH DATA
   useEffect(() => {
     fetchReviewerExpenses();
   }, []);
@@ -37,20 +37,20 @@ const ReviewerList = () => {
     }
   };
 
-  //   OPEN MODAL
+  // ✅ OPEN MODAL
   const handleOpenModal = (item) => {
   setSelectedItem(item);
 
   setReviewData({
     reviewerApproval: "1",
-    approvedamount: item.approved_amount || item.amount, //   prefill
+    approvedamount: item.approved_amount || item.amount, // ✅ prefill
     remark: "",
   });
 
   setShowModal(true);
 };
 
-  //   HANDLE CHANGE
+  // ✅ HANDLE CHANGE
   const handleChange = (e) => {
     const { name, value } = e.target;
     setReviewData({ ...reviewData, [name]: value });
@@ -72,7 +72,7 @@ const handleSubmit = async () => {
       }
     );
 
-    alert("Review submitted successfully  ");
+    alert("Review submitted successfully ✅");
 
     setShowModal(false);
 
@@ -107,6 +107,7 @@ const handleSubmit = async () => {
                   <th>State</th>
                   <th>District</th>
                   <th>Village</th>
+                  <th>Document</th>
                   <th>Amount</th>
                   <th>Approved Amount</th>
                   <th>Manager Remark</th>
@@ -129,6 +130,20 @@ const handleSubmit = async () => {
                       <td>{item.state}</td>
                       <td>{item.district}</td>
                       <td>{item.village}</td>
+                                   <td>
+                        {item.document ? (
+                          <a
+                            href={`http://localhost:5001/uploads/${item.document}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          "N/A"
+                        )}
+                      </td>
                       <td>₹ {item.amount}</td>
                       <td>₹ {item.approved_amount}</td>
                       <td>{item.manager_remark}</td>
@@ -183,7 +198,7 @@ const handleSubmit = async () => {
         </Card>
       </Col>
 
-      {/*   MODAL */}
+      {/* ✅ MODAL */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Reviewer Form</Modal.Title>
