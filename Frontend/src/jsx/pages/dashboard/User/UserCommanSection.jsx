@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Dropdown, Nav, Tab } from "react-bootstrap";
-import { SVGICON } from "../../constant/theme";
-import InvoiceChart from "../../components/dashboard/invoicechart";
-import EarningsChart from "../../components/dashboard/earningschart";
+import { SVGICON } from "../../../constant/theme";
+
+
 import { BsCheckCircle, BsXCircle } from "react-icons/bs";
 import ReactApexChart from "react-apexcharts";
-import SkyGreeting from "../../components/Common/SkyGreeting";
+import SkyGreeting from "../../../components/Common/SkyGreeting";
+import InvoiceChart, { EarningsChart } from "./UserWidgets";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -156,11 +157,18 @@ function UserCommanSection() {
   const [projectWiseData, setProjectWiseData] = useState([]);
 
   // ── Fetch Dashboard Data ──
+  // fyYear param mapping:
+  //   undefined  → no ?fy_year param → backend defaults to current activeFY
+  //   "0"        → ?fy_year=0        → backend returns all-years aggregated data
+  //   "2024-2025" etc. → ?fy_year=2024-2025 → backend filters to that FY
   const fetchDashboard = async (fyYear) => {
     setLoading(true);
     setError("");
     try {
-      const params = fyYear ? `?fy_year=${encodeURIComponent(fyYear)}` : "";
+      const params = fyYear !== undefined && fyYear !== ""
+        ? `?fy_year=${encodeURIComponent(fyYear)}`
+        : "";
+
       const res = await fetch(
         `${import.meta.env.VITE_BACKEND_API_URL}dashboard/users${params}`,
         {
@@ -174,17 +182,18 @@ function UserCommanSection() {
       if (json.success && json.data) {
         const d = json.data;
 
-        // On first load, set selectedYear from API's activeFY
-        if (!fyYear && d.activeFY) {
-          setSelectedYear(d.activeFY);
-        }
-
-        // Populate FY dropdown — filter out empty strings from availableFYList
+        // Populate FY dropdown from API — filter out any empty strings
         if (d.availableFYList?.length) {
           const list = d.availableFYList
             .map((item) => item.fy_year)
             .filter(Boolean);
           setAvailableFYList(list);
+        }
+
+        // activeFY is e.g. "2025-2026" for a specific year, or "all" when fy_year=0
+        if (fyYear === undefined) {
+          const active = d.activeFY && d.activeFY !== "all" ? d.activeFY : "";
+          setSelectedYear(active);
         }
 
         setStats({
@@ -205,16 +214,18 @@ function UserCommanSection() {
     }
   };
 
-  // Initial load — no fy_year param; API returns activeFY data
+  // Initial load — no param → backend defaults to current FY
   useEffect(() => {
-    fetchDashboard("");
+    fetchDashboard(undefined);
   }, []);
 
   // Re-fetch when user changes the FY dropdown
+  // Dropdown value "" = "All Years" → send fy_year=0 to backend
+  // Dropdown value "2024-2025" etc. → send as-is
   const handleYearChange = (e) => {
     const fy = e.target.value;
     setSelectedYear(fy);
-    fetchDashboard(fy);
+    fetchDashboard(fy === "" ? "0" : fy);
   };
 
   // ── Derived: attach _status to each expense ──
@@ -323,9 +334,13 @@ function UserCommanSection() {
                     ? <div className="placeholder-glow"><span className="placeholder col-8" style={{ height: 36 }} /></div>
                     : <h2 className="card-title">₹ {formatINR(stats.totalExpense)}</h2>
                   }
-                  <small className="text-muted">FY {selectedYear}</small>
+                  <small className="text-muted">{selectedYear ? `FY ${selectedYear}` : "All Years"}</small>
                 </div>
-                <InvoiceChart />
+                {/* Monthly total ka sparkline */}
+                <InvoiceChart
+                  data={monthlyChartData.total}
+                  color="#6571ff"
+                />
               </div>
             </div>
           </div>
@@ -336,10 +351,6 @@ function UserCommanSection() {
           <div className="card">
             <div className="card-header border-0 pb-0">
               <h6 className="mb-0">Paid Amount</h6>
-              <Dropdown className="dropdown ms-auto c-pointer">
-                <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                <Dropdown.Menu align="end"><Dropdown.Item>View Details</Dropdown.Item></Dropdown.Menu>
-              </Dropdown>
             </div>
             <div className="card-body pt-2">
               <div className="d-flex align-items-center justify-content-between">
@@ -357,7 +368,11 @@ function UserCommanSection() {
                     </small>
                   </div>
                 </div>
-                <EarningsChart />
+                {/* Monthly paid ka sparkline */}
+                <EarningsChart
+                  data={monthlyChartData.paid}
+                  color="#22c55e"
+                />
               </div>
             </div>
           </div>
@@ -368,10 +383,6 @@ function UserCommanSection() {
           <div className="card">
             <div className="card-header border-0 pb-0">
               <h6 className="mb-0">Pending Approval</h6>
-              <Dropdown className="dropdown ms-auto c-pointer">
-                <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                <Dropdown.Menu align="end"><Dropdown.Item>View Pending</Dropdown.Item></Dropdown.Menu>
-              </Dropdown>
             </div>
             <div className="card-body pt-2">
               <div className="d-flex align-items-center justify-content-between">
@@ -384,7 +395,11 @@ function UserCommanSection() {
                     <small className="text-warning font-w600 me-1">{countByStatus("Pending")} expenses</small>awaiting
                   </span>
                 </div>
-                <EarningsChart />
+                {/* Monthly pending ka sparkline */}
+                <EarningsChart
+                  data={monthlyChartData.pending}
+                  color="#f59e0b"
+                />
               </div>
             </div>
           </div>
@@ -395,10 +410,6 @@ function UserCommanSection() {
           <div className="card">
             <div className="card-header border-0 pb-0">
               <h6 className="mb-0">Rejected</h6>
-              <Dropdown className="dropdown ms-auto c-pointer">
-                <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                <Dropdown.Menu align="end"><Dropdown.Item>View Rejected</Dropdown.Item></Dropdown.Menu>
-              </Dropdown>
             </div>
             <div className="card-body pt-2">
               <div className="d-flex align-items-center justify-content-between">
@@ -411,11 +422,18 @@ function UserCommanSection() {
                     <small className="text-danger font-w600 me-1">{countByStatus("Rejected")} expenses</small>rejected
                   </span>
                 </div>
-                <InvoiceChart />
+                {/* Monthly rejected ke liye — total se paid minus karke approximate */}
+                <InvoiceChart
+                  data={monthlyChartData.total.map(
+                    (t, idx) => Math.max(0, t - (monthlyChartData.paid[idx] || 0) - (monthlyChartData.pending[idx] || 0))
+                  )}
+                  color="#ef4444"
+                />
               </div>
             </div>
           </div>
         </div>
+
 
         {/* ── Monthly Trend Chart ── */}
         <div className="col-xl-8">
@@ -423,7 +441,7 @@ function UserCommanSection() {
             <div className="card-header">
               <div>
                 <h4 className="mb-0">Monthly Expense Trend</h4>
-                <small className="text-muted">Based on requested date — FY {selectedYear}</small>
+                <small className="text-muted">Based on requested date — {selectedYear ? `FY ${selectedYear}` : "All Years"}</small>
               </div>
             </div>
             <div className="card-body">
@@ -474,7 +492,7 @@ function UserCommanSection() {
         <div className="col-12">
           <div className="card">
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-              <h4 className="mb-0">My Expenses — FY {selectedYear}</h4>
+              <h4 className="mb-0">{selectedYear ? `My Expenses — FY ${selectedYear}` : "My Expenses — All Years"}</h4>
             </div>
             <div className="card-body px-0">
               <Tab.Container defaultActiveKey="table">
