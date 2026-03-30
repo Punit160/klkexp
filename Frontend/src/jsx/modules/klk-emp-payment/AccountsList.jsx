@@ -117,7 +117,7 @@ const PaymentList = () => {
         }
       );
 
-      alert("✅ Payment Processed Successfully");
+      alert("Payment Processed Successfully");
 
       setShowAccountModal(false);
       fetchAccountsData();
