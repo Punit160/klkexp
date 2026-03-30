@@ -15,7 +15,7 @@ const ReviewerList = () => {
     remark: "",
   });
 
-  // ✅ FETCH DATA
+  //  FETCH DATA
   useEffect(() => {
     fetchReviewerExpenses();
   }, []);
@@ -37,20 +37,20 @@ const ReviewerList = () => {
     }
   };
 
-  // ✅ OPEN MODAL
+  //  OPEN MODAL
   const handleOpenModal = (item) => {
   setSelectedItem(item);
 
   setReviewData({
     reviewerApproval: "1",
-    approvedamount: item.approved_amount || item.amount, // ✅ prefill
+    approvedamount: item.approved_amount || item.amount, //  prefill
     remark: "",
   });
 
   setShowModal(true);
 };
 
-  // ✅ HANDLE CHANGE
+  //  HANDLE CHANGE
   const handleChange = (e) => {
     const { name, value } = e.target;
     setReviewData({ ...reviewData, [name]: value });
@@ -72,15 +72,15 @@ const handleSubmit = async () => {
       }
     );
 
-    alert("Review submitted successfully ✅");
+    alert("Review submitted successfully");
 
     setShowModal(false);
 
-    fetchReviewerExpenses(); // 🔁 refresh table
+    fetchReviewerExpenses(); 
 
   } catch (error) {
     console.error(error);
-    alert("Something went wrong ❌");
+    alert("Something went wrong");
   }
 };
 
@@ -198,7 +198,7 @@ const handleSubmit = async () => {
         </Card>
       </Col>
 
-      {/* ✅ MODAL */}
+      {/*  MODAL */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Reviewer Form</Modal.Title>
