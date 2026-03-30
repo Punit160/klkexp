@@ -1,8 +1,9 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 
 import { useContext, useEffect } from "react";
-import CommanSection from "./CommanSection";
 import { ThemeContext } from "../../../context/ThemeContext";
+// import CommanSection from "./CommanSection";
+// import AdminDashboard from "./AdminDashboard";
 import UserCommanSection from "./UserCommanSection";
 
 function Home() {
@@ -13,6 +14,8 @@ function Home() {
 
 	return (
 		<>
+
+			{/* <AdminDashboard/> */}
 			{/* <CommanSection /> */}
 			<UserCommanSection/>
 		</>

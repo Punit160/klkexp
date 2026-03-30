@@ -4,21 +4,15 @@ import { Dropdown, Nav, Tab } from "react-bootstrap";
 import { SVGICON } from "../../constant/theme";
 import InvoiceChart from "../../components/dashboard/invoicechart";
 import EarningsChart from "../../components/dashboard/earningschart";
-
-import {
-  BsCheckCircle,
-  BsXCircle,
-  BsArrowClockwise,
-} from "react-icons/bs";
+import { BsCheckCircle, BsXCircle } from "react-icons/bs";
 import ReactApexChart from "react-apexcharts";
 import SkyGreeting from "../../components/Common/SkyGreeting";
 
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Derive a display status from raw API boolean fields */
 function deriveStatus(exp) {
-  if (exp.payment_status) return "Paid";
+  // payment_status: 1 = paid, 2 = partially paid / processed — both count as Paid
+  if (exp.payment_status && exp.payment_status > 0) return "Paid";
   if (exp.approval_status) return "Approved";
   if (exp.reviewer_status) return "Under Review";
   return "Pending";
@@ -45,7 +39,6 @@ function formatDate(dateStr) {
   });
 }
 
-/** Build month-wise chart data from AllExpenseData using requested_date */
 function buildMonthlyChartData(allExpenseData) {
   const monthOrder = [
     "Apr", "May", "Jun", "Jul", "Aug", "Sep",
@@ -61,7 +54,7 @@ function buildMonthlyChartData(allExpenseData) {
     if (!monthMap[month]) return;
     const amount = Number(exp.amount || 0);
     monthMap[month].total += amount;
-    if (exp.payment_status) monthMap[month].paid += amount;
+    if (exp.payment_status > 0) monthMap[month].paid += amount;
     else monthMap[month].pending += amount;
   });
 
@@ -73,7 +66,6 @@ function buildMonthlyChartData(allExpenseData) {
   };
 }
 
-/** Build project-wise bar chart data from projectWiseData — with null safety */
 function buildProjectChartData(projectWiseData) {
   return {
     labels: projectWiseData.map((p) => p.project_name ?? "Unknown"),
@@ -85,7 +77,6 @@ function buildProjectChartData(projectWiseData) {
 
 // ─── Monthly Area Chart ───────────────────────────────────────────────────────
 function MonthlyTrendChart({ data }) {
-  // Guard: don't render if categories are missing
   if (!data?.categories?.length) {
     return <p className="text-center text-muted py-4">No monthly data available.</p>;
   }
@@ -119,7 +110,6 @@ function MonthlyTrendChart({ data }) {
 
 // ─── Project Bar Chart ────────────────────────────────────────────────────────
 function ProjectBarChart({ data }) {
-  // Guard: don't render if labels are missing or empty
   if (!data?.labels?.length) {
     return <p className="text-center text-muted py-4">No project data available.</p>;
   }
@@ -149,8 +139,8 @@ function ProjectBarChart({ data }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 function UserCommanSection() {
-  const [selectedYear, setSelectedYear] = useState("2025-26");
-  const [filterStatus, setFilterStatus] = useState("All");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [availableFYList, setAvailableFYList] = useState([]);
   const [submitMsg, setSubmitMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -166,12 +156,13 @@ function UserCommanSection() {
   const [projectWiseData, setProjectWiseData] = useState([]);
 
   // ── Fetch Dashboard Data ──
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (fyYear) => {
     setLoading(true);
     setError("");
     try {
+      const params = fyYear ? `?fy_year=${encodeURIComponent(fyYear)}` : "";
       const res = await fetch(
-        `${import.meta.env.VITE_BACKEND_API_URL}dashboard/users`,
+        `${import.meta.env.VITE_BACKEND_API_URL}dashboard/users${params}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -182,6 +173,20 @@ function UserCommanSection() {
       const json = await res.json();
       if (json.success && json.data) {
         const d = json.data;
+
+        // On first load, set selectedYear from API's activeFY
+        if (!fyYear && d.activeFY) {
+          setSelectedYear(d.activeFY);
+        }
+
+        // Populate FY dropdown — filter out empty strings from availableFYList
+        if (d.availableFYList?.length) {
+          const list = d.availableFYList
+            .map((item) => item.fy_year)
+            .filter(Boolean);
+          setAvailableFYList(list);
+        }
+
         setStats({
           totalExpense: d.totalExpense ?? 0,
           paidAmount: d.paidAmount ?? 0,
@@ -200,21 +205,23 @@ function UserCommanSection() {
     }
   };
 
+  // Initial load — no fy_year param; API returns activeFY data
   useEffect(() => {
-    fetchDashboard();
-  }, [selectedYear]);
+    fetchDashboard("");
+  }, []);
+
+  // Re-fetch when user changes the FY dropdown
+  const handleYearChange = (e) => {
+    const fy = e.target.value;
+    setSelectedYear(fy);
+    fetchDashboard(fy);
+  };
 
   // ── Derived: attach _status to each expense ──
   const expensesWithStatus = useMemo(
     () => allExpenses.map((e) => ({ ...e, _status: deriveStatus(e) })),
     [allExpenses]
   );
-
-  // ── Filtered table rows ──
-  const filtered =
-    filterStatus === "All"
-      ? expensesWithStatus
-      : expensesWithStatus.filter((e) => e._status === filterStatus);
 
   const countByStatus = (status) =>
     expensesWithStatus.filter((e) => e._status === status).length;
@@ -229,7 +236,7 @@ function UserCommanSection() {
     [projectWiseData]
   );
 
-  // ── Donut chart — coerce all values to numbers, guard against all-zero ──
+  // ── Donut chart ──
   const donutSeries = [
     Number(stats.totalExpense) || 0,
     Number(stats.paidAmount) || 0,
@@ -253,32 +260,29 @@ function UserCommanSection() {
       {/* ── Page Header ── */}
       <div className="page-head">
         <div className="row align-items-center">
-
-          {/* Bigger column */}
           <div className="col-sm-8 mb-sm-4 mb-3">
             <SkyGreeting />
           </div>
-
-          {/* Smaller column */}
           <div className="col-sm-4 mb-4 text-sm-end">
             <div className="d-inline-flex align-items-center gap-2">
               <select
                 className="form-select w-auto"
                 value={selectedYear}
-                onChange={(e) => {
-                  setSelectedYear(e.target.value);
-                  setFilterStatus("All");
-                }}
+                onChange={handleYearChange}
               >
-                <option value="">Select Financial Year</option>
-                <option value="2025-26">2025 - 2026</option>
-                <option value="2024-25">2024 - 2025</option>
-                <option value="2023-24">2023 - 2024</option>
-                <option value="2022-23">2022 - 2023</option>
+                {availableFYList.length > 0 ? (
+                  <>
+                    <option value="">All Years</option>
+                    {availableFYList.map((fy) => (
+                      <option key={fy} value={fy}>
+                        {fy}
+                      </option>
+                    ))}
+                  </>
+                ) : (
+                  <option value="">Loading...</option>
+                )}
               </select>
-
-
-
               <Link
                 to="/add-expense"
                 className="btn btn-primary d-flex align-items-center gap-1"
@@ -287,7 +291,6 @@ function UserCommanSection() {
               </Link>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -328,7 +331,7 @@ function UserCommanSection() {
           </div>
         </div>
 
-        {/* ── Card 2: Paid + Approved sub-info ── */}
+        {/* ── Card 2: Paid ── */}
         <div className="col-xl-3 col-sm-6">
           <div className="card">
             <div className="card-header border-0 pb-0">
@@ -414,7 +417,7 @@ function UserCommanSection() {
           </div>
         </div>
 
-        {/* ── Monthly Trend Chart (8 col) ── */}
+        {/* ── Monthly Trend Chart ── */}
         <div className="col-xl-8">
           <div className="card">
             <div className="card-header">
@@ -432,7 +435,7 @@ function UserCommanSection() {
           </div>
         </div>
 
-        {/* ── Donut Breakdown (4 col) ── */}
+        {/* ── Donut Breakdown ── */}
         <div className="col-xl-4">
           <div className="card">
             <div className="card-header">
@@ -450,7 +453,7 @@ function UserCommanSection() {
           </div>
         </div>
 
-        {/* ── Project Wise Bar Chart (full width) ── */}
+        {/* ── Project Wise Bar Chart ── */}
         {projectWiseData.length > 0 && (
           <div className="col-xl-12">
             <div className="card">
@@ -472,21 +475,6 @@ function UserCommanSection() {
           <div className="card">
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
               <h4 className="mb-0">My Expenses — FY {selectedYear}</h4>
-              {/* Status filter pills */}
-              {/* <div className="d-flex gap-2 flex-wrap">
-                {["All", "Pending", "Approved", "Paid", "Rejected", "Under Review"].map((s) => (
-                  <button
-                    key={s}
-                    className={`btn btn-sm ${filterStatus === s ? "btn-primary" : "btn-outline-secondary"}`}
-                    onClick={() => setFilterStatus(s)}
-                  >
-                    {s}
-                    <span className="ms-1 badge bg-white text-dark">
-                      {s === "All" ? expensesWithStatus.length : countByStatus(s)}
-                    </span>
-                  </button>
-                ))}
-              </div> */}
             </div>
             <div className="card-body px-0">
               <Tab.Container defaultActiveKey="table">
@@ -531,10 +519,10 @@ function UserCommanSection() {
                               <div className="spinner-border spinner-border-sm text-primary me-2" role="status" />
                               Loading expenses...
                             </td></tr>
-                          ) : filtered.length === 0 ? (
+                          ) : expensesWithStatus.length === 0 ? (
                             <tr><td colSpan={7} className="text-center text-muted py-4">No expenses found.</td></tr>
                           ) : (
-                            filtered.map((exp, i) => (
+                            expensesWithStatus.map((exp, i) => (
                               <tr key={exp.id ?? i}>
                                 <td>{i + 1}</td>
                                 <td>
@@ -630,7 +618,7 @@ function UserCommanSection() {
                           ) : (
                             expensesWithStatus.map((exp, i) => (
                               <tr key={exp.id ?? i}>
-                                <td><h6 className="mb-0">Project #{exp.project_name}</h6></td>
+                                <td><h6 className="mb-0">{exp.project_name}</h6></td>
                                 <td>{formatDate(exp.requested_date)}</td>
                                 <td className="fw-bold text-primary">₹ {formatINR(exp.amount)}</td>
                                 <td>
@@ -644,8 +632,8 @@ function UserCommanSection() {
                                   </span>
                                 </td>
                                 <td>
-                                  <span className={exp.payment_status ? "badge badge-success light border-0" : "badge badge-warning light border-0"}>
-                                    {exp.payment_status ? "Paid" : "Unpaid"}
+                                  <span className={exp.payment_status > 0 ? "badge badge-success light border-0" : "badge badge-warning light border-0"}>
+                                    {exp.payment_status > 0 ? "Paid" : "Unpaid"}
                                   </span>
                                 </td>
                               </tr>
@@ -662,11 +650,6 @@ function UserCommanSection() {
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .spin { animation: spin 1s linear infinite; }
-      `}</style>
     </>
   );
 }

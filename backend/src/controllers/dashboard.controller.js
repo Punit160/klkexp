@@ -6,21 +6,21 @@ const prisma = new PrismaClient();
 const getCurrentFYYear = () => {
     const now = new Date();
     const month = now.getMonth() + 1;
-    const year = now.getFullYear(); 
+    const year = now.getFullYear();
     const fyStartYear = month >= 4 ? year : year - 1;
     return `${fyStartYear}-${fyStartYear + 1}`;
 };
 
 const isValidFYYear = (fy) => /^\d{4}-\d{4}$/.test(fy);
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
+// ─── UserDashboard ────────────────────────────────────────────────────────────────
 
-export const Dashboard = async (req, res) => {
+export const UserDashboard = async (req, res) => {
     try {
         const company_id = req.user.company_id;
         const user_id = req.user.id;
 
-        // ✅ Validate fy_year input to prevent SQL injection
+        //   Validate fy_year input to prevent SQL injection
         const rawFY = req.query.fy_year;
         const fyYear = (rawFY && isValidFYYear(rawFY)) ? rawFY : getCurrentFYYear();
 
@@ -44,18 +44,18 @@ export const Dashboard = async (req, res) => {
         for (const item of data) {
             const amount = Number(item._sum.amount) || 0;
 
-            // ✅ Use strict equality (===) — Prisma returns typed values
+            //   Use strict equality (===) — Prisma returns typed values
             if (item.payment_status === 1) paidAmount += amount;
             if (item.approval_status === 0) pendingAmount += amount;
             if (item.approval_status === 2) rejectedAmount += amount;
             if (item.approval_status === 1 && item.payment_status === 0) approvedAmount += amount;
 
-            // ✅ Fix: exclude rejected amounts from totalExpense
+            //   Fix: exclude rejected amounts from totalExpense
             if (item.approval_status !== 2) totalExpense += amount;
         }
 
         // ─── 2. Year-wise Paid (All FYs — for chart) ─────────────────────────
-        // ✅ Removed fy_sort — use financial_year string sort (format "YYYY-YYYY" sorts correctly)
+        //   Removed fy_sort — use financial_year string sort (format "YYYY-YYYY" sorts correctly)
         const yearlyPaidData = await prisma.$queryRaw`
             SELECT 
                 financial_year AS fy_year,
@@ -69,7 +69,7 @@ export const Dashboard = async (req, res) => {
         `;
 
         // ─── 3. Project-wise Summary ──────────────────────────────────────────
-        
+
         const projectWiseData = await prisma.$queryRaw`
             SELECT 
                 p.id   AS project_id,
@@ -101,7 +101,7 @@ export const Dashboard = async (req, res) => {
         `;
 
         // ─── 5. FY Dropdown List ──────────────────────────────────────────────
-        // ✅ Added ORDER BY for consistent dropdown ordering
+        //   Added ORDER BY for consistent dropdown ordering
         const availableFYList = await prisma.$queryRaw`
             SELECT DISTINCT
                 financial_year AS fy_year
@@ -111,7 +111,7 @@ export const Dashboard = async (req, res) => {
             ORDER BY financial_year ASC
         `;
         // ─── 6. Intervention-wise Summary ────────────────────────────────────────────
-           
+
         const interventionWiseData = await prisma.$queryRaw`
             SELECT 
                 i.id              AS intervention_id,
@@ -127,7 +127,7 @@ export const Dashboard = async (req, res) => {
               AND ep.requested_by  = ${user_id}
               AND ep.financial_year = ${fyYear}
             GROUP BY i.id, i.name
-        `;  
+        `;
 
 
         // ─── Response ─────────────────────────────────────────────────────────
@@ -149,10 +149,10 @@ export const Dashboard = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Dashboard Error:", error);
+        console.error("UserDashboard Error:", error);
         return res.status(500).json({
             success: false,
-            message: "Dashboard fetch failed",
+            message: "UserDashboard fetch failed",
             error: error.message
         });
     }
