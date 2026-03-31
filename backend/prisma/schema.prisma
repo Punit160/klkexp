@@ -26,6 +26,8 @@ model User {
   ctc            Float?
   phone_no       String?
   designation    String?
+  role_id   Int?
+  role      Role?   @relation(fields: [role_id], references: [id])
   dob            DateTime?
   gender         String?
   qualification  String?
@@ -82,9 +84,9 @@ model ExpensePayment {
   intervention             Int @default(0)
   project_district         String
   project_village          String
-  amount                   Float
-  approved_amount          Float?
-  final_approved_amount          Float?
+  amount                   Float @default(0)
+  approved_amount          Float? @default(0)
+  final_approved_amount    Float? @default(0)
   amount_change_by         Int?
   requested_by             Int
   requested_date DateTime @default(now())
@@ -137,6 +139,43 @@ model ExpensePaymentTransaction {
   // ✅ INDEXES
   @@index([expense_id])
   @@index([accountant_id])
+}
+
+
+model Role {
+  id          Int       @id @default(autoincrement())
+  company_id               String
+  name        String    @unique
+  description String?
+
+  users       User[]
+  permissions RolePermission[]
+  created_by               String?
+  created_at  DateTime  @default(now())
+}
+
+model Permission {
+  id          Int       @id @default(autoincrement())
+  company_id               String
+  name        String    @unique   // e.g. "create_expense"
+  label       String              // UI label
+  module      String              // e.g. "Expense", "Accounts"
+
+  roles       RolePermission[]
+  created_by               String?
+  created_at  DateTime  @default(now())
+}
+
+model RolePermission {
+  id            Int @id @default(autoincrement())
+
+  role_id       Int
+  permission_id Int
+
+  role          Role        @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission    Permission  @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@unique([role_id, permission_id])
 }
 
 

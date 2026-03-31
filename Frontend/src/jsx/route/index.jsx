@@ -38,6 +38,11 @@ import AddExpense from "../modules/klk-emp-payment/AddExpense";
 import UpdateEmployee from "../modules/Employee/UpdateEmployee";
 import ProjectFormUpdate from "../modules/project-master/ProjectFromUpdate";
 import RoleList from "../modules/RolePermission/RoleList";
+import AddRole from "../modules/RolePermission/AddRole"
+import RoleEdit from "../modules/RolePermission/RoleEdit"
+import PermissionList from "../modules/RolePermission/PermissionList";
+import PermissionForm from "../modules/RolePermission/PermissionForm"
+import AssignPermission from "../modules/RolePermission/AssignPermission"
 
 
 
@@ -93,9 +98,14 @@ const Markup = () => {
         { path: 'table-bootstrap-basic', element: <BootstrapTable /> },
         { path: 'table-datatable-basic', element: <DataTable /> },
         { path: 'empty-page', element: <EmptyPage /> },
-        { path: '/role/list', element: <RoleList /> }
+        { path: '/role/list', element: <RoleList /> },
+        { path: '/role/add-role', element: <AddRole /> },
+        { path: '/role/edit/:id', element: <RoleEdit /> },
+        { path: '/permission/list', element: <PermissionList /> },
+        { path: '/permission/add-permission', element: <PermissionForm /> },
+        { path: '/role/assign/:id', element: <AssignPermission /> }
 
-    ];
+     ];
 
     return (
         <>

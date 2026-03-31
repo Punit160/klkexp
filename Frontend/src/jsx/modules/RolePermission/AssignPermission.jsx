@@ -1,126 +1,123 @@
-import { useState, useEffect } from "react";
-import { Modal, Button, Table } from "react-bootstrap";
+import React, { useEffect, useState } from "react";
+import PageTitle from "../../layouts/PageTitle";
+import { useParams } from "react-router-dom";
+import { assignPermissions, getRoleById } from "./roleApi";
+import { getPermissions } from "./permissionApi";
 
-const modules = [
-  "Solar Panel",
-  "Tracking System",
-  "Battery",
-  "Dispatch",
-  "Users",
-];
+const AssignPermission = () => {
+  const { id } = useParams();
 
-const PermissionPopup = ({ show, onClose, role }) => {
-  const [permissions, setPermissions] = useState({});
+  const [permissions, setPermissions] = useState([]);
+  const [selected, setSelected] = useState([]);
+  const [roleName, setRoleName] = useState("");
 
   useEffect(() => {
-    const initial = {};
-    modules.forEach((m) => {
-      initial[m] = {
-        view: false,
-        add: false,
-        edit: false,
-        delete: false,
-      };
-    });
-    setPermissions(initial);
-  }, [role]);
+    fetchPermissions();
+    fetchRoleDetails();
+  }, []);
 
-  // Toggle single permission
-  const toggle = (module, perm) => {
-    setPermissions((prev) => ({
-      ...prev,
-      [module]: {
-        ...prev[module],
-        [perm]: !prev[module][perm],
-      },
-    }));
+  /* ================= FETCH ALL PERMISSIONS ================= */
+  const fetchPermissions = async () => {
+    try {
+      const res = await getPermissions();
+      setPermissions(res.data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // Toggle all permissions
-  const toggleAll = (module) => {
-    const allChecked = Object.values(permissions[module]).every((v) => v);
-    const updated = {};
-    Object.keys(permissions[module]).forEach((k) => {
-      updated[k] = !allChecked;
-    });
-    setPermissions((prev) => ({
-      ...prev,
-      [module]: updated,
-    }));
+  /* ================= FETCH ROLE + ASSIGNED PERMISSIONS ================= */
+  const fetchRoleDetails = async () => {
+    try {
+      const res = await getRoleById(id);
+
+      // Role Name
+      setRoleName(res.data.name);
+
+      // Already assigned permissions
+      const assigned = res.data.permissions.map(
+        (p) => p.permission_id
+      );
+
+      setSelected(assigned);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  /* ================= CHECKBOX ================= */
+  const handleCheck = (pid) => {
+    setSelected((prev) =>
+      prev.includes(pid)
+        ? prev.filter((p) => p !== pid)
+        : [...prev, pid]
+    );
+  };
+
+  /* ================= SUBMIT ================= */
+  const handleSubmit = async () => {
+    try {
+      await assignPermissions({
+        role_id: id,
+        permission_ids: selected,
+      });
+
+      alert("Permissions updated ✅");
+    } catch (error) {
+      console.error(error);
+      alert("Error updating permissions");
+    }
   };
 
   return (
-    <Modal show={show} onHide={onClose} size="xl">
-      <Modal.Header closeButton>
-        <Modal.Title>
-          Role Permission : <strong>{role?.name}</strong>
-        </Modal.Title>
-      </Modal.Header>
+    <>
+      <PageTitle
+        activeMenu={`Assign Permission - ${roleName}`}
+        motherMenu="Role Management"
+      />
 
-      <Modal.Body>
-        <Table responsive hover bordered className="text-nowrap align-middle">
-          <thead className="table-light">
-            <tr>
-              <th>Module</th>
-              <th className="text-center">All</th>
-              <th className="text-center">View</th>
-              <th className="text-center">Add</th>
-              <th className="text-center">Edit</th>
-              <th className="text-center">Delete</th>
-            </tr>
-          </thead>
+      <div className="card">
+        <div className="card-header">
+          <h4 className="card-title">
+            Assign Permissions {roleName && `- ${roleName}`}
+          </h4>
+        </div>
 
-          <tbody>
-            {modules.map((module) => (
-              <tr key={module}>
-                <td>{module}</td>
+        <div className="card-body">
 
-                {/* ALL */}
-                <td className="text-center">
+          {/* PERMISSIONS LIST */}
+          <div className="row">
+            {permissions.map((perm) => (
+              <div className="col-md-4 mb-2" key={perm.id}>
+                <div className="form-check">
+
                   <input
                     type="checkbox"
                     className="form-check-input"
-                    checked={
-                      permissions[module] &&
-                      Object.values(permissions[module]).every((v) => v)
-                    }
-                    onChange={() => toggleAll(module)}
+                    checked={selected.includes(perm.id)}   // ✅ FIXED
+                    onChange={() => handleCheck(perm.id)}
                   />
-                </td>
 
-                {/* INDIVIDUAL */}
-                {["view", "add", "edit", "delete"].map((perm) => (
-                  <td key={perm} className="text-center">
-                    <input
-                      type="checkbox"
-                      className="form-check-input"
-                      checked={permissions[module]?.[perm] || false}
-                      onChange={() => toggle(module, perm)}
-                    />
-                  </td>
-                ))}
-              </tr>
+                  <label className="form-check-label">
+                    {perm.label} ({perm.module})
+                  </label>
+
+                </div>
+              </div>
             ))}
-          </tbody>
-        </Table>
-      </Modal.Body>
+          </div>
 
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
-        <Button
-          variant="success"
-          onClick={() => {
-            console.log("Saved Permissions:", permissions);
-            onClose();
-          }}
-        >
-          Save Permissions
-        </Button>
-      </Modal.Footer>
-    </Modal>
+          <button
+            className="btn btn-success mt-3"
+            onClick={handleSubmit}
+          >
+            Save Permissions
+          </button>
+
+        </div>
+      </div>
+    </>
   );
 };
 
-export default PermissionPopup;
+export default AssignPermission;
