@@ -1,6 +1,6 @@
 import { useContext, useEffect } from 'react'; 
 import { ThemeContext } from '../../../context/ThemeContext';
-import CommanSection from './CommanSection';
+import CommanSection from './Manager/CommanSection';
 
 const DashboardDark = () => {
 	const { changeBackground,  } = useContext(ThemeContext);
