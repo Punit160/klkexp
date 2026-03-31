@@ -193,7 +193,7 @@ export const AdminDashboard = async (req, res) => {
 
         // ─── Optional Filters ─────────────────────────────
         const filterUserId = req.query.user_id ? parseInt(req.query.user_id) : null;
-        const filterProjectId = req.query.project_id ? parseInt(req.query.project_id) : null;
+        const filterProjectId = req.query.project_id ? String(req.query.project_id).trim() : null;
         const filterInterventionId = req.query.intervention_id ? parseInt(req.query.intervention_id) : null;
 
         // ─── Safe SQL Fragments ───────────────────────────
@@ -353,7 +353,7 @@ export const AdminDashboard = async (req, res) => {
             SELECT DISTINCT financial_year AS fy_year
             FROM expensepayment
             WHERE company_id = ${company_id}
-            ORDER BY financial_year ASC
+            ORDER BY financial_year DESC
         `;
 
         const availableUsers = await prisma.$queryRaw`

@@ -1,578 +1,274 @@
-// import { Link } from "react-router-dom";
-// import { SVGICON } from "../../../constant/theme";
-// import { Dropdown, Tab, Nav } from "react-bootstrap";
-// import { useState } from "react";
-// import SkyGreeting from "../../../components/Common/SkyGreeting";
-// import ChartBarRunning from "../../../components/dashboard/chartbarrunning";
-// import ChartBarRunning2 from "../../../components/dashboard/chartbarrunning2";
-// import ChartBarRunning3 from "../../../components/dashboard/chartbarrunning3";
-// import ChartBarRunning4 from "../../../components/dashboard/chartbarrunning4";
-
-// const expenseTableData = [
-//     { id: "#EX-1042", date: "18 Mar 2025", employee: "Rohit Sharma",  dept: "Engineering", category: "Travel",         amount: "₹12,400", status: <span className="badge badge-success light">Approved</span>  },
-//     { id: "#EX-1041", date: "16 Mar 2025", employee: "Priya Mehta",   dept: "Marketing",   category: "Food & Dining",  amount: "₹3,200",  status: <span className="badge badge-warning light">Pending</span>   },
-//     { id: "#EX-1040", date: "15 Mar 2025", employee: "Anil Gupta",    dept: "HR",          category: "Office Supply",  amount: "₹8,750",  status: <span className="badge badge-success light">Approved</span>  },
-//     { id: "#EX-1039", date: "14 Mar 2025", employee: "Sneha Joshi",   dept: "Finance",     category: "Travel",         amount: "₹22,000", status: <span className="badge badge-danger light">Rejected</span>   },
-//     { id: "#EX-1038", date: "13 Mar 2025", employee: "Vikram Nair",   dept: "Sales",       category: "Client Gift",    amount: "₹5,600",  status: <span className="badge badge-info light">In Review</span>    },
-//     { id: "#EX-1037", date: "12 Mar 2025", employee: "Kavya Reddy",   dept: "Product",     category: "Software",       amount: "₹14,999", status: <span className="badge badge-success light">Approved</span>  },
-// ];
-
-// const pendingApprovals = [
-//     { initials: "PM", name: "Priya Mehta",  dept: "Marketing",  category: "Food & Dining",   amount: "₹3,200",  date: "16 Mar" },
-//     { initials: "VN", name: "Vikram Nair",  dept: "Sales",      category: "Client Gift",     amount: "₹5,600",  date: "13 Mar" },
-//     { initials: "SJ", name: "Shyam Jain",   dept: "Operations", category: "Travel",          amount: "₹9,800",  date: "11 Mar" },
-//     { initials: "DK", name: "Divya Kumar",  dept: "Admin",      category: "Office Supplies", amount: "₹4,150",  date: "10 Mar" },
-// ];
-
-// const topSpenders = [
-//     { initials: "RS", name: "Rohit Sharma", dept: "Engineering", amount: "₹42,400", count: 8  },
-//     { initials: "KR", name: "Kavya Reddy",  dept: "Product",     amount: "₹31,999", count: 5  },
-//     { initials: "VN", name: "Vikram Nair",  dept: "Sales",       amount: "₹28,600", count: 12 },
-//     { initials: "AG", name: "Anil Gupta",   dept: "HR",          amount: "₹18,750", count: 6  },
-//     { initials: "PM", name: "Priya Mehta",  dept: "Marketing",   amount: "₹14,200", count: 9  },
-// ];
-
-// const budgetData = [
-//     { name: "Travel",           used: 72, color: "bg-primary" },
-//     { name: "Food & Dining",    used: 45, color: "bg-success" },
-//     { name: "Office Supplies",  used: 88, color: "bg-danger"  },
-//     { name: "Marketing",        used: 60, color: "bg-info"    },
-//     { name: "Software & Tools", used: 34, color: "bg-warning" },
-// ];
-
-// const AdminDashboard = () => {
-//     const [selectedYear, setSelectedYear] = useState("2025-26");
-//     const [tableData]   = useState(expenseTableData);
-//     const [approvals, setApprovals] = useState(pendingApprovals);
-
-//     const handleApprove = (index) => setApprovals(prev => prev.filter((_, i) => i !== index));
-//     const handleReject  = (index) => setApprovals(prev => prev.filter((_, i) => i !== index));
-
-//     return (
-//         <>
-//             {/* ── Page Header ── */}
-//             <div className="page-head">
-//                 <div className="row align-items-center">
-//                     <div className="col-sm-8 mb-sm-4">
-//                         <SkyGreeting />
-//                     </div>
-//                     <div className="col-sm-4 mb-4 text-sm-end">
-//                         <div className="d-inline-flex align-items-center gap-2">
-//                             <select
-//                                 className="form-select w-auto"
-//                                 value={selectedYear}
-//                                 onChange={(e) => setSelectedYear(e.target.value)}
-//                             >
-//                                 <option value="">Select Financial Year</option>
-//                                 <option value="2025-26">FY 2025 - 2026</option>
-//                                 <option value="2024-25">FY 2024 - 2025</option>
-//                                 <option value="2023-24">FY 2023 - 2024</option>
-//                                 <option value="2022-23">FY 2022 - 2023</option>
-//                             </select>
-//                             <Link to="/add-expense" className="btn btn-primary d-flex align-items-center gap-1">
-//                                 + Raise Expense
-//                             </Link>
-//                         </div>
-//                     </div>
-//                 </div>
-//             </div>
-
-//             {/* ── ROW 1: FIRST 4 STAT CARDS ── */}
-//             <div className="row">
-
-//                 <div className="col-xl-3 col-sm-6">
-//                     <div className="card">
-//                         <div className="card-header border-0 pb-0">
-//                             <h6 className="mb-0">Total Expense</h6>
-//                             <Dropdown className="dropdown ms-auto c-pointer">
-//                                 <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-//                                 <Dropdown.Menu align="end">
-//                                     <Dropdown.Item>View Detail</Dropdown.Item>
-//                                     <Dropdown.Item>Download</Dropdown.Item>
-//                                 </Dropdown.Menu>
-//                             </Dropdown>
-//                         </div>
-//                         <div className="card-body pt-2">
-//                             <h2 className="card-title mb-0">₹1,25,000</h2>
-//                             <span><small className="text-success font-w600 me-1">+5%</small>than last month</span>
-//                             <div className="progress mt-3" style={{ height: "6px" }}>
-//                                 <div className="progress-bar bg-primary" style={{ width: "72%" }}></div>
-//                             </div>
-//                             <div className="d-flex justify-content-between mt-1">
-//                                 <small className="text-muted">Budget Used</small>
-//                                 <small className="text-muted font-w600">72%</small>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-
-//                 <div className="col-xl-3 col-sm-6">
-//                     <div className="card">
-//                         <div className="card-header border-0 pb-0">
-//                             <h6 className="mb-0">Expense Raised</h6>
-//                             <Dropdown className="dropdown ms-auto c-pointer">
-//                                 <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-//                                 <Dropdown.Menu align="end">
-//                                     <Dropdown.Item>View Detail</Dropdown.Item>
-//                                     <Dropdown.Item>Download</Dropdown.Item>
-//                                 </Dropdown.Menu>
-//                             </Dropdown>
-//                         </div>
-//                         <div className="card-body pt-2">
-//                             <h2 className="card-title mb-0">₹75,000</h2>
-//                             <span><small className="text-info font-w600 me-1">+3%</small>than last month</span>
-//                             <div className="progress mt-3" style={{ height: "6px" }}>
-//                                 <div className="progress-bar bg-info" style={{ width: "60%" }}></div>
-//                             </div>
-//                             <div className="d-flex justify-content-between mt-1">
-//                                 <small className="text-muted">Of Total Expense</small>
-//                                 <small className="text-muted font-w600">60%</small>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-
-//                 <div className="col-xl-3 col-sm-6">
-//                     <div className="card">
-//                         <div className="card-header border-0 pb-0">
-//                             <h6 className="mb-0">Paid Expenses</h6>
-//                             <Dropdown className="dropdown ms-auto c-pointer">
-//                                 <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-//                                 <Dropdown.Menu align="end">
-//                                     <Dropdown.Item>View Detail</Dropdown.Item>
-//                                     <Dropdown.Item>Download</Dropdown.Item>
-//                                 </Dropdown.Menu>
-//                             </Dropdown>
-//                         </div>
-//                         <div className="card-body pt-2">
-//                             <h2 className="card-title mb-0">₹60,000</h2>
-//                             <span><small className="text-success font-w600 me-1">+8%</small>than last month</span>
-//                             <div className="progress mt-3" style={{ height: "6px" }}>
-//                                 <div className="progress-bar bg-success" style={{ width: "80%" }}></div>
-//                             </div>
-//                             <div className="d-flex justify-content-between mt-1">
-//                                 <small className="text-muted">Of Raised</small>
-//                                 <small className="text-muted font-w600">80%</small>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-
-//                 <div className="col-xl-3 col-sm-6">
-//                     <div className="card">
-//                         <div className="card-header border-0 pb-0">
-//                             <h6 className="mb-0">Rejected Expenses</h6>
-//                             <Dropdown className="dropdown ms-auto c-pointer">
-//                                 <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-//                                 <Dropdown.Menu align="end">
-//                                     <Dropdown.Item>View Detail</Dropdown.Item>
-//                                     <Dropdown.Item>Download</Dropdown.Item>
-//                                 </Dropdown.Menu>
-//                             </Dropdown>
-//                         </div>
-//                         <div className="card-body pt-2">
-//                             <h2 className="card-title mb-0">₹15,000</h2>
-//                             <span><small className="text-danger font-w600 me-1">-2%</small>than last month</span>
-//                             <div className="progress mt-3" style={{ height: "6px" }}>
-//                                 <div className="progress-bar bg-danger" style={{ width: "12%" }}></div>
-//                             </div>
-//                             <div className="d-flex justify-content-between mt-1">
-//                                 <small className="text-muted">Of Total Expense</small>
-//                                 <small className="text-muted font-w600">12%</small>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//             </div>
-
-//             {/* ── ROW 2: SECOND 4 STAT CARDS ── */}
-//             <div className="row">
-
-//                 <div className="col-xl-3 col-sm-6">
-//                     <div className="card">
-//                         <div className="card-header border-0 pb-0">
-//                             <h6 className="mb-0">Claims Submitted</h6>
-//                             <Dropdown className="dropdown ms-auto c-pointer">
-//                                 <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-//                                 <Dropdown.Menu align="end">
-//                                     <Dropdown.Item>View Detail</Dropdown.Item>
-//                                     <Dropdown.Item>Download</Dropdown.Item>
-//                                 </Dropdown.Menu>
-//                             </Dropdown>
-//                         </div>
-//                         <div className="card-body pt-2">
-//                             <h2 className="card-title mb-0">148</h2>
-//                             <span><small className="text-success font-w600 me-1">+12</small>this month</span>
-//                             <div className="progress mt-3" style={{ height: "6px" }}>
-//                                 <div className="progress-bar bg-primary" style={{ width: "65%" }}></div>
-//                             </div>
-//                             <div className="d-flex justify-content-between mt-1">
-//                                 <small className="text-muted">Total Claims</small>
-//                                 <small className="text-muted font-w600">148 / 230</small>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-
-//                 <div className="col-xl-3 col-sm-6">
-//                     <div className="card">
-//                         <div className="card-header border-0 pb-0">
-//                             <h6 className="mb-0">Pending Review</h6>
-//                             <Dropdown className="dropdown ms-auto c-pointer">
-//                                 <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-//                                 <Dropdown.Menu align="end">
-//                                     <Dropdown.Item>View Detail</Dropdown.Item>
-//                                     <Dropdown.Item>Download</Dropdown.Item>
-//                                 </Dropdown.Menu>
-//                             </Dropdown>
-//                         </div>
-//                         <div className="card-body pt-2">
-//                             <h2 className="card-title mb-0">24</h2>
-//                             <span><small className="text-warning font-w600 me-1">+4</small>since yesterday</span>
-//                             <div className="progress mt-3" style={{ height: "6px" }}>
-//                                 <div className="progress-bar bg-warning" style={{ width: "40%" }}></div>
-//                             </div>
-//                             <div className="d-flex justify-content-between mt-1">
-//                                 <small className="text-muted">Awaiting Action</small>
-//                                 <small className="text-muted font-w600">24 open</small>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-
-//                 <div className="col-xl-3 col-sm-6">
-//                     <div className="card">
-//                         <div className="card-header border-0 pb-0">
-//                             <h6 className="mb-0">Payment Processed</h6>
-//                             <Dropdown className="dropdown ms-auto c-pointer">
-//                                 <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-//                                 <Dropdown.Menu align="end">
-//                                     <Dropdown.Item>View Detail</Dropdown.Item>
-//                                     <Dropdown.Item>Download</Dropdown.Item>
-//                                 </Dropdown.Menu>
-//                             </Dropdown>
-//                         </div>
-//                         <div className="card-body pt-2">
-//                             <h2 className="card-title mb-0">₹48,500</h2>
-//                             <span><small className="text-success font-w600 me-1">+6%</small>than last month</span>
-//                             <div className="progress mt-3" style={{ height: "6px" }}>
-//                                 <div className="progress-bar bg-success" style={{ width: "55%" }}></div>
-//                             </div>
-//                             <div className="d-flex justify-content-between mt-1">
-//                                 <small className="text-muted">Of Paid Expenses</small>
-//                                 <small className="text-muted font-w600">55%</small>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-
-//                 <div className="col-xl-3 col-sm-6">
-//                     <div className="card">
-//                         <div className="card-header border-0 pb-0">
-//                             <h6 className="mb-0">Reimbursement Due</h6>
-//                             <Dropdown className="dropdown ms-auto c-pointer">
-//                                 <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-//                                 <Dropdown.Menu align="end">
-//                                     <Dropdown.Item>View Detail</Dropdown.Item>
-//                                     <Dropdown.Item>Download</Dropdown.Item>
-//                                 </Dropdown.Menu>
-//                             </Dropdown>
-//                         </div>
-//                         <div className="card-body pt-2">
-//                             <h2 className="card-title mb-0">₹11,500</h2>
-//                             <span><small className="text-danger font-w600 me-1">-1%</small>than last month</span>
-//                             <div className="progress mt-3" style={{ height: "6px" }}>
-//                                 <div className="progress-bar bg-danger" style={{ width: "22%" }}></div>
-//                             </div>
-//                             <div className="d-flex justify-content-between mt-1">
-//                                 <small className="text-muted">Overdue Amount</small>
-//                                 <small className="text-muted font-w600">₹3,200</small>
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//             </div>
-
-//             {/* ── ROW 3: CHART (8) + BUDGET UTILISATION (4) ── */}
-//             <div className="row">
-//                 <div className="col-xl-8">
-//                     <Tab.Container defaultActiveKey="week">
-//                         <div className="card overflow-hidden">
-//                             <div className="card-header border-0 pb-0 flex-wrap">
-//                                 <div className="blance-media">
-//                                     <h5 className="mb-0">Expense Overview</h5>
-//                                     <h4 className="mb-0">₹1,25,000 <span className="badge badge-sm badge-success light">+5%</span></h4>
-//                                 </div>
-//                                 <Nav className="nav nav-pills mix-chart-tab" defaultActiveKey="week">
-//                                     <Nav.Item><Nav.Link eventKey="week">Week</Nav.Link></Nav.Item>
-//                                     <Nav.Item><Nav.Link eventKey="month">Month</Nav.Link></Nav.Item>
-//                                     <Nav.Item><Nav.Link eventKey="year">Year</Nav.Link></Nav.Item>
-//                                     <Nav.Item><Nav.Link eventKey="all">All</Nav.Link></Nav.Item>
-//                                 </Nav>
-//                             </div>
-//                             <div className="card-body p-0">
-//                                 <Tab.Content>
-//                                     <Tab.Pane eventKey="week">
-//                                         <div id="chartBarRunning" className="pt-0"><ChartBarRunning /></div>
-//                                     </Tab.Pane>
-//                                     <Tab.Pane eventKey="month">
-//                                         <div id="chartBarRunning2" className="pt-0"><ChartBarRunning2 /></div>
-//                                     </Tab.Pane>
-//                                     <Tab.Pane eventKey="year">
-//                                         <div id="chartBarRunning3" className="pt-0"><ChartBarRunning3 /></div>
-//                                     </Tab.Pane>
-//                                     <Tab.Pane eventKey="all">
-//                                         <div id="chartBarRunning4" className="pt-0"><ChartBarRunning4 /></div>
-//                                     </Tab.Pane>
-//                                 </Tab.Content>
-//                                 <div className="ttl-project">
-//                                     <div className="pr-data">
-//                                         <h5>148</h5>
-//                                         <span>Total Claims</span>
-//                                     </div>
-//                                     <div className="pr-data">
-//                                         <h5 className="text-primary">24</h5>
-//                                         <span>Pending Review</span>
-//                                     </div>
-//                                     <div className="pr-data">
-//                                         <h5>₹60,000</h5>
-//                                         <span>Paid Amount</span>
-//                                     </div>
-//                                     <div className="pr-data">
-//                                         <h5 className="text-danger">₹15,000</h5>
-//                                         <span>Rejected</span>
-//                                     </div>
-//                                 </div>
-//                             </div>
-//                         </div>
-//                     </Tab.Container>
-//                 </div>
-
-//                 <div className="col-xl-4">
-//                     <div className="card">
-//                         <div className="card-header border-0 pb-0">
-//                             <h5 className="mb-0">Budget Utilisation</h5>
-//                             <span className="badge badge-warning light">Q1 {selectedYear}</span>
-//                         </div>
-//                         <div className="card-body">
-//                             {budgetData.map((item, i) => (
-//                                 <div key={i} className="mb-3">
-//                                     <div className="d-flex justify-content-between mb-1">
-//                                         <span className="fs-14 font-w500">{item.name}</span>
-//                                         <span className="fs-14 font-w700">{item.used}%</span>
-//                                     </div>
-//                                     <div className="progress" style={{ height: "8px" }}>
-//                                         <div className={`progress-bar ${item.color}`} style={{ width: `${item.used}%` }}></div>
-//                                     </div>
-//                                 </div>
-//                             ))}
-//                         </div>
-//                     </div>
-//                 </div>
-//             </div>
-
-//             {/* ── ROW 4: EXPENSE TABLE ── */}
-//             <div className="row">
-//                 <div className="col-xl-12">
-//                     <div className="card">
-//                         <div className="card-header flex-wrap">
-//                             <h5 className="mb-0">Recent Expense Requests</h5>
-//                             <div className="d-flex align-items-center gap-2 flex-wrap">
-//                                 <div className="input-group search-area style-1">
-//                                     <span className="input-group-text">
-//                                         <Link to={"#"} className="m-0"><i className="flaticon-search-interface-symbol" /></Link>
-//                                     </span>
-//                                     <input type="text" className="form-control" placeholder="Search expense..." />
-//                                 </div>
-//                                 <Link to={"#"} className="btn btn-sm btn-primary">+ New Expense</Link>
-//                             </div>
-//                         </div>
-//                         <div className="card-body pb-2">
-//                             <div className="table-responsive">
-//                                 <table className="table transaction-tbl ItemsCheckboxSec dataTable no-footer mb-0">
-//                                     <thead className="border-self">
-//                                         <tr>
-//                                             <th>#ID</th>
-//                                             <th>Date</th>
-//                                             <th>Employee</th>
-//                                             <th>Category</th>
-//                                             <th>Amount</th>
-//                                             <th>Status</th>
-//                                             <th>Action</th>
-//                                         </tr>
-//                                     </thead>
-//                                     <tbody>
-//                                         {tableData.map((row, i) => (
-//                                             <tr key={i}>
-//                                                 <td><span className="text-muted">{row.id}</span></td>
-//                                                 <td><p className="mb-0">{row.date}</p></td>
-//                                                 <td>
-//                                                     <span className="font-w600">{row.employee}</span>
-//                                                     <p className="mb-0 text-muted fs-12">{row.dept}</p>
-//                                                 </td>
-//                                                 <td><span>{row.category}</span></td>
-//                                                 <td><span className="font-w700">{row.amount}</span></td>
-//                                                 <td>{row.status}</td>
-//                                                 <td>
-//                                                     <Dropdown className="dropdown c-pointer ms-2" align="end">
-//                                                         <Dropdown.Toggle as="div" className="btn-link i-false custome-d">
-//                                                             {SVGICON.tableaction}
-//                                                         </Dropdown.Toggle>
-//                                                         <Dropdown.Menu>
-//                                                             <Dropdown.Item>View</Dropdown.Item>
-//                                                             <Dropdown.Item>Approve</Dropdown.Item>
-//                                                             <Dropdown.Item>Reject</Dropdown.Item>
-//                                                         </Dropdown.Menu>
-//                                                     </Dropdown>
-//                                                 </td>
-//                                             </tr>
-//                                         ))}
-//                                     </tbody>
-//                                 </table>
-//                             </div>
-//                         </div>
-//                         <div className="card-footer d-flex justify-content-between align-items-center border-0 pt-0">
-//                             <small className="text-muted">Showing 6 of 128 records</small>
-//                             <Link to={"#"} className="btn btn-sm btn-outline-primary">View All</Link>
-//                         </div>
-//                     </div>
-//                 </div>
-//             </div>
-
-//             {/* ── ROW 5: TOP SPENDERS (6) + PENDING APPROVALS (6) ── */}
-//             <div className="row">
-
-//                 <div className="col-xl-6">
-//                     <div className="card">
-//                         <div className="card-header border-0 pb-0">
-//                             <h5 className="mb-0">Top Spenders — March</h5>
-//                             <span className="badge badge-info light">This Month</span>
-//                         </div>
-//                         <div className="card-body pt-2">
-//                             {topSpenders.map((person, i) => (
-//                                 <div key={i} className="d-flex align-items-center justify-content-between py-2 border-bottom">
-//                                     <div className="d-flex align-items-center gap-3">
-//                                         <div
-//                                             className="rounded-circle d-flex align-items-center justify-content-center text-white font-w700"
-//                                             style={{ width: 40, height: 40, fontSize: 13, background: `hsl(${i * 60}, 65%, 52%)` }}
-//                                         >
-//                                             {person.initials}
-//                                         </div>
-//                                         <div>
-//                                             <p className="mb-0 font-w600">{person.name}</p>
-//                                             <small className="text-muted">{person.dept} · {person.count} expenses</small>
-//                                         </div>
-//                                     </div>
-//                                     <span className="font-w700 text-primary fs-16">{person.amount}</span>
-//                                 </div>
-//                             ))}
-//                         </div>
-//                     </div>
-//                 </div>
-
-//                 <div className="col-xl-6">
-//                     <div className="card">
-//                         <div className="card-header border-0 pb-0">
-//                             <h5 className="mb-0">Pending Approvals</h5>
-//                             <span className="badge badge-warning light">{approvals.length} Awaiting</span>
-//                         </div>
-//                         <div className="card-body pt-2">
-//                             {approvals.length === 0 && (
-//                                 <p className="text-muted text-center py-3">All caught up! No pending approvals.</p>
-//                             )}
-//                             {approvals.map((item, i) => (
-//                                 <div key={i} className="d-flex align-items-center justify-content-between py-2 border-bottom gap-2">
-//                                     <div className="d-flex align-items-center gap-3">
-//                                         <div
-//                                             className="rounded-circle d-flex align-items-center justify-content-center text-white font-w700"
-//                                             style={{ width: 40, height: 40, fontSize: 13, background: `hsl(${i * 80 + 200}, 60%, 50%)` }}
-//                                         >
-//                                             {item.initials}
-//                                         </div>
-//                                         <div>
-//                                             <p className="mb-0 font-w600">{item.name} — <span className="text-primary">{item.amount}</span></p>
-//                                             <small className="text-muted">{item.category} · {item.date}</small>
-//                                         </div>
-//                                     </div>
-//                                     <div className="d-flex gap-2">
-//                                         <button className="btn btn-sm btn-success light" onClick={() => handleApprove(i)}>Approve</button>
-//                                         <button className="btn btn-sm btn-danger light"  onClick={() => handleReject(i)}>Reject</button>
-//                                     </div>
-//                                 </div>
-//                             ))}
-//                             {approvals.length > 0 && (
-//                                 <div className="text-center mt-3">
-//                                     <Link to={"#"} className="btn btn-primary btn-sm">View All Pending</Link>
-//                                 </div>
-//                             )}
-//                         </div>
-//                     </div>
-//                 </div>
-
-//             </div>
-//         </>
-//     );
-// };
-
-// export default AdminDashboard;
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ----------------------------------------------------
-
-
-
 import { Link } from "react-router-dom";
 import { SVGICON } from "../../../constant/theme";
-import { Dropdown, Tab, Nav } from "react-bootstrap";
+import { Dropdown } from "react-bootstrap";
 import { useState, useEffect } from "react";
 import SkyGreeting from "../../../components/Common/SkyGreeting";
-import ChartBarRunning from "../../../components/dashboard/chartbarrunning";
-import ChartBarRunning2 from "../../../components/dashboard/chartbarrunning2";
-import ChartBarRunning3 from "../../../components/dashboard/chartbarrunning3";
-import ChartBarRunning4 from "../../../components/dashboard/chartbarrunning4";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+import { Bar } from "react-chartjs-2";
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Tooltip,
+    Legend,
+} from "chart.js";
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 const formatINR = (amount) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
 
-const initials = (name) =>
-    name
-        ? name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase()
-        : "?";
-
-// approval_status: 0=Pending, 1=Approved  |  payment_status: 0=Unpaid, 1=Paid, 2=Processing
-const getPaymentOverviewLabel = (payment_status, approval_status) => {
-    if (approval_status === 0) return { label: "Pending Approval", color: "warning" };
-    if (payment_status === 1)  return { label: "Paid", color: "success" };
-    if (payment_status === 2)  return { label: "Processing", color: "info" };
-    return { label: "Approved / Unpaid", color: "primary" };
+const formatINRShort = (v) => {
+    if (v >= 10000000) return "₹" + Math.round(v / 10000000) + "Cr";
+    if (v >= 100000)   return "₹" + Math.round(v / 100000)   + "L";
+    if (v >= 1000)     return "₹" + Math.round(v / 1000)     + "K";
+    return "₹" + v;
 };
 
-// ── Component ─────────────────────────────────────────────────────────────────
+const initials = (name) =>
+    name ? name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase() : "?";
+
+// const getPaymentOverviewLabel = (payment_status, approval_status) => {
+//     if (approval_status === 0) return { label: "Pending Approval", color: "warning" };
+//     if (payment_status === 1)  return { label: "Paid", color: "success" };
+//     if (payment_status === 2)  return { label: "Processing", color: "info" };
+//     return { label: "Approved / Unpaid", color: "primary" };
+// };
+
+// ── Shared chart colors ───────────────────────────────────────────────────────
+const CHART_COLORS = {
+    total:    "#0073fd",
+    approved: "#00aeef",
+    paid:     "#1d9e75",
+    pending:  "#ee9742",
+};
+
+const CHART_LEGEND = [
+    { key: "total",    label: "Total Amount" },
+    { key: "approved", label: "Approved"     },
+    { key: "paid",     label: "Paid"         },
+    { key: "pending",  label: "Pending"      },
+];
+
+// ── ExpenseOverviewChart — project-wise bars from API ────────────────────────
+const ExpenseOverviewChart = ({ data = [] }) => {
+    const chartData = {
+        labels: data.map((p) => p.project_name),
+        datasets: [
+            {
+                label: "Total Amount",
+                data: data.map((p) => p.totalAmount),
+                backgroundColor: CHART_COLORS.total,
+                borderRadius: 10,
+                barPercentage: 0.25,
+                categoryPercentage: 0.8,
+            },
+            {
+                label: "Approved",
+                data: data.map((p) => p.approvedAmount),
+                backgroundColor: CHART_COLORS.approved,
+                borderRadius: 10,
+                barPercentage: 0.25,
+                categoryPercentage: 0.8,
+            },
+            {
+                label: "Paid",
+                data: data.map((p) => p.totalPaid),
+                backgroundColor: CHART_COLORS.paid,
+                borderRadius: 10,
+                barPercentage: 0.25,
+                categoryPercentage: 0.8,
+            },
+            {
+                label: "Pending",
+                data: data.map((p) => p.pendingAmount),
+                backgroundColor: CHART_COLORS.pending,
+                borderRadius: 10,
+                barPercentage: 0.25,
+                categoryPercentage: 0.8,
+            },
+        ],
+    };
+
+    const options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: (ctx) =>
+                        "  " + ctx.dataset.label + ": " +
+                        new Intl.NumberFormat("en-IN", {
+                            style: "currency",
+                            currency: "INR",
+                            maximumFractionDigits: 0,
+                        }).format(ctx.raw),
+                },
+            },
+        },
+        scales: {   
+            x: {
+                grid: { display: false },
+                ticks: { font: { size: 12 }, maxRotation: 20, minRotation: 0 },
+            },
+            y: {
+                grid: { color: "rgba(128,128,128,0.1)" },
+                ticks: { font: { size: 11 }, callback: (v) => formatINRShort(v) },
+            },
+        },
+    };
+
+    if (data.length === 0) {
+        return <p className="text-muted text-center py-4">No project data available.</p>;
+    }
+
+    return (
+        <>
+            {/* Custom Legend */}
+            <div className="d-flex flex-wrap gap-3 mb-3 px-3 pt-3">
+                {CHART_LEGEND.map((item) => (
+                    <span
+                        key={item.key}
+                        className="d-flex align-items-center gap-1"
+                        style={{ fontSize: 12, color: "#888" }}
+                    >
+                        <span
+                            style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 2,
+                                background: CHART_COLORS[item.key],
+                                display: "inline-block",
+                            }}
+                        />
+                        {item.label}
+                    </span>
+                ))}
+            </div>
+            {/* Chart */}
+            <div style={{ position: "relative", width: "100%", height: 320, padding: "0 12px 12px" }}>
+                <Bar data={chartData} options={options} />
+            </div>
+        </>
+    );
+};
+
+// ── UserBarChart ──────────────────────────────────────────────────────────────
+const UserBarChart = ({ data = [] }) => {
+    const chartData = {
+        labels: data.map((u) => u.Name),
+        datasets: [
+            {
+                label: "Total Amount",
+                data: data.map((u) => u.totalAmount),
+                backgroundColor: CHART_COLORS.total,
+                borderRadius: 10,
+                barPercentage: 0.40,
+                categoryPercentage: 0.8,
+            },
+            {
+                label: "Approved",
+                data: data.map((u) => u.approvedAmount),
+                backgroundColor: CHART_COLORS.approved,
+                borderRadius: 10,
+                barPercentage: 0.40,
+                categoryPercentage: 0.8,
+            },
+            {
+                label: "Paid",
+                data: data.map((u) => u.totalPaid),
+                backgroundColor: CHART_COLORS.paid,
+                borderRadius: 10,
+                barPercentage: 0.40,
+                categoryPercentage: 0.8,
+            },
+            {
+                label: "Pending",
+                data: data.map((u) => u.pendingAmount),
+                backgroundColor: CHART_COLORS.pending,
+                borderRadius: 10,
+                barPercentage: 0.40,
+                categoryPercentage: 0.8,
+            },
+        ],
+    };
+
+    const options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: (ctx) =>
+                        "  " + ctx.dataset.label + ": " +
+                        new Intl.NumberFormat("en-IN", {
+                            style: "currency",
+                            currency: "INR",
+                            maximumFractionDigits: 0,
+                        }).format(ctx.raw),
+                },
+            },
+        },
+        scales: {
+            x: {
+                grid: { display: false },
+                ticks: { font: { size: 12 }, maxRotation: 20, minRotation: 0 },
+            },
+            y: {
+                grid: { color: "rgba(128,128,128,0.1)" },
+                ticks: { font: { size: 11 }, callback: (v) => formatINRShort(v) },
+            },
+        },
+    };
+
+    return (
+        <>
+            <div className="d-flex flex-wrap gap-3 mb-3">
+                {CHART_LEGEND.map((item) => (
+                    <span
+                        key={item.key}
+                        className="d-flex align-items-center gap-1"
+                        style={{ fontSize: 12, color: "#888" }}
+                    >
+                        <span
+                            style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 2,
+                                background: CHART_COLORS[item.key],
+                                display: "inline-block",
+                            }}
+                        />
+                        {item.label}
+                    </span>
+                ))}
+            </div>
+            <div style={{ position: "relative", width: "100%", height: 380 }}>
+                <Bar data={chartData} options={options} />
+            </div>
+        </>
+    );
+};
+
+// ── AdminDashboard ─────────────────────────────────────────────────────────────
 const AdminDashboard = () => {
-    const [selectedFY, setSelectedFY]     = useState("2025-2026");
-    const [dashData,   setDashData]       = useState(null);
-    const [loading,    setLoading]        = useState(false);
-    const [error,      setError]          = useState(null);
+    const [selectedFY, setSelectedFY] = useState("");  // ← empty rakho pehle
+    const [dashData,      setDashData]      = useState(null);
+    const [loading,       setLoading]       = useState(false);
+    const [error,         setError]         = useState(null);
     const [approvalQueue, setApprovalQueue] = useState([]);
 
-    // ── Fetch ────────────────────────────────────────────────────────────────
+
+
+    // ── Fetch ─────────────────────────────────────────────────────────────────
     const fetchDashboard = async (fy = selectedFY) => {
         setLoading(true);
         setError(null);
         try {
-            const params = new URLSearchParams({ fy });
+const params = new URLSearchParams({ fy_year: fy });
             const res = await fetch(
                 `${import.meta.env.VITE_BACKEND_API_URL}dashboard/admin?${params}`,
                 {
@@ -585,7 +281,12 @@ const AdminDashboard = () => {
             const json = await res.json();
             if (json.success) {
                 setDashData(json.data);
-                setApprovalQueue(json.data.approvalQueue || []);
+    setApprovalQueue(json.data.approvalQueue || []);
+
+     const fyList = json.data?.filterOptions?.availableFYList ?? [];
+    if (!selectedFY && fyList.length > 0) {
+        setSelectedFY(fyList[0].fy_year);  // pehla available FY auto-set
+    }
             } else {
                 throw new Error("API returned success: false");
             }
@@ -598,24 +299,24 @@ const AdminDashboard = () => {
 
     useEffect(() => { fetchDashboard(selectedFY); }, [selectedFY]);
 
-  
+    // ── Derived values ────────────────────────────────────────────────────────
+    const totalExpense         = dashData?.totalExpense         ?? 0;
+    const paidAmount           = dashData?.paidAmount           ?? 0;
+    const pendingAmount        = dashData?.pendingAmount        ?? 0;
+    const rejectedAmount       = dashData?.rejectedAmount       ?? 0;
+    const approvedAmount       = dashData?.approvedAmount       ?? 0;
+    const approvalQueueCount   = dashData?.approvalQueueCount   ?? 0;
 
-    // ── Derived values (safe defaults while loading) ─────────────────────────
-    const totalExpense      = dashData?.totalExpense      ?? 0;
-    const paidAmount        = dashData?.paidAmount        ?? 0;
-    const pendingAmount     = dashData?.pendingAmount     ?? 0;
-    const rejectedAmount    = dashData?.rejectedAmount    ?? 0;
-    const approvedAmount    = dashData?.approvedAmount    ?? 0;
-    const approvalQueueCount = dashData?.approvalQueueCount ?? 0;
-
-    const userWiseSummary   = dashData?.userWiseSummary   ?? [];
-    const projectWiseData   = dashData?.projectWiseData   ?? [];
+    const userWiseSummary      = dashData?.userWiseSummary      ?? [];
+    const projectWiseData      = dashData?.projectWiseData      ?? [];
     const interventionWiseData = dashData?.interventionWiseData ?? [];
-    const paymentOverview   = dashData?.paymentOverview   ?? [];
-    const availableFYList   = dashData?.filterOptions?.availableFYList ?? [];
-    const totalRequests     = userWiseSummary.reduce((s, u) => s + u.totalRequests, 0);
+    const paymentOverview      = dashData?.paymentOverview      ?? [];
+    const availableFYList      = dashData?.filterOptions?.availableFYList ?? [];
+    const totalRequests        = userWiseSummary.reduce((s, u) => s + u.totalRequests, 0);
+    const yearlyPaidData = dashData?.yearlyPaidData ?? [];
 
-    // Budget utilisation: derive % from project-wise data relative to totalExpense
+
+    // Budget utilisation
     const budgetColors = ["bg-primary", "bg-success", "bg-danger", "bg-info", "bg-warning"];
     const budgetData = projectWiseData.map((p, i) => ({
         name:  p.project_name,
@@ -623,7 +324,7 @@ const AdminDashboard = () => {
         color: budgetColors[i % budgetColors.length],
     }));
 
-    // ── Loading / Error states ───────────────────────────────────────────────
+    // ── Loading / Error ───────────────────────────────────────────────────────
     if (loading) return (
         <div className="d-flex justify-content-center align-items-center" style={{ minHeight: 300 }}>
             <div className="spinner-border text-primary" role="status">
@@ -641,7 +342,7 @@ const AdminDashboard = () => {
         </div>
     );
 
-    // ── Render ───────────────────────────────────────────────────────────────
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <>
             {/* ── Page Header ── */}
@@ -659,12 +360,14 @@ const AdminDashboard = () => {
                             >
                                 <option value="">Select Financial Year</option>
                                 {availableFYList
+                           
                                     .filter((f) => f.fy_year)
                                     .map((f) => (
+                                        console.log("FY option:", f.fy_year) || (
                                         <option key={f.fy_year} value={f.fy_year}>
                                             FY {f.fy_year}
                                         </option>
-                                    ))}
+                                    )))}
                             </select>
                             <Link to="/add-expense" className="btn btn-primary d-flex align-items-center gap-1">
                                 + Raise Expense
@@ -933,89 +636,89 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
-            {/* ── ROW 3: CHART (8) + BUDGET UTILISATION (4) ── */}
+            {/* ── ROW 3: EXPENSE OVERVIEW CHART (8) + BUDGET UTILISATION (4) ── */}
             <div className="row">
-                <div className="col-xl-8">
-                    <Tab.Container defaultActiveKey="week">
-                        <div className="card overflow-hidden">
-                            <div className="card-header border-0 pb-0 flex-wrap">
-                                <div className="blance-media">
-                                    <h5 className="mb-0">Expense Overview</h5>
-                                    <h4 className="mb-0">
-                                        {formatINR(totalExpense)}{" "}
-                                        <span className="badge badge-sm badge-success light">FY {selectedFY}</span>
-                                    </h4>
-                                </div>
-                                <Nav className="nav nav-pills mix-chart-tab" defaultActiveKey="week">
-                                    <Nav.Item><Nav.Link eventKey="week">Week</Nav.Link></Nav.Item>
-                                    <Nav.Item><Nav.Link eventKey="month">Month</Nav.Link></Nav.Item>
-                                    <Nav.Item><Nav.Link eventKey="year">Year</Nav.Link></Nav.Item>
-                                    <Nav.Item><Nav.Link eventKey="all">All</Nav.Link></Nav.Item>
-                                </Nav>
-                            </div>
-                            <div className="card-body p-0">
-                                <Tab.Content>
-                                    <Tab.Pane eventKey="week">
-                                        <div id="chartBarRunning"  className="pt-0"><ChartBarRunning /></div>
-                                    </Tab.Pane>
-                                    <Tab.Pane eventKey="month">
-                                        <div id="chartBarRunning2" className="pt-0"><ChartBarRunning2 /></div>
-                                    </Tab.Pane>
-                                    <Tab.Pane eventKey="year">
-                                        <div id="chartBarRunning3" className="pt-0"><ChartBarRunning3 /></div>
-                                    </Tab.Pane>
-                                    <Tab.Pane eventKey="all">
-                                        <div id="chartBarRunning4" className="pt-0"><ChartBarRunning4 /></div>
-                                    </Tab.Pane>
-                                </Tab.Content>
-                                <div className="ttl-project">
-                                    <div className="pr-data">
-                                        <h5>{totalRequests}</h5>
-                                        <span>Total Claims</span>
-                                    </div>
-                                    <div className="pr-data">
-                                        <h5 className="text-primary">{approvalQueueCount}</h5>
-                                        <span>Pending Review</span>
-                                    </div>
-                                    <div className="pr-data">
-                                        <h5>{formatINR(paidAmount)}</h5>
-                                        <span>Paid Amount</span>
-                                    </div>
-                                    <div className="pr-data">
-                                        <h5 className="text-danger">{formatINR(rejectedAmount)}</h5>
-                                        <span>Rejected</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </Tab.Container>
-                </div>
 
-                {/* Budget Utilisation — project-wise share of total */}
-                <div className="col-xl-4">
-                    <div className="card">
-                        <div className="card-header border-0 pb-0">
-                            <h5 className="mb-0">Budget Utilisation</h5>
-                            <span className="badge badge-warning light">FY {selectedFY}</span>
+                {/* Expense Overview — project-wise bar chart from API */}
+                <div className="col-xl-8">
+                    <div className="card overflow-hidden">
+                        <div className="card-header border-0 pb-0 flex-wrap">
+                            <div className="blance-media">
+                                <h5 className="mb-0">Expense Overview</h5>
+                                <h4 className="mb-0 text-dark">
+                                    {formatINR(totalExpense)}{" "}
+                                    <span className="badge badge-sm badge-success light">FY {selectedFY}</span>
+                                </h4>
+                            </div>
                         </div>
-                        <div className="card-body">
-                            {budgetData.map((item, i) => (
-                                <div key={i} className="mb-3">
-                                    <div className="d-flex justify-content-between mb-1">
-                                        <span className="fs-14 font-w500">{item.name}</span>
-                                        <span className="fs-14 font-w700">{item.used}%</span>
-                                    </div>
-                                    <div className="progress" style={{ height: "8px" }}>
-                                        <div className={`progress-bar ${item.color}`} style={{ width: `${item.used}%` }}></div>
-                                    </div>
-                                </div>
-                            ))}
-                            {budgetData.length === 0 && (
-                                <p className="text-muted text-center py-3">No project data available.</p>
-                            )}
+
+                        {/* Chart */}
+                        <ExpenseOverviewChart data={projectWiseData} />
+
+                        {/* Summary footer */}
+                        <div className="ttl-project">
+                            <div className="pr-data">
+                                <h5>{totalRequests}</h5>
+                                <span>Total Request</span>
+                            </div>
+                            <div className="pr-data">
+                                <h5 className="text-primary">{approvalQueueCount}</h5>
+                                <span>Pending Review</span>
+                            </div>
+                            <div className="pr-data">
+                                <h5>{formatINR(paidAmount)}</h5>
+                                <span>Paid Amount</span>
+                            </div>
+                            <div className="pr-data">
+                                <h5 className="text-danger">{formatINR(rejectedAmount)}</h5>
+                                <span>Rejected</span>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                {/* Budget Utilisation — project-wise share of total */}
+               {/* Yearly Paid Overview — yearlyPaidData */}
+<div className="col-xl-4">
+    <div className="card">
+        <div className="card-header border-0 pb-0">
+            <h5 className="mb-0">Yearly Paid Overview</h5>
+            <span className="badge badge-warning light">FY {selectedFY}</span>
+        </div>
+        <div className="card-body">
+            {yearlyPaidData.length === 0 ? (
+                <p className="text-muted text-center py-3">No yearly data available.</p>
+            ) : (
+                (() => {
+                    const totalPaidAcrossAll = yearlyPaidData.reduce((s, d) => s + d.totalPaid, 0);
+                    const colors = ["bg-primary", "bg-success", "bg-warning", "bg-info", "bg-danger"];
+                    return yearlyPaidData.map((item, i) => {
+                        const pct = totalPaidAcrossAll > 0
+                            ? Math.round((item.totalPaid / totalPaidAcrossAll) * 100)
+                            : 0;
+                        return (
+                            <div key={i} className="mb-3">
+                                <div className="d-flex justify-content-between mb-1">
+                                    <span className="fs-14 font-w500">FY {item.fy_year}</span>
+                                    <span className="fs-14 font-w700">{pct}%</span>
+                                </div>
+                                <div className="progress" style={{ height: "8px" }}>
+                                    <div className={`progress-bar ${colors[i % colors.length]}`} style={{ width: `${pct}%` }}></div>
+                                </div>
+                                <div className="d-flex justify-content-between mt-1">
+                                    <small className="text-muted">{item.totalCount} payment{item.totalCount !== 1 ? "s" : ""}</small>
+                                    <small className="text-muted font-w600">{formatINR(item.totalPaid)}</small>
+                                </div>
+                            </div>
+                        );
+                    });
+                })()
+            )}
+        </div>
+    </div>
+</div>
+
+
             </div>
 
             {/* ── ROW 4: PROJECT-WISE TABLE ── */}
@@ -1062,45 +765,23 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
-            {/* ── ROW 5: TOP SPENDERS (user-wise) + PENDING APPROVALS ── */}
+            {/* ── ROW 5: USER-WISE BAR CHART ── */}
             <div className="row">
-
-                {/* User-wise Summary — replaces hardcoded Top Spenders */}
-                <div className="col-xl-6">
+                <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h5 className="mb-0">User-wise Summary</h5>
                             <span className="badge badge-info light">FY {selectedFY}</span>
                         </div>
-                        <div className="card-body pt-2">
-                            {userWiseSummary.map((person, i) => (
-                                <div key={i} className="d-flex align-items-center justify-content-between py-2 border-bottom">
-                                    <div className="d-flex align-items-center gap-3">
-                                        <div
-                                            className="rounded-circle d-flex align-items-center justify-content-center text-white font-w700"
-                                            style={{ width: 40, height: 40, fontSize: 13, background: `hsl(${i * 60}, 65%, 52%)` }}
-                                        >
-                                            {initials(person.Name)}
-                                        </div>
-                                        <div>
-                                            <p className="mb-0 font-w600">{person.Name}</p>
-                                            <small className="text-muted">{person.user_email} · {person.totalRequests} expenses</small>
-                                        </div>
-                                    </div>
-                                    <div className="text-end">
-                                        <span className="font-w700 text-primary fs-16 d-block">{formatINR(person.totalAmount)}</span>
-                                        <small className="text-success">Paid: {formatINR(person.totalPaid)}</small>
-                                    </div>
-                                </div>
-                            ))}
-                            {userWiseSummary.length === 0 && (
+                        <div className="card-body">
+                            {userWiseSummary.length > 0 ? (
+                                <UserBarChart data={userWiseSummary} />
+                            ) : (
                                 <p className="text-muted text-center py-3">No user data available.</p>
                             )}
                         </div>
                     </div>
                 </div>
-
-           
             </div>
 
             {/* ── ROW 6: INTERVENTION-WISE SUMMARY ── */}
@@ -1127,7 +808,11 @@ const AdminDashboard = () => {
                                     <tbody>
                                         {interventionWiseData.map((row, i) => (
                                             <tr key={i}>
-                                                <td><span className="font-w600">{row.intervention_name ?? <em className="text-muted">Unassigned</em>}</span></td>
+                                                <td>
+                                                    <span className="font-w600">
+                                                        {row.intervention_name ?? <em className="text-muted">Unassigned</em>}
+                                                    </span>
+                                                </td>
                                                 <td><span>{row.totalRequests}</span></td>
                                                 <td><span className="font-w700">{formatINR(row.totalAmount)}</span></td>
                                                 <td><span className="text-info">{formatINR(row.approvedAmount)}</span></td>
@@ -1136,7 +821,9 @@ const AdminDashboard = () => {
                                             </tr>
                                         ))}
                                         {interventionWiseData.length === 0 && (
-                                            <tr><td colSpan={6} className="text-center text-muted py-3">No data available.</td></tr>
+                                            <tr>
+                                                <td colSpan={6} className="text-center text-muted py-3">No data available.</td>
+                                            </tr>
                                         )}
                                     </tbody>
                                 </table>
