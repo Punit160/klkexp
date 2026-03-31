@@ -35,7 +35,6 @@ const PaymentList = () => {
     fetchExpenses();
   }, []);
 
-  /* ---------------- EXPORT ---------------- */
 /* ---------------- EXPORT ---------------- */
 const columns = [
   { label: "Project", key: "project_name" },
@@ -186,10 +185,10 @@ const exportData = expenses.map(item => ({
                       <td>
                         <span
                           className={`badge ${item.payment_status === 2
-                              ? "bg-success"      // Paid
+                              ? "bg-success"      
                               : item.payment_status === 1
-                                ? "bg-info"         // Partially Paid
-                                : "bg-warning"      // Pending
+                                ? "bg-info"         
+                                : "bg-warning"      
                             }`}
                         >
                           {item.payment_status === 2
