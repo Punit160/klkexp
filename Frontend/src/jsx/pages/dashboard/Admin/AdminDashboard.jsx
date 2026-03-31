@@ -26,16 +26,6 @@ const formatINRShort = (v) => {
     return "₹" + v;
 };
 
-const initials = (name) =>
-    name ? name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase() : "?";
-
-// const getPaymentOverviewLabel = (payment_status, approval_status) => {
-//     if (approval_status === 0) return { label: "Pending Approval", color: "warning" };
-//     if (payment_status === 1)  return { label: "Paid", color: "success" };
-//     if (payment_status === 2)  return { label: "Processing", color: "info" };
-//     return { label: "Approved / Unpaid", color: "primary" };
-// };
-
 // ── Shared chart colors ───────────────────────────────────────────────────────
 const CHART_COLORS = {
     total:    "#0073fd",
@@ -51,7 +41,7 @@ const CHART_LEGEND = [
     { key: "pending",  label: "Pending"      },
 ];
 
-// ── ExpenseOverviewChart — project-wise bars from API ────────────────────────
+// ── ExpenseOverviewChart ──────────────────────────────────────────────────────
 const ExpenseOverviewChart = ({ data = [] }) => {
     const chartData = {
         labels: data.map((p) => p.project_name),
@@ -108,7 +98,7 @@ const ExpenseOverviewChart = ({ data = [] }) => {
                 },
             },
         },
-        scales: {   
+        scales: {
             x: {
                 grid: { display: false },
                 ticks: { font: { size: 12 }, maxRotation: 20, minRotation: 0 },
@@ -255,20 +245,21 @@ const UserBarChart = ({ data = [] }) => {
 
 // ── AdminDashboard ─────────────────────────────────────────────────────────────
 const AdminDashboard = () => {
-    const [selectedFY, setSelectedFY] = useState("");  // ← empty rakho pehle
-    const [dashData,      setDashData]      = useState(null);
-    const [loading,       setLoading]       = useState(false);
-    const [error,         setError]         = useState(null);
-    const [approvalQueue, setApprovalQueue] = useState([]);
+    const [selectedFY, setSelectedFY]           = useState("");
+    const [selectedProjectId, setSelectedProjectId] = useState(""); // FIX 1: project filter state
+    const [dashData, setDashData]               = useState(null);
+    const [loading, setLoading]                 = useState(false);
+    const [error, setError]                     = useState(null);
 
-
-
-    // ── Fetch ─────────────────────────────────────────────────────────────────
-    const fetchDashboard = async (fy = selectedFY) => {
+    // ── Fetch — sends both fy_year and project_id to API ─────────────────────
+    const fetchDashboard = async (fy = selectedFY, projectId = selectedProjectId) => {
         setLoading(true);
         setError(null);
         try {
-const params = new URLSearchParams({ fy_year: fy });
+            const params = new URLSearchParams();
+            if (fy)        params.set("fy_year",    fy);
+            if (projectId) params.set("project_id", projectId);
+
             const res = await fetch(
                 `${import.meta.env.VITE_BACKEND_API_URL}dashboard/admin?${params}`,
                 {
@@ -281,12 +272,12 @@ const params = new URLSearchParams({ fy_year: fy });
             const json = await res.json();
             if (json.success) {
                 setDashData(json.data);
-    setApprovalQueue(json.data.approvalQueue || []);
 
-     const fyList = json.data?.filterOptions?.availableFYList ?? [];
-    if (!selectedFY && fyList.length > 0) {
-        setSelectedFY(fyList[0].fy_year);  // pehla available FY auto-set
-    }
+                // Auto-select first FY on initial load
+                const fyList = json.data?.filterOptions?.availableFYList ?? [];
+                if (!fy && fyList.length > 0) {
+                    setSelectedFY(fyList[0].fy_year);
+                }
             } else {
                 throw new Error("API returned success: false");
             }
@@ -297,32 +288,60 @@ const params = new URLSearchParams({ fy_year: fy });
         }
     };
 
-    useEffect(() => { fetchDashboard(selectedFY); }, [selectedFY]);
+    // Re-fetch whenever FY or project changes
+    useEffect(() => {
+        // ── DEBUG LOGS ──
+        console.log("Selected FY:", selectedFY);
+        console.log("Selected Project ID:", selectedProjectId);
+        const projectObj = availableProjects.find(p => String(p.project_id) === String(selectedProjectId));
+        console.log("Selected Project Name:", projectObj?.project_name ?? "All Projects");
+        // ────────────────
+        fetchDashboard(selectedFY, selectedProjectId);
+    }, [selectedFY, selectedProjectId]);
 
     // ── Derived values ────────────────────────────────────────────────────────
-    const totalExpense         = dashData?.totalExpense         ?? 0;
-    const paidAmount           = dashData?.paidAmount           ?? 0;
-    const pendingAmount        = dashData?.pendingAmount        ?? 0;
-    const rejectedAmount       = dashData?.rejectedAmount       ?? 0;
-    const approvedAmount       = dashData?.approvedAmount       ?? 0;
-    const approvalQueueCount   = dashData?.approvalQueueCount   ?? 0;
+    const totalExpense        = dashData?.totalExpense        ?? 0;
+    const paidAmount          = dashData?.paidAmount          ?? 0;
+    const pendingAmount       = dashData?.pendingAmount       ?? 0;
+    const rejectedAmount      = dashData?.rejectedAmount      ?? 0;
+    const approvedAmount      = dashData?.approvedAmount      ?? 0;
+    const approvalQueueCount  = dashData?.approvalQueueCount  ?? 0;
 
     const userWiseSummary      = dashData?.userWiseSummary      ?? [];
     const projectWiseData      = dashData?.projectWiseData      ?? [];
     const interventionWiseData = dashData?.interventionWiseData ?? [];
-    const paymentOverview      = dashData?.paymentOverview      ?? [];
-    const availableFYList      = dashData?.filterOptions?.availableFYList ?? [];
-    const totalRequests        = userWiseSummary.reduce((s, u) => s + u.totalRequests, 0);
-    const yearlyPaidData = dashData?.yearlyPaidData ?? [];
+    const availableFYList      = dashData?.filterOptions?.availableFYList  ?? [];
+    const availableProjects    = dashData?.filterOptions?.availableProjects ?? []; // FIX 1
 
+    const totalRequests = userWiseSummary.reduce((s, u) => s + u.totalRequests, 0);
 
-    // Budget utilisation
-    const budgetColors = ["bg-primary", "bg-success", "bg-danger", "bg-info", "bg-warning"];
-    const budgetData = projectWiseData.map((p, i) => ({
-        name:  p.project_name,
-        used:  totalExpense > 0 ? Math.round((p.totalAmount / totalExpense) * 100) : 0,
-        color: budgetColors[i % budgetColors.length],
-    }));
+    // FIX 2: yearlyPaidData — fetched WITHOUT FY filter so all years always show
+    // We keep a separate state for all-year data
+    const [allYearlyPaidData, setAllYearlyPaidData] = useState([]);
+
+    useEffect(() => {
+        // Fetch yearly paid overview without FY/project filter — always all years
+        const fetchYearly = async () => {
+            try {
+                const res = await fetch(
+                    `${import.meta.env.VITE_BACKEND_API_URL}dashboard/admin`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${localStorage.getItem("token")}`,
+                        },
+                    }
+                );
+                if (!res.ok) return;
+                const json = await res.json();
+                if (json.success) {
+                    setAllYearlyPaidData(json.data?.yearlyPaidData ?? []);
+                }
+            } catch (_) {
+                // silently ignore — not critical
+            }
+        };
+        fetchYearly();
+    }, []); // run once on mount
 
     // ── Loading / Error ───────────────────────────────────────────────────────
     if (loading) return (
@@ -336,7 +355,10 @@ const params = new URLSearchParams({ fy_year: fy });
     if (error) return (
         <div className="alert alert-danger m-4">
             Failed to load dashboard data: <strong>{error}</strong>
-            <button className="btn btn-sm btn-outline-danger ms-3" onClick={() => fetchDashboard(selectedFY)}>
+            <button
+                className="btn btn-sm btn-outline-danger ms-3"
+                onClick={() => fetchDashboard(selectedFY, selectedProjectId)}
+            >
                 Retry
             </button>
         </div>
@@ -348,29 +370,44 @@ const params = new URLSearchParams({ fy_year: fy });
             {/* ── Page Header ── */}
             <div className="page-head">
                 <div className="row align-items-center">
-                    <div className="col-sm-8 mb-sm-4">
+                    <div className="col-sm-7 mb-sm-4">
                         <SkyGreeting />
                     </div>
-                    <div className="col-sm-4 mb-4 text-sm-end">
+                    <div className="col-sm-5 mb-4 text-sm-end">
                         <div className="d-inline-flex align-items-center gap-2">
+
+                            {/* FIX 1: Project filter — uses availableProjects from API */}
+                            <select
+                                className="form-select w-auto"
+                                value={selectedProjectId}
+                                onChange={(e) => setSelectedProjectId(e.target.value)}
+                            >
+                                <option value="">All Projects</option>
+                                {availableProjects.map((p) => (
+                                    <option key={p.project_id} value={p.project_id}>
+                                        {p.project_name}
+                                    </option>
+                                ))}
+                            </select>
+
+                            {/* Financial Year filter */}
                             <select
                                 className="form-select w-auto"
                                 value={selectedFY}
                                 onChange={(e) => setSelectedFY(e.target.value)}
                             >
-                                <option value="">Select Financial Year</option>
+                                <option value="">All Years</option>
                                 {availableFYList
-                           
                                     .filter((f) => f.fy_year)
                                     .map((f) => (
-                                        console.log("FY option:", f.fy_year) || (
                                         <option key={f.fy_year} value={f.fy_year}>
                                             FY {f.fy_year}
                                         </option>
-                                    )))}
+                                    ))}
                             </select>
+
                             <Link to="/add-expense" className="btn btn-primary d-flex align-items-center gap-1">
-                                + Raise Expense
+                                + Expense
                             </Link>
                         </div>
                     </div>
@@ -384,18 +421,11 @@ const params = new URLSearchParams({ fy_year: fy });
                 <div className="col-xl-3 col-sm-6">
                     <div className="card">
                         <div className="card-header border-0 pb-0">
-                            <h6 className="mb-0">Total Expense</h6>
-                            <Dropdown className="dropdown ms-auto c-pointer">
-                                <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                                <Dropdown.Menu align="end">
-                                    <Dropdown.Item>View Detail</Dropdown.Item>
-                                    <Dropdown.Item>Download</Dropdown.Item>
-                                </Dropdown.Menu>
-                            </Dropdown>
+                            <h6 className="mb-0">Total Expense</h6>                           
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{formatINR(totalExpense)}</h2>
-                            <span><small className="text-muted">FY {selectedFY}</small></span>
+                            <span><small className="text-muted">FY {selectedFY || "All"}</small></span>
                             <div className="progress mt-3" style={{ height: "6px" }}>
                                 <div className="progress-bar bg-primary" style={{ width: "100%" }}></div>
                             </div>
@@ -412,14 +442,7 @@ const params = new URLSearchParams({ fy_year: fy });
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Approved Amount</h6>
-                            <Dropdown className="dropdown ms-auto c-pointer">
-                                <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                                <Dropdown.Menu align="end">
-                                    <Dropdown.Item>View Detail</Dropdown.Item>
-                                    <Dropdown.Item>Download</Dropdown.Item>
-                                </Dropdown.Menu>
-                            </Dropdown>
-                        </div>
+                                                   </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{formatINR(approvedAmount)}</h2>
                             <span>
@@ -447,13 +470,7 @@ const params = new URLSearchParams({ fy_year: fy });
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Paid Expenses</h6>
-                            <Dropdown className="dropdown ms-auto c-pointer">
-                                <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                                <Dropdown.Menu align="end">
-                                    <Dropdown.Item>View Detail</Dropdown.Item>
-                                    <Dropdown.Item>Download</Dropdown.Item>
-                                </Dropdown.Menu>
-                            </Dropdown>
+                           
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{formatINR(paidAmount)}</h2>
@@ -482,13 +499,7 @@ const params = new URLSearchParams({ fy_year: fy });
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Rejected Expenses</h6>
-                            <Dropdown className="dropdown ms-auto c-pointer">
-                                <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                                <Dropdown.Menu align="end">
-                                    <Dropdown.Item>View Detail</Dropdown.Item>
-                                    <Dropdown.Item>Download</Dropdown.Item>
-                                </Dropdown.Menu>
-                            </Dropdown>
+                           
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{formatINR(rejectedAmount)}</h2>
@@ -521,17 +532,11 @@ const params = new URLSearchParams({ fy_year: fy });
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Claims Submitted</h6>
-                            <Dropdown className="dropdown ms-auto c-pointer">
-                                <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                                <Dropdown.Menu align="end">
-                                    <Dropdown.Item>View Detail</Dropdown.Item>
-                                    <Dropdown.Item>Download</Dropdown.Item>
-                                </Dropdown.Menu>
-                            </Dropdown>
+                            
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{totalRequests}</h2>
-                            <span><small className="text-muted">FY {selectedFY}</small></span>
+                            <span><small className="text-muted">FY {selectedFY || "All"}</small></span>
                             <div className="progress mt-3" style={{ height: "6px" }}>
                                 <div className="progress-bar bg-primary" style={{ width: "100%" }}></div>
                             </div>
@@ -548,14 +553,7 @@ const params = new URLSearchParams({ fy_year: fy });
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Pending Review</h6>
-                            <Dropdown className="dropdown ms-auto c-pointer">
-                                <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                                <Dropdown.Menu align="end">
-                                    <Dropdown.Item>View Detail</Dropdown.Item>
-                                    <Dropdown.Item>Download</Dropdown.Item>
-                                </Dropdown.Menu>
-                            </Dropdown>
-                        </div>
+                                                    </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{approvalQueueCount}</h2>
                             <span><small className="text-warning font-w600 me-1">Awaiting action</small></span>
@@ -578,13 +576,7 @@ const params = new URLSearchParams({ fy_year: fy });
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Pending Amount</h6>
-                            <Dropdown className="dropdown ms-auto c-pointer">
-                                <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                                <Dropdown.Menu align="end">
-                                    <Dropdown.Item>View Detail</Dropdown.Item>
-                                    <Dropdown.Item>Download</Dropdown.Item>
-                                </Dropdown.Menu>
-                            </Dropdown>
+                           
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{formatINR(pendingAmount)}</h2>
@@ -608,18 +600,12 @@ const params = new URLSearchParams({ fy_year: fy });
                     </div>
                 </div>
 
-                {/* Users Count */}
+                {/* Active Users */}
                 <div className="col-xl-3 col-sm-6">
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Active Users</h6>
-                            <Dropdown className="dropdown ms-auto c-pointer">
-                                <Dropdown.Toggle as="div" className="btn-link i-false">{SVGICON.threedot}</Dropdown.Toggle>
-                                <Dropdown.Menu align="end">
-                                    <Dropdown.Item>View Detail</Dropdown.Item>
-                                    <Dropdown.Item>Download</Dropdown.Item>
-                                </Dropdown.Menu>
-                            </Dropdown>
+                           
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{userWiseSummary.length}</h2>
@@ -636,10 +622,10 @@ const params = new URLSearchParams({ fy_year: fy });
                 </div>
             </div>
 
-            {/* ── ROW 3: EXPENSE OVERVIEW CHART (8) + BUDGET UTILISATION (4) ── */}
+            {/* ── ROW 3: EXPENSE OVERVIEW CHART (8) + YEARLY PAID OVERVIEW (4) ── */}
             <div className="row">
 
-                {/* Expense Overview — project-wise bar chart from API */}
+                {/* Expense Overview — project-wise bar chart */}
                 <div className="col-xl-8">
                     <div className="card overflow-hidden">
                         <div className="card-header border-0 pb-0 flex-wrap">
@@ -647,12 +633,13 @@ const params = new URLSearchParams({ fy_year: fy });
                                 <h5 className="mb-0">Expense Overview</h5>
                                 <h4 className="mb-0 text-dark">
                                     {formatINR(totalExpense)}{" "}
-                                    <span className="badge badge-sm badge-success light">FY {selectedFY}</span>
+                                    <span className="badge badge-sm badge-success light">
+                                        FY {selectedFY || "All"}
+                                    </span>
                                 </h4>
                             </div>
                         </div>
 
-                        {/* Chart */}
                         <ExpenseOverviewChart data={projectWiseData} />
 
                         {/* Summary footer */}
@@ -677,48 +664,48 @@ const params = new URLSearchParams({ fy_year: fy });
                     </div>
                 </div>
 
-                {/* Budget Utilisation — project-wise share of total */}
-               {/* Yearly Paid Overview — yearlyPaidData */}
-<div className="col-xl-4">
-    <div className="card">
-        <div className="card-header border-0 pb-0">
-            <h5 className="mb-0">Yearly Paid Overview</h5>
-            <span className="badge badge-warning light">FY {selectedFY}</span>
-        </div>
-        <div className="card-body">
-            {yearlyPaidData.length === 0 ? (
-                <p className="text-muted text-center py-3">No yearly data available.</p>
-            ) : (
-                (() => {
-                    const totalPaidAcrossAll = yearlyPaidData.reduce((s, d) => s + d.totalPaid, 0);
-                    const colors = ["bg-primary", "bg-success", "bg-warning", "bg-info", "bg-danger"];
-                    return yearlyPaidData.map((item, i) => {
-                        const pct = totalPaidAcrossAll > 0
-                            ? Math.round((item.totalPaid / totalPaidAcrossAll) * 100)
-                            : 0;
-                        return (
-                            <div key={i} className="mb-3">
-                                <div className="d-flex justify-content-between mb-1">
-                                    <span className="fs-14 font-w500">FY {item.fy_year}</span>
-                                    <span className="fs-14 font-w700">{pct}%</span>
-                                </div>
-                                <div className="progress" style={{ height: "8px" }}>
-                                    <div className={`progress-bar ${colors[i % colors.length]}`} style={{ width: `${pct}%` }}></div>
-                                </div>
-                                <div className="d-flex justify-content-between mt-1">
-                                    <small className="text-muted">{item.totalCount} payment{item.totalCount !== 1 ? "s" : ""}</small>
-                                    <small className="text-muted font-w600">{formatINR(item.totalPaid)}</small>
-                                </div>
-                            </div>
-                        );
-                    });
-                })()
-            )}
-        </div>
-    </div>
-</div>
-
-
+                {/* FIX 2: Yearly Paid Overview — always shows ALL years (unfiltered fetch) */}
+                <div className="col-xl-4">
+                    <div className="card">
+                        <div className="card-header border-0 pb-0">
+                            <h5 className="mb-0">Yearly Paid Overview</h5>
+                            <span className="badge badge-warning light">All Years</span>
+                        </div>
+                        <div className="card-body">
+                            {allYearlyPaidData.length === 0 ? (
+                                <p className="text-muted text-center py-3">No yearly data available.</p>
+                            ) : (() => {
+                                const totalPaidAcrossAll = allYearlyPaidData.reduce((s, d) => s + d.totalPaid, 0);
+                                const colors = ["bg-primary", "bg-success", "bg-warning", "bg-info", "bg-danger"];
+                                return allYearlyPaidData.map((item, i) => {
+                                    const pct = totalPaidAcrossAll > 0
+                                        ? Math.round((item.totalPaid / totalPaidAcrossAll) * 100)
+                                        : 0;
+                                    return (
+                                        <div key={item.fy_year ?? i} className="mb-3">
+                                            <div className="d-flex justify-content-between mb-1">
+                                                <span className="fs-14 font-w500">FY {item.fy_year}</span>
+                                                <span className="fs-14 font-w700">{pct}%</span>
+                                            </div>
+                                            <div className="progress" style={{ height: "8px" }}>
+                                                <div
+                                                    className={`progress-bar ${colors[i % colors.length]}`}
+                                                    style={{ width: `${pct}%` }}
+                                                ></div>
+                                            </div>
+                                            <div className="d-flex justify-content-between mt-1">
+                                                <small className="text-muted">
+                                                    {item.totalCount} payment{item.totalCount !== 1 ? "s" : ""}
+                                                </small>
+                                                <small className="text-muted font-w600">{formatINR(item.totalPaid)}</small>
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* ── ROW 4: PROJECT-WISE TABLE ── */}
@@ -755,7 +742,9 @@ const params = new URLSearchParams({ fy_year: fy });
                                             </tr>
                                         ))}
                                         {projectWiseData.length === 0 && (
-                                            <tr><td colSpan={7} className="text-center text-muted py-3">No data available.</td></tr>
+                                            <tr>
+                                                <td colSpan={7} className="text-center text-muted py-3">No data available.</td>
+                                            </tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -771,7 +760,7 @@ const params = new URLSearchParams({ fy_year: fy });
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h5 className="mb-0">User-wise Summary</h5>
-                            <span className="badge badge-info light">FY {selectedFY}</span>
+                            <span className="badge badge-info light">FY {selectedFY || "All"}</span>
                         </div>
                         <div className="card-body">
                             {userWiseSummary.length > 0 ? (
@@ -790,7 +779,7 @@ const params = new URLSearchParams({ fy_year: fy });
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h5 className="mb-0">Intervention-wise Summary</h5>
-                            <span className="badge badge-primary light">FY {selectedFY}</span>
+                            <span className="badge badge-primary light">FY {selectedFY || "All"}</span>
                         </div>
                         <div className="card-body pb-2">
                             <div className="table-responsive">

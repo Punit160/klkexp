@@ -15,8 +15,8 @@ function Home() {
 	return (
 		<>
 
-			{/* <AdminDashboard/> */}
-			<CommanSection />
+			<AdminDashboard/>
+			{/* <CommanSection /> */}
 			{/* <UserCommanSection/> */}
 		</>
 	)

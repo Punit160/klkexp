@@ -276,7 +276,7 @@ export default function SkyGreeting() {
     }, []);
 
     return (
-        <div className="col-sm-6 mb-sm-4 d-flex align-items-center gap-3">
+        <div className="col-sm-12 mb-sm-4 d-flex align-items-center gap-3">
             <canvas
                 ref={canvasRef}
                 width={300}
