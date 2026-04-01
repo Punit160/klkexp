@@ -255,7 +255,7 @@ const ManagerDashboard = () => {
 		try {
 			const params = new URLSearchParams({ fy_year: fy });
 			const res = await fetch(
-				`${import.meta.env.VITE_BACKEND_API_URL}dashboard/manager?${params}`,
+				`${import.meta.env.VITE_BACKEND_API_URL}dashboard/manager-dashboard?${params}`,
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("token")}`,

@@ -1,7 +1,5 @@
 import { Link } from "react-router-dom";
-import { SVGICON } from "../../../constant/theme";
-import { Dropdown } from "react-bootstrap";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import SkyGreeting from "../../../components/Common/SkyGreeting";
 
 import { Bar } from "react-chartjs-2";
@@ -21,24 +19,24 @@ const formatINR = (amount) =>
 
 const formatINRShort = (v) => {
     if (v >= 10000000) return "₹" + Math.round(v / 10000000) + "Cr";
-    if (v >= 100000)   return "₹" + Math.round(v / 100000)   + "L";
-    if (v >= 1000)     return "₹" + Math.round(v / 1000)     + "K";
+    if (v >= 100000) return "₹" + Math.round(v / 100000) + "L";
+    if (v >= 1000) return "₹" + Math.round(v / 1000) + "K";
     return "₹" + v;
 };
 
 // ── Shared chart colors ───────────────────────────────────────────────────────
 const CHART_COLORS = {
-    total:    "#0073fd",
+    total: "#0073fd",
     approved: "#00aeef",
-    paid:     "#1d9e75",
-    pending:  "#ee9742",
+    paid: "#1d9e75",
+    pending: "#ee9742",
 };
 
 const CHART_LEGEND = [
-    { key: "total",    label: "Total Amount" },
-    { key: "approved", label: "Approved"     },
-    { key: "paid",     label: "Paid"         },
-    { key: "pending",  label: "Pending"      },
+    { key: "total", label: "Total Amount" },
+    { key: "approved", label: "Approved" },
+    { key: "paid", label: "Paid" },
+    { key: "pending", label: "Pending" },
 ];
 
 // ── ExpenseOverviewChart ──────────────────────────────────────────────────────
@@ -245,23 +243,26 @@ const UserBarChart = ({ data = [] }) => {
 
 // ── AdminDashboard ─────────────────────────────────────────────────────────────
 const AdminDashboard = () => {
-    const [selectedFY, setSelectedFY]           = useState("");
-    const [selectedProjectId, setSelectedProjectId] = useState(""); // FIX 1: project filter state
-    const [dashData, setDashData]               = useState(null);
-    const [loading, setLoading]                 = useState(false);
-    const [error, setError]                     = useState(null);
+    const [selectedFY, setSelectedFY] = useState("");
+    const [selectedProjectId, setSelectedProjectId] = useState("");
+    const [dashData, setDashData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    // ── Fetch — sends both fy_year and project_id to API ─────────────────────
-    const fetchDashboard = async (fy = selectedFY, projectId = selectedProjectId) => {
+    // ── isFirstLoad ref: auto-select latest FY only once ─────────────────────
+    const isFirstLoad = useRef(true);
+
+    // ── Core fetch: always reads latest state values via params ──────────────
+    const fetchDashboard = async (fy, projectId) => {
         setLoading(true);
         setError(null);
         try {
             const params = new URLSearchParams();
-            if (fy)        params.set("fy_year",    fy);
+            if (fy) params.set("fy_year", fy);
             if (projectId) params.set("project_id", projectId);
 
             const res = await fetch(
-                `${import.meta.env.VITE_BACKEND_API_URL}dashboard/admin?${params}`,
+                `${import.meta.env.VITE_BACKEND_API_URL}dashboard/admin-dashboard?${params}`,
                 {
                     headers: {
                         Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -273,10 +274,14 @@ const AdminDashboard = () => {
             if (json.success) {
                 setDashData(json.data);
 
-                // Auto-select first FY on initial load
-                const fyList = json.data?.filterOptions?.availableFYList ?? [];
-                if (!fy && fyList.length > 0) {
-                    setSelectedFY(fyList[0].fy_year);
+                // Auto-select the LATEST (last) FY on very first load only
+                if (isFirstLoad.current) {
+                    isFirstLoad.current = false;
+                    const fyList = json.data?.filterOptions?.availableFYList ?? [];
+                    if (!fy && fyList.length > 0) {
+                        // Pick the last entry — list is ordered oldest→newest
+                        setSelectedFY(fyList[fyList.length - 1].fy_year);
+                    }
                 }
             } else {
                 throw new Error("API returned success: false");
@@ -288,18 +293,13 @@ const AdminDashboard = () => {
         }
     };
 
-    // Re-fetch whenever FY or project changes
+    // ── Re-fetch whenever FY or project changes ───────────────────────────────
     useEffect(() => {
-        // ── DEBUG LOGS ──
-        console.log("Selected FY:", selectedFY);
-        console.log("Selected Project ID:", selectedProjectId);
-        const projectObj = availableProjects.find(p => String(p.project_id) === String(selectedProjectId));
-        console.log("Selected Project Name:", projectObj?.project_name ?? "All Projects");
-        // ────────────────
         fetchDashboard(selectedFY, selectedProjectId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedFY, selectedProjectId]);
 
-    // ── Derived values ────────────────────────────────────────────────────────
+    // ── Derived values — all come from dashData (filtered by FY + project) ───
     const totalExpense        = dashData?.totalExpense        ?? 0;
     const paidAmount          = dashData?.paidAmount          ?? 0;
     const pendingAmount       = dashData?.pendingAmount       ?? 0;
@@ -311,37 +311,11 @@ const AdminDashboard = () => {
     const projectWiseData      = dashData?.projectWiseData      ?? [];
     const interventionWiseData = dashData?.interventionWiseData ?? [];
     const availableFYList      = dashData?.filterOptions?.availableFYList  ?? [];
-    const availableProjects    = dashData?.filterOptions?.availableProjects ?? []; // FIX 1
+    const availableProjects    = dashData?.filterOptions?.availableProjects ?? [];
+    // yearlyPaidData comes from same dashData — updates with every filter change
+    const yearlyPaidData       = dashData?.yearlyPaidData ?? [];
 
     const totalRequests = userWiseSummary.reduce((s, u) => s + u.totalRequests, 0);
-
-    // FIX 2: yearlyPaidData — fetched WITHOUT FY filter so all years always show
-    // We keep a separate state for all-year data
-    const [allYearlyPaidData, setAllYearlyPaidData] = useState([]);
-
-    useEffect(() => {
-        // Fetch yearly paid overview without FY/project filter — always all years
-        const fetchYearly = async () => {
-            try {
-                const res = await fetch(
-                    `${import.meta.env.VITE_BACKEND_API_URL}dashboard/admin`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${localStorage.getItem("token")}`,
-                        },
-                    }
-                );
-                if (!res.ok) return;
-                const json = await res.json();
-                if (json.success) {
-                    setAllYearlyPaidData(json.data?.yearlyPaidData ?? []);
-                }
-            } catch (_) {
-                // silently ignore — not critical
-            }
-        };
-        fetchYearly();
-    }, []); // run once on mount
 
     // ── Loading / Error ───────────────────────────────────────────────────────
     if (loading) return (
@@ -376,15 +350,17 @@ const AdminDashboard = () => {
                     <div className="col-sm-5 mb-4 text-sm-end">
                         <div className="d-inline-flex align-items-center gap-2">
 
-                            {/* FIX 1: Project filter — uses availableProjects from API */}
+                            {/* Project filter */}
                             <select
                                 className="form-select w-auto"
                                 value={selectedProjectId}
-                                onChange={(e) => setSelectedProjectId(e.target.value)}
+                                onChange={(e) => {
+                                    setSelectedProjectId(e.target.value);
+                                }}
                             >
                                 <option value="">All Projects</option>
                                 {availableProjects.map((p) => (
-                                    <option key={p.project_id} value={p.project_id}>
+                                    <option key={p.project_id} value={String(p.project_id)}>
                                         {p.project_name}
                                     </option>
                                 ))}
@@ -394,7 +370,9 @@ const AdminDashboard = () => {
                             <select
                                 className="form-select w-auto"
                                 value={selectedFY}
-                                onChange={(e) => setSelectedFY(e.target.value)}
+                                onChange={(e) => {
+                                    setSelectedFY(e.target.value);
+                                }}
                             >
                                 <option value="">All Years</option>
                                 {availableFYList
@@ -421,7 +399,7 @@ const AdminDashboard = () => {
                 <div className="col-xl-3 col-sm-6">
                     <div className="card">
                         <div className="card-header border-0 pb-0">
-                            <h6 className="mb-0">Total Expense</h6>                           
+                            <h6 className="mb-0">Total Expense</h6>
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{formatINR(totalExpense)}</h2>
@@ -442,7 +420,7 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Approved Amount</h6>
-                                                   </div>
+                        </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{formatINR(approvedAmount)}</h2>
                             <span>
@@ -470,7 +448,6 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Paid Expenses</h6>
-                           
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{formatINR(paidAmount)}</h2>
@@ -499,7 +476,6 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Rejected Expenses</h6>
-                           
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{formatINR(rejectedAmount)}</h2>
@@ -532,7 +508,6 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Claims Submitted</h6>
-                            
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{totalRequests}</h2>
@@ -553,7 +528,7 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Pending Review</h6>
-                                                    </div>
+                        </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{approvalQueueCount}</h2>
                             <span><small className="text-warning font-w600 me-1">Awaiting action</small></span>
@@ -576,7 +551,6 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Pending Amount</h6>
-                           
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{formatINR(pendingAmount)}</h2>
@@ -605,7 +579,6 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h6 className="mb-0">Active Users</h6>
-                           
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{userWiseSummary.length}</h2>
@@ -625,7 +598,7 @@ const AdminDashboard = () => {
             {/* ── ROW 3: EXPENSE OVERVIEW CHART (8) + YEARLY PAID OVERVIEW (4) ── */}
             <div className="row">
 
-                {/* Expense Overview — project-wise bar chart */}
+                {/* Expense Overview — filtered project-wise bar chart */}
                 <div className="col-xl-8">
                     <div className="card overflow-hidden">
                         <div className="card-header border-0 pb-0 flex-wrap">
@@ -634,12 +607,16 @@ const AdminDashboard = () => {
                                 <h4 className="mb-0 text-dark">
                                     {formatINR(totalExpense)}{" "}
                                     <span className="badge badge-sm badge-success light">
-                                        FY {selectedFY || "All"}
+                                        {selectedProjectId
+                                            ? (availableProjects.find(p => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
+                                            : "All Projects"
+                                        }{" — "}FY {selectedFY || "All"}
                                     </span>
                                 </h4>
                             </div>
                         </div>
 
+                        {/* Chart now always uses filtered projectWiseData */}
                         <ExpenseOverviewChart data={projectWiseData} />
 
                         {/* Summary footer */}
@@ -664,20 +641,22 @@ const AdminDashboard = () => {
                     </div>
                 </div>
 
-                {/* FIX 2: Yearly Paid Overview — always shows ALL years (unfiltered fetch) */}
+                {/* Yearly Paid Overview — reactive to FY + project filters */}
                 <div className="col-xl-4">
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h5 className="mb-0">Yearly Paid Overview</h5>
-                            <span className="badge badge-warning light">All Years</span>
+                            <span className="badge badge-warning light">
+                                FY {selectedFY || "All"}
+                            </span>
                         </div>
                         <div className="card-body">
-                            {allYearlyPaidData.length === 0 ? (
+                            {yearlyPaidData.length === 0 ? (
                                 <p className="text-muted text-center py-3">No yearly data available.</p>
                             ) : (() => {
-                                const totalPaidAcrossAll = allYearlyPaidData.reduce((s, d) => s + d.totalPaid, 0);
+                                const totalPaidAcrossAll = yearlyPaidData.reduce((s, d) => s + d.totalPaid, 0);
                                 const colors = ["bg-primary", "bg-success", "bg-warning", "bg-info", "bg-danger"];
-                                return allYearlyPaidData.map((item, i) => {
+                                return yearlyPaidData.map((item, i) => {
                                     const pct = totalPaidAcrossAll > 0
                                         ? Math.round((item.totalPaid / totalPaidAcrossAll) * 100)
                                         : 0;
@@ -714,6 +693,12 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header flex-wrap">
                             <h5 className="mb-0">Project-wise Expense Summary</h5>
+                            <span className="badge badge-primary light">
+                                {selectedProjectId
+                                    ? (availableProjects.find(p => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
+                                    : "All Projects"
+                                }{" — "}FY {selectedFY || "All"}
+                            </span>
                         </div>
                         <div className="card-body pb-2">
                             <div className="table-responsive">
@@ -760,7 +745,12 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h5 className="mb-0">User-wise Summary</h5>
-                            <span className="badge badge-info light">FY {selectedFY || "All"}</span>
+                            <span className="badge badge-info light">
+                                {selectedProjectId
+                                    ? (availableProjects.find(p => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
+                                    : "All Projects"
+                                }{" — "}FY {selectedFY || "All"}
+                            </span>
                         </div>
                         <div className="card-body">
                             {userWiseSummary.length > 0 ? (
@@ -779,7 +769,12 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h5 className="mb-0">Intervention-wise Summary</h5>
-                            <span className="badge badge-primary light">FY {selectedFY || "All"}</span>
+                            <span className="badge badge-primary light">
+                                {selectedProjectId
+                                    ? (availableProjects.find(p => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
+                                    : "All Projects"
+                                }{" — "}FY {selectedFY || "All"}
+                            </span>
                         </div>
                         <div className="card-body pb-2">
                             <div className="table-responsive">

@@ -1,9 +1,15 @@
 export const MenuList = [
+
+
     { title: 'Dashboard ', to: 'dashboard', iconStyle: <i className="flaticon-home" /> },
 
-
-
+    { title: 'Admin Dashboard', to: '/admin-dashboard', iconStyle: <i className="flaticon-home" /> },
+    { title: 'Manager Dashboard ', to: '/manager-dashboard', iconStyle: <i className="flaticon-home" /> },
+    
     { title: 'Masters', classsChange: 'menu-title' },
+    
+    { title: 'User Dashboard ', to: '/user-dashboard', iconStyle: <i className="flaticon-home" /> },    
+
 
     {
         title: 'Employee',

@@ -38,7 +38,9 @@ import AddExpense from "../modules/klk-emp-payment/AddExpense";
 import UpdateEmployee from "../modules/Employee/UpdateEmployee";
 import ProjectFormUpdate from "../modules/project-master/ProjectFromUpdate";
 import RoleList from "../modules/RolePermission/RoleList";
-
+import AdminDashboard from "../pages/dashboard/Admin/AdminDashboard";
+import UserCommanSection from "../pages/dashboard/User/UserCommanSection";
+import CommanSection from "../pages/dashboard/Manager/CommanSection";
 
 
 const ProtectedRoute = ({ children }) => {
@@ -67,6 +69,11 @@ const Markup = () => {
     const protectedMenu = [
         { path: 'dashboard', element: <Home /> },
         { path: 'dashboard-dark', element: <DashboardDark /> },
+
+        { path: '/admin-dashboard', element: <AdminDashboard /> },
+        { path: '/user-dashboard', element: <UserCommanSection /> },
+        { path: '/manager-dashboard', element: <CommanSection /> },
+
 
         { path: '/add-employee', element: <AddEmployee /> },
         { path: '/employee-List', element: <EmployeeList /> },

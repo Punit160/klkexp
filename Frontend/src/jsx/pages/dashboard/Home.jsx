@@ -3,8 +3,7 @@
 import { useContext, useEffect } from "react";
 import { ThemeContext } from "../../../context/ThemeContext";
 import AdminDashboard from "./Admin/AdminDashboard";
-import CommanSection from "./Manager/CommanSection";
-import UserCommanSection from "./User/UserCommanSection";
+
 
 function Home() {
 	const { changeBackground } = useContext(ThemeContext);
@@ -16,8 +15,8 @@ function Home() {
 		<>
 
 			<AdminDashboard/>
-			{/* <CommanSection /> */}
-			{/* <UserCommanSection/> */}
+
+		
 		</>
 	)
 }

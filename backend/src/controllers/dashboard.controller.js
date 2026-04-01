@@ -1,5 +1,3 @@
-
-
 import { PrismaClient, Prisma } from '@prisma/client';
 const prisma = new PrismaClient();
 
@@ -161,18 +159,6 @@ export const UserDashboard = async (req, res) => {
 
 
 
-// export const ManagerDashboard = async (req, res) => {
-//     // Similar structure to UserDashboard but with manager-level data access
-//     // For example, it might show data for all users under the manager's supervision
-//     res.status(200).json({ success: true, message: "Manager dashboard data" });
-// };
-
-
-
-
-
-
-
 
 export const AdminDashboard = async (req, res) => {
     try {
@@ -193,6 +179,7 @@ export const AdminDashboard = async (req, res) => {
 
         // ─── Optional Filters ─────────────────────────────
         const filterUserId = req.query.user_id ? parseInt(req.query.user_id) : null;
+        // const filterProjectId = req.query.project_id ? String(req.query.project_id).trim() : null;
         const filterProjectId = req.query.project_id ? String(req.query.project_id).trim() : null;
         const filterInterventionId = req.query.intervention_id ? parseInt(req.query.intervention_id) : null;
 
@@ -216,7 +203,11 @@ export const AdminDashboard = async (req, res) => {
         const summaryData = await prisma.expensePayment.groupBy({
             by: ['approval_status', 'payment_status'],
             where: whereCondition,
-            _sum: { amount: true },
+            _sum: {
+                amount: true,
+                final_approved_amount: true,
+                paid_amount: true
+            }
         });
 
         let totalExpense = 0, paidAmount = 0, pendingAmount = 0;
@@ -224,44 +215,79 @@ export const AdminDashboard = async (req, res) => {
 
         for (const item of summaryData) {
             const amount = Number(item._sum.amount) || 0;
-            const approvedamount = Number(item._sum.final_approved_amount) || 0;
+            const approvalamount = Number(item._sum.final_approved_amount) || 0;
             const pamount = Number(item._sum.paid_amount) || 0;
-            if (item.payment_status === 1 && item.approval_status === 1) paidAmount += pamount;
-            if (item.approval_status === 1) pendingAmount += approvedamount;
+
+            if (item.payment_status === 1) paidAmount += pamount;
             if (item.approval_status === 2) rejectedAmount += amount;
-            if (item.approval_status === 1 && item.payment_status === 0)
-                approvedAmount += amount;
-            if (item.approval_status !== 2) totalExpense += amount;
+            if (item.approval_status === 1)
+                approvedAmount += approvalamount;
+            if (item.approval_status === 1) pendingAmount += approvalamount - pamount;
+             totalExpense += amount;
         }
 
         // ─── 2. All Users Expense Summary ─────────────────
         const userWiseSummary = await prisma.$queryRaw`
-            SELECT
-                u.id                AS userid,
-                u.username          AS Name,
-                u.email             AS user_email,
-                u.phone_no          AS user_phone,
-                COUNT(ep.id)        AS totalRequests,
-                SUM(ep.amount)      AS totalAmount,
-                SUM(CASE WHEN ep.payment_status = 1 THEN ep.amount ELSE 0 END)                            AS totalPaid,
-                SUM(CASE WHEN ep.approval_status = 0 THEN ep.amount ELSE 0 END)                           AS pendingAmount,
-                SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END)                           AS rejectedAmount,
-                SUM(CASE WHEN ep.approval_status = 1 AND ep.payment_status = 0 THEN ep.amount ELSE 0 END) AS approvedAmount
-            FROM expensepayment ep
-            LEFT JOIN user u ON u.id = ep.requested_by
-            WHERE ep.company_id = ${company_id}
-              ${fyFragment}
-              ${projectFragment}
-              ${interventionFragment}
-            GROUP BY u.id, u.username, u.email, u.phone_no
-            ORDER BY totalAmount DESC
-        `;
+    SELECT
+        u.id                AS userid,
+        u.username          AS Name,
+        u.email             AS user_email,
+        u.phone_no          AS user_phone,
+
+        COUNT(ep.id)        AS totalRequests,
+
+        COALESCE(SUM(ep.amount), 0) AS totalAmount,
+
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.payment_status = 1 
+                THEN ep.paid_amount 
+                ELSE 0 
+            END
+        ), 0) AS totalPaid,
+
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.approval_status = 2 
+                THEN ep.amount 
+                ELSE 0 
+            END
+        ), 0) AS rejectedAmount,
+
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.approval_status = 1  
+                THEN ep.final_approved_amount 
+                ELSE 0 
+            END
+        ), 0) AS approvedAmount,
+
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.approval_status = 1 
+                THEN ep.final_approved_amount - COALESCE(ep.paid_amount, 0)
+                ELSE 0 
+            END
+        ), 0) AS pendingAmount
+
+    FROM expensepayment ep
+    LEFT JOIN user u ON u.id = ep.requested_by
+
+    WHERE ep.company_id = ${company_id}
+    ${fyFragment}
+    ${projectFragment}
+    ${interventionFragment}
+
+    GROUP BY u.id, u.username, u.email, u.phone_no
+
+    ORDER BY totalAmount DESC
+`;
 
         // ─── 3. Approval Queue (pending approvals) ────────
         const approvalQueue = await prisma.$queryRaw`
             SELECT
                 ep.id               AS expense_id,
-                ep.amount,
+                ep.final_approved_amount AS amount,
                 ep.financial_year,
                 ep.created_at,
                 u.id                AS userid,
@@ -288,7 +314,7 @@ export const AdminDashboard = async (req, res) => {
                 ep.payment_status,
                 ep.approval_status,
                 COUNT(ep.id)   AS totalCount,
-                SUM(ep.amount) AS totalAmount
+                SUM(ep.paid_amount) AS totalAmount
             FROM expensepayment ep
             WHERE ep.company_id = ${company_id}
               ${extraFilters}
@@ -297,45 +323,116 @@ export const AdminDashboard = async (req, res) => {
 
         // ─── 5. Project-wise Breakdown ────────────────────
         const projectWiseData = await prisma.$queryRaw`
-            SELECT
-                p.id                AS project_id,
-                p.name              AS project_name,
-                COUNT(ep.id)        AS totalRequests,
-                SUM(ep.amount)      AS totalAmount,
-                SUM(CASE WHEN ep.payment_status = 1 THEN ep.amount ELSE 0 END)                            AS totalPaid,
-                SUM(CASE WHEN ep.approval_status = 0 THEN ep.amount ELSE 0 END)                           AS pendingAmount,
-                SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END)                           AS rejectedAmount,
-                SUM(CASE WHEN ep.approval_status = 1 AND ep.payment_status = 0 THEN ep.amount ELSE 0 END) AS approvedAmount
-            FROM expensepayment ep
-            LEFT JOIN project p ON p.id = ep.project_name
-            WHERE ep.company_id = ${company_id}
-              ${fyFragment}
-              ${userFragment}
-              ${interventionFragment}
-            GROUP BY p.id, p.name
-            ORDER BY totalAmount DESC
-        `;
+    SELECT
+        p.id   AS project_id,
+        p.name AS project_name,
+
+        COUNT(ep.id) AS totalRequests,
+
+        COALESCE(SUM(ep.amount), 0) AS totalAmount,
+
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.payment_status = 1 
+                THEN ep.paid_amount 
+                ELSE 0 
+            END
+        ), 0) AS totalPaid,
+
+        -- ✅ Correct Pending (approved - paid)
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.approval_status = 1 
+                THEN ep.final_approved_amount - COALESCE(ep.paid_amount, 0)
+                ELSE 0 
+            END
+        ), 0) AS pendingAmount,
+
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.approval_status = 2 
+                THEN ep.amount 
+                ELSE 0 
+            END
+        ), 0) AS rejectedAmount,
+
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.approval_status = 1
+                THEN ep.final_approved_amount 
+                ELSE 0 
+            END
+        ), 0) AS approvedAmount
+
+    FROM expensepayment ep
+    LEFT JOIN project p ON p.id = ep.project_name
+
+    WHERE ep.company_id = ${company_id}
+    ${fyFragment}
+    ${projectFragment}
+    ${userFragment}
+    ${interventionFragment}
+
+    GROUP BY p.id, p.name
+
+    ORDER BY totalAmount DESC
+`;
 
         // ─── 6. Intervention-wise Breakdown ───────────────
         const interventionWiseData = await prisma.$queryRaw`
-            SELECT
-                i.id                AS intervention_id,
-                i.name              AS intervention_name,
-                COUNT(ep.id)        AS totalRequests,
-                SUM(ep.amount)      AS totalAmount,
-                SUM(CASE WHEN ep.payment_status = 1 THEN ep.amount ELSE 0 END)                            AS totalPaid,
-                SUM(CASE WHEN ep.approval_status = 0 THEN ep.amount ELSE 0 END)                           AS pendingAmount,
-                SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END)                           AS rejectedAmount,
-                SUM(CASE WHEN ep.approval_status = 1 AND ep.payment_status = 0 THEN ep.amount ELSE 0 END) AS approvedAmount
-            FROM expensepayment ep
-            LEFT JOIN intervention i ON i.id = ep.intervention
-            WHERE ep.company_id = ${company_id}
-              ${fyFragment}
-              ${userFragment}
-              ${projectFragment}
-            GROUP BY i.id, i.name
-            ORDER BY totalAmount DESC
-        `;
+    SELECT
+        i.id   AS intervention_id,
+        i.name AS intervention_name,
+
+        COUNT(ep.id) AS totalRequests,
+
+        COALESCE(SUM(ep.amount), 0) AS totalAmount,
+
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.payment_status = 1 
+                THEN ep.paid_amount 
+                ELSE 0 
+            END
+        ), 0) AS totalPaid,
+
+        -- ✅ Correct Pending
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.approval_status = 1 
+                THEN ep.final_approved_amount - COALESCE(ep.paid_amount, 0)
+                ELSE 0 
+            END
+        ), 0) AS pendingAmount,
+
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.approval_status = 2 
+                THEN ep.amount 
+                ELSE 0 
+            END
+        ), 0) AS rejectedAmount,
+
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.approval_status = 1 
+                THEN ep.final_approved_amount 
+                ELSE 0 
+            END
+        ), 0) AS approvedAmount
+
+    FROM expensepayment ep
+    LEFT JOIN intervention i ON i.id = ep.intervention
+
+    WHERE ep.company_id = ${company_id}
+    ${fyFragment}
+    ${userFragment}
+    ${projectFragment}
+
+    GROUP BY i.id, i.name
+
+    ORDER BY totalAmount DESC
+`;
 
         // ─── 7. Year-wise Paid (always all FYs for chart) ─
         const yearlyPaidData = await prisma.$queryRaw`
@@ -355,7 +452,7 @@ export const AdminDashboard = async (req, res) => {
             SELECT DISTINCT financial_year AS fy_year
             FROM expensepayment
             WHERE company_id = ${company_id}
-            ORDER BY financial_year DESC
+            ORDER BY financial_year ASC
         `;
 
         const availableUsers = await prisma.$queryRaw`
@@ -387,7 +484,6 @@ export const AdminDashboard = async (req, res) => {
             WHERE ep.company_id = ${company_id}
             ORDER BY i.name ASC
         `;
-
         // ─── Serialize BigInt → Number then Respond ───────
         const responseData = serializeBigInt({
             activeFilters: {
