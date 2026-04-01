@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { SVGICON } from "../../../constant/theme";
 import { Dropdown, Nav, Tab } from "react-bootstrap";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import SkyGreeting from "../../../components/Common/SkyGreeting";
 
 import { Bar } from "react-chartjs-2";
@@ -244,16 +244,23 @@ const UserBarChart = ({ data = [] }) => {
 // ── ManagerDashboard ───────────────────────────────────────────────────────────
 const ManagerDashboard = () => {
 	const [selectedFY, setSelectedFY] = useState("");
+	const [selectedProjectId, setSelectedProjectId] = useState("");
 	const [dashData, setDashData] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
 
+	// ── isFirstLoad ref: auto-select latest FY only once ─────────────────────
+	const isFirstLoad = useRef(true);
+
 	// ── Fetch ─────────────────────────────────────────────────────────────────
-	const fetchDashboard = async (fy = selectedFY) => {
+	const fetchDashboard = async (fy, projectId) => {
 		setLoading(true);
 		setError(null);
 		try {
-			const params = new URLSearchParams({ fy_year: fy });
+			const params = new URLSearchParams();
+			if (fy) params.set("fy_year", fy);
+			if (projectId) params.set("project_id", projectId);
+
 			const res = await fetch(
 				`${import.meta.env.VITE_BACKEND_API_URL}dashboard/manager-dashboard?${params}`,
 				{
@@ -266,9 +273,14 @@ const ManagerDashboard = () => {
 			const json = await res.json();
 			if (json.success) {
 				setDashData(json.data);
-				const fyList = json.data?.filterOptions?.availableFYList ?? [];
-				if (!selectedFY && fyList.length > 0) {
-					setSelectedFY(fyList[0].fy_year);
+
+				// Auto-select the LATEST (last) FY on very first load only
+				if (isFirstLoad.current) {
+					isFirstLoad.current = false;
+					const fyList = json.data?.filterOptions?.availableFYList ?? [];
+					if (!fy && fyList.length > 0) {
+						setSelectedFY(fyList[fyList.length - 1].fy_year);
+					}
 				}
 			} else {
 				throw new Error("API returned success: false");
@@ -280,7 +292,11 @@ const ManagerDashboard = () => {
 		}
 	};
 
-	useEffect(() => { fetchDashboard(selectedFY); }, [selectedFY]);
+	// ── Re-fetch whenever FY or project changes ───────────────────────────────
+	useEffect(() => {
+		fetchDashboard(selectedFY, selectedProjectId);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [selectedFY, selectedProjectId]);
 
 	// ── Derived values ────────────────────────────────────────────────────────
 	const totalExpense = dashData?.totalExpense ?? 0;
@@ -304,6 +320,11 @@ const ManagerDashboard = () => {
 
 	const totalRequests = userWiseSummary.reduce((s, u) => s + (u.totalRequests ?? 0), 0);
 
+	const selectedProjectLabel = selectedProjectId
+		? (availableProjects.find((p) => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
+		: "All Projects";
+	const filterLabel = `${selectedProjectLabel} — FY ${selectedFY || "All"}`;
+
 	// ── Loading / Error ───────────────────────────────────────────────────────
 	if (loading) return (
 		<div className="d-flex justify-content-center align-items-center" style={{ minHeight: 300 }}>
@@ -316,7 +337,7 @@ const ManagerDashboard = () => {
 	if (error) return (
 		<div className="alert alert-danger m-4">
 			Failed to load dashboard data: <strong>{error}</strong>
-			<button className="btn btn-sm btn-outline-danger ms-3" onClick={() => fetchDashboard(selectedFY)}>
+			<button className="btn btn-sm btn-outline-danger ms-3" onClick={() => fetchDashboard(selectedFY, selectedProjectId)}>
 				Retry
 			</button>
 		</div>
@@ -328,17 +349,33 @@ const ManagerDashboard = () => {
 			{/* ── Page Header ── */}
 			<div className="page-head">
 				<div className="row align-items-center">
-					<div className="col-sm-8 mb-sm-4">
+					<div className="col-sm-7 mb-sm-4">
 						<SkyGreeting />
 					</div>
-					<div className="col-sm-4 mb-4 text-sm-end">
+					<div className="col-sm-5 mb-4 text-sm-end">
 						<div className="d-inline-flex align-items-center gap-2">
+
+							{/* Project filter */}
+							<select
+								className="form-select w-auto"
+								value={selectedProjectId}
+								onChange={(e) => setSelectedProjectId(e.target.value)}
+							>
+								<option value="">All Projects</option>
+								{availableProjects.map((p) => (
+									<option key={p.project_id} value={String(p.project_id)}>
+										{p.project_name}
+									</option>
+								))}
+							</select>
+
+							{/* Financial Year filter */}
 							<select
 								className="form-select w-auto"
 								value={selectedFY}
 								onChange={(e) => setSelectedFY(e.target.value)}
 							>
-								<option value="">Select Financial Year</option>
+								<option value="">All Years</option>
 								{availableFYList
 									.filter((f) => f.fy_year)
 									.map((f) => (
@@ -347,6 +384,7 @@ const ManagerDashboard = () => {
 										</option>
 									))}
 							</select>
+
 							<Link to="/add-expense" className="btn btn-primary d-flex align-items-center gap-1">
 								+ Raise Expense
 							</Link>
@@ -373,7 +411,7 @@ const ManagerDashboard = () => {
 						</div>
 						<div className="card-body pt-2">
 							<h2 className="card-title mb-0">{formatINR(totalExpense)}</h2>
-							<span><small className="text-muted">FY {selectedFY}</small></span>
+							<span><small className="text-muted">FY {selectedFY || "All"}</small></span>
 							<div className="progress mt-3" style={{ height: "6px" }}>
 								<div className="progress-bar bg-primary" style={{ width: "100%" }}></div>
 							</div>
@@ -509,7 +547,7 @@ const ManagerDashboard = () => {
 						</div>
 						<div className="card-body pt-2">
 							<h2 className="card-title mb-0">{totalRequests}</h2>
-							<span><small className="text-muted">FY {selectedFY}</small></span>
+							<span><small className="text-muted">FY {selectedFY || "All"}</small></span>
 							<div className="progress mt-3" style={{ height: "6px" }}>
 								<div className="progress-bar bg-primary" style={{ width: "100%" }}></div>
 							</div>
@@ -614,8 +652,6 @@ const ManagerDashboard = () => {
 				</div>
 			</div>
 
-
-
 			{/* ── ROW 2B: Interventions + Expense Overview bar chart project wise ── */}
 			<div className="row">
 
@@ -682,8 +718,6 @@ const ManagerDashboard = () => {
 					</div>
 				</div>
 
-
-
 				<div className="col-xl-9">
 					<div className="card overflow-hidden">
 						<div className="card-header border-0 pb-0 flex-wrap">
@@ -691,14 +725,14 @@ const ManagerDashboard = () => {
 								<h5 className="mb-0">Expense Overview</h5>
 								<h4 className="mb-0 text-dark">
 									{formatINR(totalExpense)}{" "}
-									<span className="badge badge-sm badge-success light">FY {selectedFY}</span>
+									<span className="badge badge-sm badge-success light">{filterLabel}</span>
 								</h4>
 							</div>
 						</div>
 
 						<ExpenseOverviewChart data={projectWiseData} />
 
-						{/* Summary footer */}
+						{/* Summary footer — IDs removed, only names/counts/amounts */}
 						<div className="ttl-project">
 							<div className="pr-data">
 								<h5>{totalRequests}</h5>
@@ -722,19 +756,13 @@ const ManagerDashboard = () => {
 
 			</div>
 
-			{/* ── ROW 3: EXPENSE OVERVIEW CHART ── */}
-			<div className="row">
-
-			</div>
-
-
 			{/* ── ROW 3B: EXPENSE TABS (Approval Queue / Payment Overview / Project-wise) ── */}
 			<div className="row">
 				<div className="col-xl-9">
 					<div className="card">
 						<div className="card-header border-0 pb-0">
 							<h4 className="mb-0">Expense Overview</h4>
-							<span className="badge badge-sm badge-info light ms-2">FY {selectedFY}</span>
+							<span className="badge badge-sm badge-info light ms-2">{filterLabel}</span>
 						</div>
 						<div className="card-body px-0">
 							<Tab.Container defaultActiveKey="approval">
@@ -764,7 +792,7 @@ const ManagerDashboard = () => {
 												<table className="table card-table border-no success-tbl">
 													<thead>
 														<tr>
-															<th>Expense ID</th>
+															<th>Sno.</th>
 															<th>User</th>
 															<th>Project</th>
 															<th>Intervention</th>
@@ -780,7 +808,7 @@ const ManagerDashboard = () => {
 															approvalQueue.map((item) => (
 																<tr key={item.expense_id}>
 																	<td>
-																		<span className="font-w600 text-primary">#{item.expense_id}</span>
+																		<span className="font-w600 text-primary">{approvalQueue.indexOf(item) + 1}</span>
 																	</td>
 																	<td>
 																		<div className="d-flex align-items-center gap-2">
@@ -827,7 +855,6 @@ const ManagerDashboard = () => {
 															<tr><td colSpan={5} className="text-center text-muted py-4">No payment data available</td></tr>
 														) : (
 															paymentOverview.map((item, i) => {
-																// Derive human-readable labels
 																const payLabel = item.payment_status === 1
 																	? "Paid"
 																	: item.payment_status === 2
@@ -848,7 +875,6 @@ const ManagerDashboard = () => {
 																	: item.approval_status === 2
 																		? "badge-danger"
 																		: "badge-warning";
-																// Combined status label
 																const combinedLabel = item.approval_status === 0
 																	? "Pending Approval"
 																	: item.payment_status === 1
@@ -923,8 +949,8 @@ const ManagerDashboard = () => {
 																					{row.project_name?.charAt(0) ?? "P"}
 																				</div>
 																				<div>
+																					{/* Project name only — no ID shown */}
 																					<h6 className="mb-0 fs-14 font-w600">{row.project_name}</h6>
-																					<small className="text-muted">ID #{row.project_id}</small>
 																				</div>
 																			</div>
 																		</td>
@@ -952,15 +978,13 @@ const ManagerDashboard = () => {
 											</div>
 										</Tab.Pane>
 									</Tab.Content>
-
 								</div>
 							</Tab.Container>
 						</div>
 					</div>
 				</div>
 
-
-				{/* Active Projects — Timeline style */}
+				{/* Active Projects — Timeline style — IDs removed */}
 				<div className="col-xl-3">
 					<div className="card">
 						<div className="card-header">
@@ -985,7 +1009,7 @@ const ManagerDashboard = () => {
 											const color = badgeColors[idx % badgeColors.length];
 											return (
 												<li key={p.project_id}>
-													<span className="timeline-status">#{p.project_id}</span>
+													<span className="timeline-status">{idx + 1}</span>
 													<div className={`timeline-badge ${color}`}></div>
 													<div className="timeline-panel">
 														<span className="text-black fs-14 fw-semibold">{p.project_name}</span>
@@ -1007,7 +1031,7 @@ const ManagerDashboard = () => {
 					<div className="card">
 						<div className="card-header flex-wrap">
 							<h5 className="mb-0">Project-wise Expense Summary</h5>
-							<span className="badge badge-sm badge-primary light">FY {selectedFY}</span>
+							<span className="badge badge-sm badge-primary light">{filterLabel}</span>
 						</div>
 						<div className="card-body pb-2">
 							<div className="table-responsive">
@@ -1026,6 +1050,7 @@ const ManagerDashboard = () => {
 									<tbody>
 										{projectWiseData.map((row, i) => (
 											<tr key={i}>
+												{/* Project name only — no ID */}
 												<td><span className="font-w600">{row.project_name}</span></td>
 												<td><span>{row.totalRequests}</span></td>
 												<td><span className="font-w700">{formatINR(row.totalAmount)}</span></td>
@@ -1054,7 +1079,7 @@ const ManagerDashboard = () => {
 					<div className="card">
 						<div className="card-header border-0 pb-0">
 							<h5 className="mb-0">User-wise Summary</h5>
-							<span className="badge badge-info light">FY {selectedFY}</span>
+							<span className="badge badge-info light">{filterLabel}</span>
 						</div>
 						<div className="card-body">
 							{userWiseSummary.length > 0 ? (
@@ -1073,7 +1098,7 @@ const ManagerDashboard = () => {
 					<div className="card">
 						<div className="card-header border-0 pb-0">
 							<h5 className="mb-0">Intervention-wise Summary</h5>
-							<span className="badge badge-primary light">FY {selectedFY}</span>
+							<span className="badge badge-primary light">{filterLabel}</span>
 						</div>
 						<div className="card-body pb-2">
 							<div className="table-responsive">

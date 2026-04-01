@@ -39,6 +39,12 @@ const CHART_LEGEND = [
     { key: "pending", label: "Pending" },
 ];
 
+// ── Avatar colors (cycles per user) ──────────────────────────────────────────
+const AVATAR_COLORS = [
+    "#0073fd", "#00aeef", "#1d9e75", "#ee9742",
+    "#e83e8c", "#6f42c1", "#fd7e14", "#20c997",
+];
+
 // ── ExpenseOverviewChart ──────────────────────────────────────────────────────
 const ExpenseOverviewChart = ({ data = [] }) => {
     const chartData = {
@@ -241,6 +247,62 @@ const UserBarChart = ({ data = [] }) => {
     );
 };
 
+// ── PeopleContactCard — single user avatar card ───────────────────────────────
+const PeopleContactCard = ({ user, colorIndex }) => {
+    const bg = AVATAR_COLORS[colorIndex % AVATAR_COLORS.length];
+    const initials = user.Name
+        ? user.Name.trim().split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+        : "?";
+
+    return (
+        <div className="col-xl-4 col-sm-4 col-6">
+            <div
+                className="avatar-card text-center border-dashed rounded px-2 py-3"
+                style={{ borderColor: bg + "66" }}
+            >
+                {/* Initials avatar circle */}
+                <div
+                    className="mx-auto mb-2 d-flex align-items-center justify-content-center rounded-circle"
+                    style={{
+                        width: 52, height: 52,
+                        background: bg + "22",
+                        border: `2px solid ${bg}`,
+                        fontSize: 18, fontWeight: 700,
+                        color: bg, letterSpacing: 1,
+                    }}
+                >
+                    {initials}
+                </div>
+
+                <h6 className="mb-0" style={{ fontSize: 13, fontWeight: 600 }}>
+                    {user.Name}
+                </h6>
+                <span className="fs-12 text-muted d-block" style={{ wordBreak: "break-all" }}>
+                    {user.user_email}
+                </span>
+                {user.user_phone && (
+                    <span className="fs-12 text-muted d-block">{user.user_phone}</span>
+                )}
+
+                {/* Mini stat badges */}
+                <div className="d-flex justify-content-center gap-1 mt-2 flex-wrap">
+                    <span className="badge" style={{ background: "#0073fd22", color: "#0073fd", fontSize: 10 }} title="Total Requests">
+                        {user.totalRequests} req
+                    </span>
+                    <span className="badge" style={{ background: "#1d9e7522", color: "#1d9e75", fontSize: 10 }} title="Total Paid">
+                        {formatINRShort(user.totalPaid)} paid
+                    </span>
+                    {user.pendingAmount > 0 && (
+                        <span className="badge" style={{ background: "#ee974222", color: "#ee9742", fontSize: 10 }} title="Pending">
+                            {formatINRShort(user.pendingAmount)} pending
+                        </span>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ── AdminDashboard ─────────────────────────────────────────────────────────────
 const AdminDashboard = () => {
     const [selectedFY, setSelectedFY] = useState("");
@@ -300,22 +362,25 @@ const AdminDashboard = () => {
     }, [selectedFY, selectedProjectId]);
 
     // ── Derived values — all come from dashData (filtered by FY + project) ───
-    const totalExpense        = dashData?.totalExpense        ?? 0;
-    const paidAmount          = dashData?.paidAmount          ?? 0;
-    const pendingAmount       = dashData?.pendingAmount       ?? 0;
-    const rejectedAmount      = dashData?.rejectedAmount      ?? 0;
-    const approvedAmount      = dashData?.approvedAmount      ?? 0;
-    const approvalQueueCount  = dashData?.approvalQueueCount  ?? 0;
+    const totalExpense = dashData?.totalExpense ?? 0;
+    const paidAmount = dashData?.paidAmount ?? 0;
+    const pendingAmount = dashData?.pendingAmount ?? 0;
+    const rejectedAmount = dashData?.rejectedAmount ?? 0;
+    const approvedAmount = dashData?.approvedAmount ?? 0;
+    const approvalQueueCount = dashData?.approvalQueueCount ?? 0;
 
-    const userWiseSummary      = dashData?.userWiseSummary      ?? [];
-    const projectWiseData      = dashData?.projectWiseData      ?? [];
+    const userWiseSummary = dashData?.userWiseSummary ?? [];
+    const projectWiseData = dashData?.projectWiseData ?? [];
     const interventionWiseData = dashData?.interventionWiseData ?? [];
-    const availableFYList      = dashData?.filterOptions?.availableFYList  ?? [];
-    const availableProjects    = dashData?.filterOptions?.availableProjects ?? [];
-    // yearlyPaidData comes from same dashData — updates with every filter change
-    const yearlyPaidData       = dashData?.yearlyPaidData ?? [];
+    const availableFYList = dashData?.filterOptions?.availableFYList ?? [];
+    const availableProjects = dashData?.filterOptions?.availableProjects ?? [];
 
     const totalRequests = userWiseSummary.reduce((s, u) => s + u.totalRequests, 0);
+
+    const selectedProjectLabel = selectedProjectId
+        ? (availableProjects.find(p => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
+        : "All Projects";
+    const filterLabel = `${selectedProjectLabel} — FY ${selectedFY || "All"}`;
 
     // ── Loading / Error ───────────────────────────────────────────────────────
     if (loading) return (
@@ -342,55 +407,64 @@ const AdminDashboard = () => {
     return (
         <>
             {/* ── Page Header ── */}
-            <div className="page-head">
-                <div className="row align-items-center">
-                    <div className="col-sm-7 mb-sm-4">
-                        <SkyGreeting />
-                    </div>
-                    <div className="col-sm-5 mb-4 text-sm-end">
-                        <div className="d-inline-flex align-items-center gap-2">
+      <div className="page-head">
+    <div className="row align-items-center">
 
-                            {/* Project filter */}
-                            <select
-                                className="form-select w-auto"
-                                value={selectedProjectId}
-                                onChange={(e) => {
-                                    setSelectedProjectId(e.target.value);
-                                }}
-                            >
-                                <option value="">All Projects</option>
-                                {availableProjects.map((p) => (
-                                    <option key={p.project_id} value={String(p.project_id)}>
-                                        {p.project_name}
-                                    </option>
-                                ))}
-                            </select>
+        {/* Greeting */}
+        <div className="col-12 col-md-7 mb-3 mb-md-0">
+            <SkyGreeting />
+        </div>
 
-                            {/* Financial Year filter */}
-                            <select
-                                className="form-select w-auto"
-                                value={selectedFY}
-                                onChange={(e) => {
-                                    setSelectedFY(e.target.value);
-                                }}
-                            >
-                                <option value="">All Years</option>
-                                {availableFYList
-                                    .filter((f) => f.fy_year)
-                                    .map((f) => (
-                                        <option key={f.fy_year} value={f.fy_year}>
-                                            FY {f.fy_year}
-                                        </option>
-                                    ))}
-                            </select>
+        {/* Filters + Button */}
+        <div className="col-12 col-md-5">
+            <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 justify-content-md-end">
 
-                            <Link to="/add-expense" className="btn btn-primary d-flex align-items-center gap-1">
-                                + Expense
-                            </Link>
-                        </div>
-                    </div>
+                {/* Filters group */}
+                <div className="d-flex gap-2 flex-grow-1 flex-md-grow-0">
+                    
+                    <select
+                        className="form-select flex-fill"
+                        value={selectedProjectId}
+                        onChange={(e) => setSelectedProjectId(e.target.value)}
+                    >
+                        <option value="">All Projects</option>
+                        {availableProjects.map((p) => (
+                            <option key={p.project_id} value={String(p.project_id)}>
+                                {p.project_name}
+                            </option>
+                        ))}
+                    </select>
+
+                    <select
+                        className="form-select flex-fill"
+                        value={selectedFY}
+                        onChange={(e) => setSelectedFY(e.target.value)}
+                    >
+                        <option value="">All Years</option>
+                        {availableFYList
+                            .filter((f) => f.fy_year)
+                            .map((f) => (
+                                <option key={f.fy_year} value={f.fy_year}>
+                                    FY {f.fy_year}
+                                </option>
+                            ))}
+                    </select>
+
                 </div>
+
+                {/* Button */}
+                <Link
+                    to="/add-expense"
+                    className="btn btn-primary d-flex justify-content-center align-items-center px-3"
+                >
+                    + Expense
+                </Link>
+
             </div>
+        </div>
+
+    </div>
+</div>
 
             {/* ── ROW 1: FIRST 4 STAT CARDS ── */}
             <div className="row">
@@ -595,7 +669,7 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
-            {/* ── ROW 3: EXPENSE OVERVIEW CHART (8) + YEARLY PAID OVERVIEW (4) ── */}
+            {/* ── ROW 3: EXPENSE OVERVIEW CHART (col-8) + PEOPLE CONTACT (col-4) ── */}
             <div className="row">
 
                 {/* Expense Overview — filtered project-wise bar chart */}
@@ -607,10 +681,7 @@ const AdminDashboard = () => {
                                 <h4 className="mb-0 text-dark">
                                     {formatINR(totalExpense)}{" "}
                                     <span className="badge badge-sm badge-success light">
-                                        {selectedProjectId
-                                            ? (availableProjects.find(p => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
-                                            : "All Projects"
-                                        }{" — "}FY {selectedFY || "All"}
+                                        {filterLabel}
                                     </span>
                                 </h4>
                             </div>
@@ -641,50 +712,29 @@ const AdminDashboard = () => {
                     </div>
                 </div>
 
-                {/* Yearly Paid Overview — reactive to FY + project filters */}
+                {/* ── People Contact — user avatar cards from userWiseSummary ── */}
                 <div className="col-xl-4">
                     <div className="card">
                         <div className="card-header border-0 pb-0">
-                            <h5 className="mb-0">Yearly Paid Overview</h5>
-                            <span className="badge badge-warning light">
-                                FY {selectedFY || "All"}
+                            <h5 className="mb-0">People Contact</h5>
+                            <span className="badge badge-info light">
+                                {userWiseSummary.length} active
                             </span>
                         </div>
                         <div className="card-body">
-                            {yearlyPaidData.length === 0 ? (
-                                <p className="text-muted text-center py-3">No yearly data available.</p>
-                            ) : (() => {
-                                const totalPaidAcrossAll = yearlyPaidData.reduce((s, d) => s + d.totalPaid, 0);
-                                const colors = ["bg-primary", "bg-success", "bg-warning", "bg-info", "bg-danger"];
-                                return yearlyPaidData.map((item, i) => {
-                                    const pct = totalPaidAcrossAll > 0
-                                        ? Math.round((item.totalPaid / totalPaidAcrossAll) * 100)
-                                        : 0;
-                                    return (
-                                        <div key={item.fy_year ?? i} className="mb-3">
-                                            <div className="d-flex justify-content-between mb-1">
-                                                <span className="fs-14 font-w500">FY {item.fy_year}</span>
-                                                <span className="fs-14 font-w700">{pct}%</span>
-                                            </div>
-                                            <div className="progress" style={{ height: "8px" }}>
-                                                <div
-                                                    className={`progress-bar ${colors[i % colors.length]}`}
-                                                    style={{ width: `${pct}%` }}
-                                                ></div>
-                                            </div>
-                                            <div className="d-flex justify-content-between mt-1">
-                                                <small className="text-muted">
-                                                    {item.totalCount} payment{item.totalCount !== 1 ? "s" : ""}
-                                                </small>
-                                                <small className="text-muted font-w600">{formatINR(item.totalPaid)}</small>
-                                            </div>
-                                        </div>
-                                    );
-                                });
-                            })()}
+                            {userWiseSummary.length === 0 ? (
+                                <p className="text-muted text-center py-4">No users found.</p>
+                            ) : (
+                                <div className="row g-2">
+                                    {userWiseSummary.map((user, i) => (
+                                        <PeopleContactCard key={user.userid ?? i} user={user} colorIndex={i} />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
+
             </div>
 
             {/* ── ROW 4: PROJECT-WISE TABLE ── */}
@@ -693,12 +743,7 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header flex-wrap">
                             <h5 className="mb-0">Project-wise Expense Summary</h5>
-                            <span className="badge badge-primary light">
-                                {selectedProjectId
-                                    ? (availableProjects.find(p => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
-                                    : "All Projects"
-                                }{" — "}FY {selectedFY || "All"}
-                            </span>
+                            <span className="badge badge-primary light">{filterLabel}</span>
                         </div>
                         <div className="card-body pb-2">
                             <div className="table-responsive">
@@ -745,12 +790,7 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h5 className="mb-0">User-wise Summary</h5>
-                            <span className="badge badge-info light">
-                                {selectedProjectId
-                                    ? (availableProjects.find(p => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
-                                    : "All Projects"
-                                }{" — "}FY {selectedFY || "All"}
-                            </span>
+                            <span className="badge badge-info light">{filterLabel}</span>
                         </div>
                         <div className="card-body">
                             {userWiseSummary.length > 0 ? (
@@ -769,12 +809,7 @@ const AdminDashboard = () => {
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h5 className="mb-0">Intervention-wise Summary</h5>
-                            <span className="badge badge-primary light">
-                                {selectedProjectId
-                                    ? (availableProjects.find(p => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
-                                    : "All Projects"
-                                }{" — "}FY {selectedFY || "All"}
-                            </span>
+                            <span className="badge badge-primary light">{filterLabel}</span>
                         </div>
                         <div className="card-body pb-2">
                             <div className="table-responsive">
