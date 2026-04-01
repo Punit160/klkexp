@@ -63,7 +63,7 @@ export const UserDashboard = async (req, res) => {
             if (item.approval_status === 1)
                 approvedAmount += approvalamount;
             if (item.approval_status === 1) pendingAmount += approvalamount - pamount;
-            if (item.approval_status !== 0) totalExpense += amount;
+            if (item.approval_status !== 5) totalExpense += amount;
         }
         const yearlyPaidData = await prisma.$queryRaw`
             SELECT

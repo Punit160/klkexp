@@ -1,130 +1,197 @@
-import { Card, Col, Table, Button } from "react-bootstrap";
-import { useState } from "react";
-import PermissionPopup from "./AssignPermission";
-import CommonPagination from "../../components/Common/Pagination";
+import React, { useEffect, useState } from "react";
+import { Col, Card, Table } from "react-bootstrap";
+import PageTitle from "../../layouts/PageTitle";
+import TableExportActions from "../../components/Common/TableExportActions";
+import Pagination from "../../components/Common/Pagination";
+import { useNavigate, useLocation } from "react-router-dom";
+import { getRoles, deleteRole } from "./roleApi";
 
 const RoleList = () => {
-  const [roles, setRoles] = useState([
-    { name: "Admin", description: "Full Access", status: "Active" },
-    { name: "Operator", description: "Solar Tracking", status: "Active" },
-    { name: "Manager", description: "Reports Access", status: "Inactive" },
-  ]);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [showPopup, setShowPopup] = useState(false);
-  const [selectedRole, setSelectedRole] = useState(null);
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Pagination
-  const itemsPerPage = 5;
+  /* PAGINATION */
+  const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
 
-  const totalPages = Math.ceil(roles.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentData = roles.slice(startIndex, startIndex + itemsPerPage);
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
 
-  // Delete
-  const handleDelete = (index) => {
-    if (!window.confirm("Delete Role?")) return;
-    setRoles(roles.filter((_, i) => i !== index));
+  /* ================= FETCH ROLES ================= */
+  useEffect(() => {
+    fetchRoles();
+  }, [location.key]);
+
+  const fetchRoles = async () => {
+    try {
+      const res = await getRoles();
+
+      if (!res || !res.data) {
+        console.error("Failed to fetch roles");
+        return;
+      }
+
+      const formatted = res.data.map((role) => ({
+        id: role.id,
+        name: role.name,
+        description: role.description || "-",
+        permissions: role.permissions || [],
+        created_at: role.created_at,
+      }));
+
+      setRoles(formatted);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Permission Popup
-  const openPermission = (role) => {
-    setSelectedRole(role);
-    setShowPopup(true);
+  /* ================= DELETE ================= */
+  const handleDelete = async (id) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete?");
+    if (!confirmDelete) return;
+
+    setRoles((prev) => prev.filter((r) => r.id !== id));
+
+    try {
+      const res = await deleteRole(id);
+
+      if (res && res.success === false) {
+        alert(res.message || "Delete failed");
+        fetchRoles();
+      }
+    } catch (error) {
+      console.error(error);
+      fetchRoles();
+    }
   };
+
+  const currentRoles = roles.slice(indexOfFirst, indexOfLast);
+
+  const columns = [
+    { label: "Role Name", key: "name" },
+    { label: "Description", key: "description" },
+    { label: "Permissions", key: "permissions" },
+    { label: "Created At", key: "created_at" },
+  ];
+
+  /* ================= LOADING ================= */
+  if (loading) {
+    return (
+      <>
+        <PageTitle activeMenu="Role List" motherMenu="Role Management" />
+        <div className="text-center mt-5">Loading roles...</div>
+      </>
+    );
+  }
 
   return (
-    <Col lg={12}>
-      <Card>
-        <Card.Header className="d-flex justify-content-between">
-          <Card.Title>Role List</Card.Title>
-          <Button variant="success" size="sm">
-            + Add Role
-          </Button>
-        </Card.Header>
+    <>
+      <PageTitle activeMenu="Role List" motherMenu="Role Management" />
 
-        <Card.Body>
-          <Table responsive className="text-nowrap">
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Role Name</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th>Permission</th>
-                <th className="text-center">Action</th>
-              </tr>
-            </thead>
+      <Col lg={12}>
+        <Card>
+          <Card.Header className="d-flex justify-content-between">
+            <Card.Title>Role List</Card.Title>
 
-            <tbody>
-              {currentData.length === 0 ? (
+            <TableExportActions
+              data={roles}
+              columns={columns}
+              fileName="Role_List"
+            />
+          </Card.Header>
+
+          <Card.Body>
+            <Table responsive className="text-nowrap">
+              <thead>
                 <tr>
-                  <td colSpan="6" className="text-center py-4">
-                    No Roles Found
-                  </td>
+                  <th>Sno</th>
+                  <th>Role Name</th>
+                  <th>Description</th>
+                  <th>Created At</th>
+                  <th>Action</th>
                 </tr>
-              ) : (
-                currentData.map((role, index) => (
-                  <tr key={index}>
+              </thead>
 
-                    <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
+              <tbody>
+                {currentRoles.length > 0 ? (
+                  currentRoles.map((role, index) => (
+                    <tr key={role.id}>
+                      <td>{indexOfFirst + index + 1}</td>
 
-                    <td>{role.name}</td>
+                      <td>{role.name}</td>
 
-                    <td>{role.description}</td>
+                      <td>{role.description}</td>
 
-                    <td>
-                      <span className={`badge bg-${role.status === "Active" ? "success" : "danger"}`}>
-                        {role.status}
-                      </span>
+                      {/* CREATED DATE */}
+                      <td>
+                        {role.created_at
+                          ? new Date(role.created_at).toLocaleDateString()
+                          : "-"}
+                      </td>
+
+                      {/* ACTION */}
+                      <td>
+                        <div className="d-flex">
+
+                          {/* ASSIGN PERMISSION */}
+                          <button
+                            className="btn btn-success shadow btn-xs sharp me-1"
+                            onClick={() =>
+                              navigate(`/role/assign/${role.id}`)
+                            }
+                            title="Assign Permission"
+                          >
+                            <i className="fa fa-key"></i>
+                          </button>
+
+                          {/* EDIT */}
+                          <button
+                            className="btn btn-primary shadow btn-xs sharp me-1"
+                            onClick={() =>
+                              navigate(`/role/edit/${role.id}`)
+
+                            }
+                          >
+                            <i className="fas fa-pencil-alt"></i>
+                          </button>
+
+                          {/* DELETE */}
+                          <button
+                            className="btn btn-danger shadow btn-xs sharp"
+                            onClick={() => handleDelete(role.id)}
+                          >
+                            <i className="fa fa-trash"></i>
+                          </button>
+
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="text-center">
+                      No Roles Found
                     </td>
-
-                    <td>
-                      <button
-                        className="btn btn-info btn-xs"
-                        onClick={() => openPermission(role)}
-                      >
-                        Permission
-                      </button>
-                    </td>
-
-                    <td className="text-center">
-                      <div className="d-flex gap-2 justify-content-center">
-                        <button className="btn btn-primary btn-xs">
-                          <i className="fa fa-eye"></i>
-                        </button>
-                        <button className="btn btn-warning btn-xs">
-                          <i className="fa fa-edit"></i>
-                        </button>
-                        <button
-                          className="btn btn-danger btn-xs"
-                          onClick={() => handleDelete(index)}
-                        >
-                          <i className="fa fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-
                   </tr>
-                ))
-              )}
-            </tbody>
-          </Table>
+                )}
+              </tbody>
+            </Table>
 
-          <CommonPagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-        </Card.Body>
-      </Card>
-
-      <PermissionPopup
-        show={showPopup}
-        onClose={() => setShowPopup(false)}
-        role={selectedRole}
-      />
-    </Col>
+            <Pagination
+              totalItems={roles.length}
+              itemsPerPage={itemsPerPage}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
+          </Card.Body>
+        </Card>
+      </Col>
+    </>
   );
 };
 

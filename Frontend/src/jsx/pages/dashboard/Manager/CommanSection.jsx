@@ -15,7 +15,7 @@ import {
 } from "chart.js";
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────
 const formatINR = (amount) =>
 	new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
 
@@ -26,7 +26,7 @@ const formatINRShort = (v) => {
 	return "₹" + v;
 };
 
-// ── Shared chart colors ───────────────────────────────────────────────────────
+// ── Shared chart colors  ──────────────
 const CHART_COLORS = {
 	total: "#0073fd",
 	approved: "#00aeef",
@@ -143,7 +143,7 @@ const ExpenseOverviewChart = ({ data = [] }) => {
 	);
 };
 
-// ── UserBarChart ──────────────────────────────────────────────────────────────
+// ── UserBarChart  ─────────────────────
 const UserBarChart = ({ data = [] }) => {
 	const chartData = {
 		labels: data.map((u) => u.Name),
@@ -241,7 +241,7 @@ const UserBarChart = ({ data = [] }) => {
 	);
 };
 
-// ── ManagerDashboard ───────────────────────────────────────────────────────────
+// ── ManagerDashboard  ──────────────────
 const ManagerDashboard = () => {
 	const [selectedFY, setSelectedFY] = useState("0");
 	const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -252,7 +252,7 @@ const ManagerDashboard = () => {
 	// ── isFirstLoad ref: auto-select latest FY only once ─────────────────────
 	const isFirstLoad = useRef(true);
 
-	// ── Fetch ─────────────────────────────────────────────────────────────────
+	// ── Fetch  ────────────────────────
 	const fetchDashboard = async (fy, projectId) => {
 		setLoading(true);
 		setError(null);
@@ -295,7 +295,7 @@ const ManagerDashboard = () => {
 		fetchDashboard(selectedFY, selectedProjectId);
 	}, [selectedFY, selectedProjectId]);
 
-	// ── Derived values ────────────────────────────────────────────────────────
+	// ── Derived values  ───────────────
 	const totalExpense = dashData?.totalExpense ?? 0;
 	const paidAmount = dashData?.paidAmount ?? 0;
 	const pendingAmount = dashData?.pendingAmount ?? 0;
@@ -322,7 +322,7 @@ const ManagerDashboard = () => {
 		: "All Projects";
 	const filterLabel = `${selectedProjectLabel} — FY ${(selectedFY && selectedFY !== "0") ? selectedFY : "All"}`;
 
-	// ── Loading / Error ───────────────────────────────────────────────────────
+	// ── Loading / Error  ──────────────
 	if (loading) return (
 		<div className="d-flex justify-content-center align-items-center" style={{ minHeight: 300 }}>
 			<div className=" text-primary">
@@ -340,7 +340,7 @@ const ManagerDashboard = () => {
 		</div>
 	);
 
-	// ── Render ────────────────────────────────────────────────────────────────
+	// ── Render  ───────────────────────
 	return (
 		<>
 			<div className="page-head">
@@ -994,7 +994,7 @@ const ManagerDashboard = () => {
 					</div>
 				</div>
 
-				{/* Active Projects — Timeline style — IDs removed */}
+				{/* Active Projects — */}
 				<div className="col-xl-3">
 					<div className="card">
 						<div className="card-header">
@@ -1060,7 +1060,6 @@ const ManagerDashboard = () => {
 									<tbody>
 										{projectWiseData.map((row, i) => (
 											<tr key={i}>
-												{/* Project name only — no ID */}
 												<td><span className="font-w600">{row.project_name}</span></td>
 												<td><span>{row.totalRequests}</span></td>
 												<td><span className="font-w700">{formatINR(row.totalAmount)}</span></td>

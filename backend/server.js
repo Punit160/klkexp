@@ -12,8 +12,8 @@ import projectRoutes from "./src/routes/project.routes.js";
 import interventionRoutes from "./src/routes/intervention.routes.js";
 import expenseRoutes from "./src/routes/expense.routes.js"
 import dashboardRoutes from "./src/routes/dashboard.routes.js";
-
-
+import roleRoutes from "./src/routes/role.routes.js"
+import permissionRoutes from "./src/routes/permission.routes.js"
 
 
 
@@ -39,7 +39,7 @@ app.use(session({
   secret: "your_secret_key",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, httpOnly: true } 
+  cookie: { secure: false, httpOnly: true }
 }));
 
 
@@ -61,15 +61,18 @@ if (!fs.existsSync(uploadDir)) {
 
 app.use("/api/login", loginRoutes);
 
-import {auth} from "./src/middlewares/auth.js"
+import { auth } from "./src/middlewares/auth.js"
 
 app.use(auth)
 // routes
 app.use("/api/users", userRoutes);
 app.use("/api/projects", projectRoutes);
-app.use("/api/interventions", interventionRoutes); 
+app.use("/api/interventions", interventionRoutes);
 app.use("/api/expense", expenseRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/role", roleRoutes);
+app.use("/api/permission", permissionRoutes);
+
 
 app.get("/", (req, res) => {
   res.send("API is running...");

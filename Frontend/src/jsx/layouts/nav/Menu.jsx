@@ -57,18 +57,18 @@ export const MenuList = [
 
         ]
     },    // Settings Panel
-    {
-        title: 'Settings',
-        classsChange: 'mm-collapse',
-  iconStyle: <i className="flaticon-registration" />,
-        content: [
-            {
-                title: 'Role Permission',
-                to: '/role/list',
-            },
-
-        ],
-    },
+     {
+    title: 'Settings',
+    classsChange: 'mm-collapse',
+    iconStyle: <i className="flaticon-registration" />,
+    permission: "view_settings",
+    content: [
+      { title: 'Role Permission', to: '/role/list', permission: "view_role" },
+      { title: 'Add Role', to: '/role/add-role', permission: "create_role" },
+      { title: 'Add Permission', to: '/permission/add-permission', permission: "create_permission" },
+      { title: 'Permission List', to: '/permission/list', permission: "view_permission" },
+    ],
+  },
 
 
 ]
