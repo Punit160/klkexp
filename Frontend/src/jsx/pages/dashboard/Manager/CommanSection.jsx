@@ -243,7 +243,7 @@ const UserBarChart = ({ data = [] }) => {
 
 // ── ManagerDashboard ───────────────────────────────────────────────────────────
 const ManagerDashboard = () => {
-	const [selectedFY, setSelectedFY] = useState("");
+	const [selectedFY, setSelectedFY] = useState("0");
 	const [selectedProjectId, setSelectedProjectId] = useState("");
 	const [dashData, setDashData] = useState(null);
 	const [loading, setLoading] = useState(false);
@@ -258,7 +258,7 @@ const ManagerDashboard = () => {
 		setError(null);
 		try {
 			const params = new URLSearchParams();
-			if (fy) params.set("fy_year", fy);
+			if (fy) params.set("fy_year", fy || "0");
 			if (projectId) params.set("project_id", projectId);
 
 			const res = await fetch(
@@ -273,12 +273,10 @@ const ManagerDashboard = () => {
 			const json = await res.json();
 			if (json.success) {
 				setDashData(json.data);
-
-				// Auto-select the LATEST (last) FY on very first load only
 				if (isFirstLoad.current) {
 					isFirstLoad.current = false;
 					const fyList = json.data?.filterOptions?.availableFYList ?? [];
-					if (!fy && fyList.length > 0) {
+					if ((!fy || fy === "0") && fyList.length > 0) {
 						setSelectedFY(fyList[fyList.length - 1].fy_year);
 					}
 				}
@@ -295,7 +293,6 @@ const ManagerDashboard = () => {
 	// ── Re-fetch whenever FY or project changes ───────────────────────────────
 	useEffect(() => {
 		fetchDashboard(selectedFY, selectedProjectId);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedFY, selectedProjectId]);
 
 	// ── Derived values ────────────────────────────────────────────────────────
@@ -323,13 +320,13 @@ const ManagerDashboard = () => {
 	const selectedProjectLabel = selectedProjectId
 		? (availableProjects.find((p) => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
 		: "All Projects";
-	const filterLabel = `${selectedProjectLabel} — FY ${selectedFY || "All"}`;
+	const filterLabel = `${selectedProjectLabel} — FY ${(selectedFY && selectedFY !== "0") ? selectedFY : "All"}`;
 
 	// ── Loading / Error ───────────────────────────────────────────────────────
 	if (loading) return (
 		<div className="d-flex justify-content-center align-items-center" style={{ minHeight: 300 }}>
-			<div className="spinner-border text-primary" role="status">
-				<span className="visually-hidden">Loading…</span>
+			<div className=" text-primary">
+				<span className="">Loading….......</span>
 			</div>
 		</div>
 	);
@@ -346,52 +343,65 @@ const ManagerDashboard = () => {
 	// ── Render ────────────────────────────────────────────────────────────────
 	return (
 		<>
-			{/* ── Page Header ── */}
 			<div className="page-head">
 				<div className="row align-items-center">
-					<div className="col-sm-7 mb-sm-4">
+
+					{/* Greeting */}
+					<div className="col-12 col-md-7 mb-3 mb-md-0">
 						<SkyGreeting />
 					</div>
-					<div className="col-sm-5 mb-4 text-sm-end">
-						<div className="d-inline-flex align-items-center gap-2">
 
-							{/* Project filter */}
-							<select
-								className="form-select w-auto"
-								value={selectedProjectId}
-								onChange={(e) => setSelectedProjectId(e.target.value)}
-							>
-								<option value="">All Projects</option>
-								{availableProjects.map((p) => (
-									<option key={p.project_id} value={String(p.project_id)}>
-										{p.project_name}
-									</option>
-								))}
-							</select>
+					{/* Filters + Button */}
+					<div className="col-12 col-md-5">
+						<div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 justify-content-md-end">
 
-							{/* Financial Year filter */}
-							<select
-								className="form-select w-auto"
-								value={selectedFY}
-								onChange={(e) => setSelectedFY(e.target.value)}
-							>
-								<option value="">All Years</option>
-								{availableFYList
-									.filter((f) => f.fy_year)
-									.map((f) => (
-										<option key={f.fy_year} value={f.fy_year}>
-											FY {f.fy_year}
+							{/* Filters group */}
+							<div className="d-flex gap-2 flex-grow-1 flex-md-grow-0">
+
+								<select
+									className="form-select flex-fill"
+									value={selectedProjectId}
+									onChange={(e) => setSelectedProjectId(e.target.value)}
+								>
+									<option value="">All Projects</option>
+									{availableProjects.map((p) => (
+										<option key={p.project_id} value={String(p.project_id)}>
+											{p.project_name}
 										</option>
 									))}
-							</select>
+								</select>
 
-							<Link to="/add-expense" className="btn btn-primary d-flex align-items-center gap-1">
-								+ Raise Expense
+								<select
+									className="form-select flex-fill"
+									value={selectedFY}
+									onChange={(e) => setSelectedFY(e.target.value)}
+								>
+									<option value="0">All Years</option>
+									{availableFYList
+										.filter((f) => f.fy_year)
+										.map((f) => (
+											<option key={f.fy_year} value={f.fy_year}>
+												FY {f.fy_year}
+											</option>
+										))}
+								</select>
+
+							</div>
+
+							{/* Button */}
+							<Link
+								to="/add-expense"
+								className="btn btn-primary d-flex justify-content-center align-items-center px-3"
+							>
+								+ Expense
 							</Link>
+
 						</div>
 					</div>
+
 				</div>
 			</div>
+
 
 			{/* ── ROW 1: FIRST 4 STAT CARDS ── */}
 			<div className="row">

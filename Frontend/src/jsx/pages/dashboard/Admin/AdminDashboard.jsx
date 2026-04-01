@@ -13,7 +13,7 @@ import {
 } from "chart.js";
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────
 const formatINR = (amount) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
 
@@ -24,7 +24,7 @@ const formatINRShort = (v) => {
     return "₹" + v;
 };
 
-// ── Shared chart colors ───────────────────────────────────────────────────────
+// ── Shared chart colors ─────────────
 const CHART_COLORS = {
     total: "#0073fd",
     approved: "#00aeef",
@@ -39,13 +39,13 @@ const CHART_LEGEND = [
     { key: "pending", label: "Pending" },
 ];
 
-// ── Avatar colors (cycles per user) ──────────────────────────────────────────
+// ── Avatar colors (cycles per user) ────────────────
 const AVATAR_COLORS = [
     "#0073fd", "#00aeef", "#1d9e75", "#ee9742",
     "#e83e8c", "#6f42c1", "#fd7e14", "#20c997",
 ];
 
-// ── ExpenseOverviewChart ──────────────────────────────────────────────────────
+// ── ExpenseOverviewChart ────────────────────
 const ExpenseOverviewChart = ({ data = [] }) => {
     const chartData = {
         labels: data.map((p) => p.project_name),
@@ -149,7 +149,7 @@ const ExpenseOverviewChart = ({ data = [] }) => {
     );
 };
 
-// ── UserBarChart ──────────────────────────────────────────────────────────────
+// ── UserBarChart ─────────────────────
 const UserBarChart = ({ data = [] }) => {
     const chartData = {
         labels: data.map((u) => u.Name),
@@ -247,7 +247,7 @@ const UserBarChart = ({ data = [] }) => {
     );
 };
 
-// ── PeopleContactCard — single user avatar card ───────────────────────────────
+// ── PeopleContactCard — single user avatar card ─────────────
 const PeopleContactCard = ({ user, colorIndex }) => {
     const bg = AVATAR_COLORS[colorIndex % AVATAR_COLORS.length];
     const initials = user.Name
@@ -303,24 +303,24 @@ const PeopleContactCard = ({ user, colorIndex }) => {
     );
 };
 
-// ── AdminDashboard ─────────────────────────────────────────────────────────────
+
+
+// ── AdminDashboard ================================================================================
+// ── AdminDashboard ================================================================================
 const AdminDashboard = () => {
-    const [selectedFY, setSelectedFY] = useState("");
+    const [selectedFY, setSelectedFY] = useState("0");
     const [selectedProjectId, setSelectedProjectId] = useState("");
     const [dashData, setDashData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-
-    // ── isFirstLoad ref: auto-select latest FY only once ─────────────────────
     const isFirstLoad = useRef(true);
 
-    // ── Core fetch: always reads latest state values via params ──────────────
     const fetchDashboard = async (fy, projectId) => {
         setLoading(true);
         setError(null);
         try {
             const params = new URLSearchParams();
-            if (fy) params.set("fy_year", fy);
+            if (fy) params.set("fy_year", fy || "0");
             if (projectId) params.set("project_id", projectId);
 
             const res = await fetch(
@@ -335,13 +335,10 @@ const AdminDashboard = () => {
             const json = await res.json();
             if (json.success) {
                 setDashData(json.data);
-
-                // Auto-select the LATEST (last) FY on very first load only
                 if (isFirstLoad.current) {
                     isFirstLoad.current = false;
                     const fyList = json.data?.filterOptions?.availableFYList ?? [];
                     if (!fy && fyList.length > 0) {
-                        // Pick the last entry — list is ordered oldest→newest
                         setSelectedFY(fyList[fyList.length - 1].fy_year);
                     }
                 }
@@ -355,10 +352,8 @@ const AdminDashboard = () => {
         }
     };
 
-    // ── Re-fetch whenever FY or project changes ───────────────────────────────
     useEffect(() => {
         fetchDashboard(selectedFY, selectedProjectId);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedFY, selectedProjectId]);
 
     // ── Derived values — all come from dashData (filtered by FY + project) ───
@@ -385,8 +380,9 @@ const AdminDashboard = () => {
     // ── Loading / Error ───────────────────────────────────────────────────────
     if (loading) return (
         <div className="d-flex justify-content-center align-items-center" style={{ minHeight: 300 }}>
-            <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading…</span>
+            {/* <div className="spinner-border text-primary" role="status"> */}
+            <div className="text-primary">
+                <span className="">Loading…</span>
             </div>
         </div>
     );
@@ -403,72 +399,61 @@ const AdminDashboard = () => {
         </div>
     );
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    // ── Render ──────────────────────
     return (
         <>
             {/* ── Page Header ── */}
-      <div className="page-head">
-    <div className="row align-items-center">
+            <div className="page-head">
+                <div className="row align-items-center">
+                    <div className="col-12 col-md-7 mb-3 mb-md-0">
+                        <SkyGreeting />
+                    </div>
+                    <div className="col-12 col-md-5">
+                        <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 justify-content-md-end">
+                            <div className="d-flex gap-2 flex-grow-1 flex-md-grow-0">
+                                <select
+                                    className="form-select flex-fill"
+                                    value={selectedProjectId}
+                                    onChange={(e) => setSelectedProjectId(e.target.value)}
+                                >
+                                    <option value="">All Projects</option>
+                                    {availableProjects.map((p) => (
+                                        <option key={p.project_id} value={String(p.project_id)}>
+                                            {p.project_name}
+                                        </option>
+                                    ))}
+                                </select>
 
-        {/* Greeting */}
-        <div className="col-12 col-md-7 mb-3 mb-md-0">
-            <SkyGreeting />
-        </div>
+                                <select
+                                    className="form-select flex-fill"
+                                    value={selectedFY}
+                                    onChange={(e) => setSelectedFY(e.target.value)}
+                                >
+                                    <option value="0">All Years</option>
+                                    {availableFYList
+                                        .filter((f) => f.fy_year)
+                                        .map((f) => (
+                                            <option key={f.fy_year} value={f.fy_year}>
+                                                FY {f.fy_year}
+                                            </option>
+                                        ))}
+                                </select>
 
-        {/* Filters + Button */}
-        <div className="col-12 col-md-5">
-            <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 justify-content-md-end">
+                            </div>
+                            <Link
+                                to="/add-expense"
+                                className="btn btn-primary d-flex justify-content-center align-items-center px-3">
+                                + Expense
+                            </Link>
 
-                {/* Filters group */}
-                <div className="d-flex gap-2 flex-grow-1 flex-md-grow-0">
-                    
-                    <select
-                        className="form-select flex-fill"
-                        value={selectedProjectId}
-                        onChange={(e) => setSelectedProjectId(e.target.value)}
-                    >
-                        <option value="">All Projects</option>
-                        {availableProjects.map((p) => (
-                            <option key={p.project_id} value={String(p.project_id)}>
-                                {p.project_name}
-                            </option>
-                        ))}
-                    </select>
-
-                    <select
-                        className="form-select flex-fill"
-                        value={selectedFY}
-                        onChange={(e) => setSelectedFY(e.target.value)}
-                    >
-                        <option value="">All Years</option>
-                        {availableFYList
-                            .filter((f) => f.fy_year)
-                            .map((f) => (
-                                <option key={f.fy_year} value={f.fy_year}>
-                                    FY {f.fy_year}
-                                </option>
-                            ))}
-                    </select>
+                        </div>
+                    </div>
 
                 </div>
-
-                {/* Button */}
-                <Link
-                    to="/add-expense"
-                    className="btn btn-primary d-flex justify-content-center align-items-center px-3"
-                >
-                    + Expense
-                </Link>
-
             </div>
-        </div>
-
-    </div>
-</div>
 
             {/* ── ROW 1: FIRST 4 STAT CARDS ── */}
             <div className="row">
-
                 {/* Total Expense */}
                 <div className="col-xl-3 col-sm-6">
                     <div className="card">
@@ -576,7 +561,6 @@ const AdminDashboard = () => {
 
             {/* ── ROW 2: SECOND 4 STAT CARDS ── */}
             <div className="row">
-
                 {/* Total Requests */}
                 <div className="col-xl-3 col-sm-6">
                     <div className="card">
@@ -716,7 +700,7 @@ const AdminDashboard = () => {
                 <div className="col-xl-4">
                     <div className="card">
                         <div className="card-header border-0 pb-0">
-                            <h5 className="mb-0">People Contact</h5>
+                            <h5 className="mb-0">User Expense Summary</h5>
                             <span className="badge badge-info light">
                                 {userWiseSummary.length} active
                             </span>
@@ -750,6 +734,7 @@ const AdminDashboard = () => {
                                 <table className="table transaction-tbl ItemsCheckboxSec no-footer mb-0">
                                     <thead className="border-self">
                                         <tr>
+                                            <th>S No.</th>
                                             <th>Project</th>
                                             <th>Requests</th>
                                             <th>Total Amount</th>
@@ -762,6 +747,7 @@ const AdminDashboard = () => {
                                     <tbody>
                                         {projectWiseData.map((row, i) => (
                                             <tr key={i}>
+                                                <td>{i + 1}</td>
                                                 <td><span className="font-w600">{row.project_name}</span></td>
                                                 <td><span>{row.totalRequests}</span></td>
                                                 <td><span className="font-w700">{formatINR(row.totalAmount)}</span></td>
@@ -816,6 +802,7 @@ const AdminDashboard = () => {
                                 <table className="table transaction-tbl mb-0">
                                     <thead className="border-self">
                                         <tr>
+                                            <th>S No.</th>
                                             <th>Intervention</th>
                                             <th>Requests</th>
                                             <th>Total Amount</th>
@@ -827,6 +814,7 @@ const AdminDashboard = () => {
                                     <tbody>
                                         {interventionWiseData.map((row, i) => (
                                             <tr key={i}>
+                                                <td>{i + 1}</td>
                                                 <td>
                                                     <span className="font-w600">
                                                         {row.intervention_name ?? <em className="text-muted">Unassigned</em>}

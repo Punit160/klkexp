@@ -730,6 +730,7 @@ export const ManagerDashboard = async (req, res) => {
             WHERE ep.company_id = ${company_id}
               ${fyFragment}
               ${userFragment}
+                ${projectFragment}
               ${interventionFragment}
             GROUP BY p.id, p.name
             ORDER BY totalAmount DESC
