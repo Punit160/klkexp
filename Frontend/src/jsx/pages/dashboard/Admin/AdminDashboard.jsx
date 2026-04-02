@@ -24,6 +24,15 @@ const formatINRShort = (v) => {
     return "₹" + v;
 };
 
+// ── Current FY helper — defined OUTSIDE component so it's available everywhere ──
+const getCurrentFY = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const fyStart = month >= 4 ? year : year - 1;
+    return `${fyStart}-${fyStart + 1}`; // e.g. "2026-2027"
+};
+
 // ── Shared chart colors ─────────────
 const CHART_COLORS = {
     total: "#0073fd",
@@ -120,7 +129,6 @@ const ExpenseOverviewChart = ({ data = [] }) => {
 
     return (
         <>
-            {/* Custom Legend */}
             <div className="d-flex flex-wrap gap-3 mb-3 px-3 pt-3">
                 {CHART_LEGEND.map((item) => (
                     <span
@@ -141,7 +149,6 @@ const ExpenseOverviewChart = ({ data = [] }) => {
                     </span>
                 ))}
             </div>
-            {/* Chart */}
             <div style={{ position: "relative", width: "100%", height: 320, padding: "0 12px 12px" }}>
                 <Bar data={chartData} options={options} />
             </div>
@@ -247,7 +254,7 @@ const UserBarChart = ({ data = [] }) => {
     );
 };
 
-// ── PeopleContactCard — single user avatar card ─────────────
+// ── PeopleContactCard ─────────────
 const PeopleContactCard = ({ user, colorIndex }) => {
     const bg = AVATAR_COLORS[colorIndex % AVATAR_COLORS.length];
     const initials = user.Name
@@ -260,7 +267,6 @@ const PeopleContactCard = ({ user, colorIndex }) => {
                 className="avatar-card text-center border-dashed rounded px-2 py-3"
                 style={{ borderColor: bg + "66" }}
             >
-                {/* Initials avatar circle */}
                 <div
                     className="mx-auto mb-2 d-flex align-items-center justify-content-center rounded-circle"
                     style={{
@@ -273,18 +279,13 @@ const PeopleContactCard = ({ user, colorIndex }) => {
                 >
                     {initials}
                 </div>
-
-                <h6 className="mb-0" style={{ fontSize: 13, fontWeight: 600 }}>
-                    {user.Name}
-                </h6>
+                <h6 className="mb-0" style={{ fontSize: 13, fontWeight: 600 }}>{user.Name}</h6>
                 <span className="fs-12 text-muted d-block" style={{ wordBreak: "break-all" }}>
                     {user.user_email}
                 </span>
                 {user.user_phone && (
                     <span className="fs-12 text-muted d-block">{user.user_phone}</span>
                 )}
-
-                {/* Mini stat badges */}
                 <div className="d-flex justify-content-center gap-1 mt-2 flex-wrap">
                     <span className="badge" style={{ background: "#0073fd22", color: "#0073fd", fontSize: 10 }} title="Total Requests">
                         {user.totalRequests} req
@@ -303,12 +304,13 @@ const PeopleContactCard = ({ user, colorIndex }) => {
     );
 };
 
+// ── FY display helper ─────────────
+const fyLabel = (fy) =>
+    fy && fy !== "0" ? `FY ${fy}` : "All Years";
 
-
-// ── AdminDashboard ================================================================================
 // ── AdminDashboard ================================================================================
 const AdminDashboard = () => {
-    const [selectedFY, setSelectedFY] = useState("0");
+    const [selectedFY, setSelectedFY] = useState(() => getCurrentFY());
     const [selectedProjectId, setSelectedProjectId] = useState("");
     const [dashData, setDashData] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -320,7 +322,7 @@ const AdminDashboard = () => {
         setError(null);
         try {
             const params = new URLSearchParams();
-            if (fy) params.set("fy_year", fy || "0");
+            params.set("fy_year", fy || "0");
             if (projectId) params.set("project_id", projectId);
 
             const res = await fetch(
@@ -338,7 +340,10 @@ const AdminDashboard = () => {
                 if (isFirstLoad.current) {
                     isFirstLoad.current = false;
                     const fyList = json.data?.filterOptions?.availableFYList ?? [];
-                    if (!fy && fyList.length > 0) {
+                    const currentFY = getCurrentFY();
+                    const currentExists = fyList.some(f => f.fy_year === currentFY);
+                    if (!currentExists && fyList.length > 0) {
+                        // Current FY has no data yet — fall back to latest available
                         setSelectedFY(fyList[fyList.length - 1].fy_year);
                     }
                 }
@@ -356,7 +361,7 @@ const AdminDashboard = () => {
         fetchDashboard(selectedFY, selectedProjectId);
     }, [selectedFY, selectedProjectId]);
 
-    // ── Derived values — all come from dashData (filtered by FY + project) ───
+    // ── Derived values ───────────────────────────────────────────────────────
     const totalExpense = dashData?.totalExpense ?? 0;
     const paidAmount = dashData?.paidAmount ?? 0;
     const pendingAmount = dashData?.pendingAmount ?? 0;
@@ -375,14 +380,16 @@ const AdminDashboard = () => {
     const selectedProjectLabel = selectedProjectId
         ? (availableProjects.find(p => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
         : "All Projects";
-    const filterLabel = `${selectedProjectLabel} — FY ${selectedFY || "All"}`;
+
+    const filterLabel = selectedFY && selectedFY !== "0"
+        ? `${selectedProjectLabel} — FY ${selectedFY}`
+        : `${selectedProjectLabel} — All Years`;
 
     // ── Loading / Error ───────────────────────────────────────────────────────
     if (loading) return (
         <div className="d-flex justify-content-center align-items-center" style={{ minHeight: 300 }}>
-            {/* <div className="spinner-border text-primary" role="status"> */}
             <div className="text-primary">
-                <span className="">Loading…</span>
+                <span>Loading…</span>
             </div>
         </div>
     );
@@ -429,7 +436,6 @@ const AdminDashboard = () => {
                                     value={selectedFY}
                                     onChange={(e) => setSelectedFY(e.target.value)}
                                 >
-                                    <option value="0">All Years</option>
                                     {availableFYList
                                         .filter((f) => f.fy_year)
                                         .map((f) => (
@@ -437,18 +443,17 @@ const AdminDashboard = () => {
                                                 FY {f.fy_year}
                                             </option>
                                         ))}
+                                    <option value="0">All Years</option>
                                 </select>
-
                             </div>
                             <Link
                                 to="/add-expense"
-                                className="btn btn-primary d-flex justify-content-center align-items-center px-3">
+                                className="btn btn-primary d-flex justify-content-center align-items-center px-3"
+                            >
                                 + Expense
                             </Link>
-
                         </div>
                     </div>
-
                 </div>
             </div>
 
@@ -462,7 +467,7 @@ const AdminDashboard = () => {
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{formatINR(totalExpense)}</h2>
-                            <span><small className="text-muted">FY {selectedFY || "All"}</small></span>
+                            <span><small className="text-muted">{fyLabel(selectedFY)}</small></span>
                             <div className="progress mt-3" style={{ height: "6px" }}>
                                 <div className="progress-bar bg-primary" style={{ width: "100%" }}></div>
                             </div>
@@ -569,7 +574,7 @@ const AdminDashboard = () => {
                         </div>
                         <div className="card-body pt-2">
                             <h2 className="card-title mb-0">{totalRequests}</h2>
-                            <span><small className="text-muted">FY {selectedFY || "All"}</small></span>
+                            <span><small className="text-muted">{fyLabel(selectedFY)}</small></span>
                             <div className="progress mt-3" style={{ height: "6px" }}>
                                 <div className="progress-bar bg-primary" style={{ width: "100%" }}></div>
                             </div>
@@ -653,10 +658,8 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
-            {/* ── ROW 3: EXPENSE OVERVIEW CHART (col-8) + PEOPLE CONTACT (col-4) ── */}
+            {/* ── ROW 3: EXPENSE OVERVIEW CHART + PEOPLE CONTACT ── */}
             <div className="row">
-
-                {/* Expense Overview — filtered project-wise bar chart */}
                 <div className="col-xl-8">
                     <div className="card overflow-hidden">
                         <div className="card-header border-0 pb-0 flex-wrap">
@@ -670,11 +673,7 @@ const AdminDashboard = () => {
                                 </h4>
                             </div>
                         </div>
-
-                        {/* Chart now always uses filtered projectWiseData */}
                         <ExpenseOverviewChart data={projectWiseData} />
-
-                        {/* Summary footer */}
                         <div className="ttl-project">
                             <div className="pr-data">
                                 <h5>{totalRequests}</h5>
@@ -696,14 +695,13 @@ const AdminDashboard = () => {
                     </div>
                 </div>
 
-                {/* ── People Contact — user avatar cards from userWiseSummary ── */}
                 <div className="col-xl-4">
                     <div className="card">
                         <div className="card-header border-0 pb-0">
                             <h5 className="mb-0">User Expense Summary</h5>
-                            <span className="badge badge-info light">
-                                {userWiseSummary.length} active
-                            </span>
+                            <Link to="/payment-list" className="badge badge-info light">
+                                view all
+                            </Link>
                         </div>
                         <div className="card-body">
                             {userWiseSummary.length === 0 ? (
@@ -718,7 +716,6 @@ const AdminDashboard = () => {
                         </div>
                     </div>
                 </div>
-
             </div>
 
             {/* ── ROW 4: PROJECT-WISE TABLE ── */}
@@ -759,7 +756,7 @@ const AdminDashboard = () => {
                                         ))}
                                         {projectWiseData.length === 0 && (
                                             <tr>
-                                                <td colSpan={7} className="text-center text-muted py-3">No data available.</td>
+                                                <td colSpan={8} className="text-center text-muted py-3">No data available.</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -829,7 +826,7 @@ const AdminDashboard = () => {
                                         ))}
                                         {interventionWiseData.length === 0 && (
                                             <tr>
-                                                <td colSpan={6} className="text-center text-muted py-3">No data available.</td>
+                                                <td colSpan={7} className="text-center text-muted py-3">No data available.</td>
                                             </tr>
                                         )}
                                     </tbody>

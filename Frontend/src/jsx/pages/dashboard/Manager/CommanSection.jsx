@@ -26,6 +26,18 @@ const formatINRShort = (v) => {
 	return "₹" + v;
 };
 
+const getCurrentFY = () => {
+	const now = new Date();
+	const year = now.getFullYear();
+	const month = now.getMonth() + 1;
+	const fyStart = month >= 4 ? year : year - 1;
+	return `${fyStart}-${fyStart + 1}`; // e.g. "2026-2027"
+};
+
+// ── FY display helper ─────────────
+const fyLabel = (fy) =>
+	fy && fy !== "0" ? `FY ${fy}` : "All Years";
+
 // ── Shared chart colors  ──────────────
 const CHART_COLORS = {
 	total: "#0073fd",
@@ -41,7 +53,7 @@ const CHART_LEGEND = [
 	{ key: "pending", label: "Pending" },
 ];
 
-// ── ExpenseOverviewChart — project-wise bars ──────────────────────────────────
+// ── ExpenseOverviewChart ──────────────────────────────────
 const ExpenseOverviewChart = ({ data = [] }) => {
 	const chartData = {
 		labels: data.map((p) => p.project_name),
@@ -243,22 +255,19 @@ const UserBarChart = ({ data = [] }) => {
 
 // ── ManagerDashboard  ──────────────────
 const ManagerDashboard = () => {
-	const [selectedFY, setSelectedFY] = useState("0");
+	const [selectedFY, setSelectedFY] = useState(() => getCurrentFY());
 	const [selectedProjectId, setSelectedProjectId] = useState("");
 	const [dashData, setDashData] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
-
-	// ── isFirstLoad ref: auto-select latest FY only once ─────────────────────
 	const isFirstLoad = useRef(true);
 
-	// ── Fetch  ────────────────────────
 	const fetchDashboard = async (fy, projectId) => {
 		setLoading(true);
 		setError(null);
 		try {
 			const params = new URLSearchParams();
-			if (fy) params.set("fy_year", fy || "0");
+			params.set("fy_year", fy || "0");
 			if (projectId) params.set("project_id", projectId);
 
 			const res = await fetch(
@@ -276,7 +285,10 @@ const ManagerDashboard = () => {
 				if (isFirstLoad.current) {
 					isFirstLoad.current = false;
 					const fyList = json.data?.filterOptions?.availableFYList ?? [];
-					if ((!fy || fy === "0") && fyList.length > 0) {
+					const currentFY = getCurrentFY();
+					const currentExists = fyList.some(f => f.fy_year === currentFY);
+					if (!currentExists && fyList.length > 0) {
+						// Current FY ka data nahi hai — latest available pe fallback
 						setSelectedFY(fyList[fyList.length - 1].fy_year);
 					}
 				}
@@ -290,27 +302,26 @@ const ManagerDashboard = () => {
 		}
 	};
 
-	// ── Re-fetch whenever FY or project changes ───────────────────────────────
 	useEffect(() => {
 		fetchDashboard(selectedFY, selectedProjectId);
 	}, [selectedFY, selectedProjectId]);
 
 	// ── Derived values  ───────────────
-	const totalExpense = dashData?.totalExpense ?? 0;
-	const paidAmount = dashData?.paidAmount ?? 0;
-	const pendingAmount = dashData?.pendingAmount ?? 0;
-	const rejectedAmount = dashData?.rejectedAmount ?? 0;
-	const approvedAmount = dashData?.approvedAmount ?? 0;
+	const totalExpense      = dashData?.totalExpense ?? 0;
+	const paidAmount        = dashData?.paidAmount ?? 0;
+	const pendingAmount     = dashData?.pendingAmount ?? 0;
+	const rejectedAmount    = dashData?.rejectedAmount ?? 0;
+	const approvedAmount    = dashData?.approvedAmount ?? 0;
 	const approvalQueueCount = dashData?.approvalQueueCount ?? 0;
 
-	const userWiseSummary = dashData?.userWiseSummary ?? [];
-	const projectWiseData = dashData?.projectWiseData ?? [];
+	const userWiseSummary      = dashData?.userWiseSummary ?? [];
+	const projectWiseData      = dashData?.projectWiseData ?? [];
 	const interventionWiseData = dashData?.interventionWiseData ?? [];
-	const approvalQueue = dashData?.approvalQueue ?? [];
-	const paymentOverview = dashData?.paymentOverview ?? [];
-	const availableFYList = dashData?.filterOptions?.availableFYList ?? [];
-	const availableProjects = dashData?.filterOptions?.availableProjects ?? [];
-	const availableUsers = dashData?.filterOptions?.availableUsers ?? [];
+	const approvalQueue        = dashData?.approvalQueue ?? [];
+	const paymentOverview      = dashData?.paymentOverview ?? [];
+	const availableFYList      = dashData?.filterOptions?.availableFYList ?? [];
+	const availableProjects    = dashData?.filterOptions?.availableProjects ?? [];
+	const availableUsers       = dashData?.filterOptions?.availableUsers ?? [];
 	const availableInterventions = (dashData?.filterOptions?.availableInterventions ?? []).filter(
 		(i) => i.intervention_id !== null
 	);
@@ -320,13 +331,16 @@ const ManagerDashboard = () => {
 	const selectedProjectLabel = selectedProjectId
 		? (availableProjects.find((p) => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
 		: "All Projects";
-	const filterLabel = `${selectedProjectLabel} — FY ${(selectedFY && selectedFY !== "0") ? selectedFY : "All"}`;
+
+	const filterLabel = selectedFY && selectedFY !== "0"
+		? `${selectedProjectLabel} — FY ${selectedFY}`
+		: `${selectedProjectLabel} — All Years`;
 
 	// ── Loading / Error  ──────────────
 	if (loading) return (
 		<div className="d-flex justify-content-center align-items-center" style={{ minHeight: 300 }}>
-			<div className=" text-primary">
-				<span className="">Loading….......</span>
+			<div className="text-primary">
+				<span>Loading…</span>
 			</div>
 		</div>
 	);
@@ -340,22 +354,15 @@ const ManagerDashboard = () => {
 		</div>
 	);
 
-	// ── Render  ───────────────────────
 	return (
 		<>
 			<div className="page-head">
 				<div className="row align-items-center">
-
-					{/* Greeting */}
 					<div className="col-12 col-md-7 mb-3 mb-md-0">
 						<SkyGreeting />
 					</div>
-
-					{/* Filters + Button */}
 					<div className="col-12 col-md-5">
 						<div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 justify-content-md-end">
-
-							{/* Filters group */}
 							<div className="d-flex gap-2 flex-grow-1 flex-md-grow-0">
 
 								<select
@@ -376,7 +383,6 @@ const ManagerDashboard = () => {
 									value={selectedFY}
 									onChange={(e) => setSelectedFY(e.target.value)}
 								>
-									<option value="0">All Years</option>
 									{availableFYList
 										.filter((f) => f.fy_year)
 										.map((f) => (
@@ -384,29 +390,23 @@ const ManagerDashboard = () => {
 												FY {f.fy_year}
 											</option>
 										))}
+									<option value="0">All Years</option>
 								</select>
 
 							</div>
-
-							{/* Button */}
 							<Link
 								to="/add-expense"
 								className="btn btn-primary d-flex justify-content-center align-items-center px-3"
 							>
 								+ Expense
 							</Link>
-
 						</div>
 					</div>
-
 				</div>
 			</div>
 
-
 			{/* ── ROW 1: FIRST 4 STAT CARDS ── */}
 			<div className="row">
-
-				{/* Total Expense */}
 				<div className="col-xl-3 col-sm-6">
 					<div className="card">
 						<div className="card-header border-0 pb-0">
@@ -421,7 +421,7 @@ const ManagerDashboard = () => {
 						</div>
 						<div className="card-body pt-2">
 							<h2 className="card-title mb-0">{formatINR(totalExpense)}</h2>
-							<span><small className="text-muted">FY {selectedFY || "All"}</small></span>
+							<span><small className="text-muted">{fyLabel(selectedFY)}</small></span>
 							<div className="progress mt-3" style={{ height: "6px" }}>
 								<div className="progress-bar bg-primary" style={{ width: "100%" }}></div>
 							</div>
@@ -433,7 +433,6 @@ const ManagerDashboard = () => {
 					</div>
 				</div>
 
-				{/* Approved Amount */}
 				<div className="col-xl-3 col-sm-6">
 					<div className="card">
 						<div className="card-header border-0 pb-0">
@@ -468,7 +467,6 @@ const ManagerDashboard = () => {
 					</div>
 				</div>
 
-				{/* Paid Amount */}
 				<div className="col-xl-3 col-sm-6">
 					<div className="card">
 						<div className="card-header border-0 pb-0">
@@ -503,7 +501,6 @@ const ManagerDashboard = () => {
 					</div>
 				</div>
 
-				{/* Rejected Amount */}
 				<div className="col-xl-3 col-sm-6">
 					<div className="card">
 						<div className="card-header border-0 pb-0">
@@ -541,8 +538,6 @@ const ManagerDashboard = () => {
 
 			{/* ── ROW 2: SECOND 4 STAT CARDS ── */}
 			<div className="row">
-
-				{/* Claims Submitted */}
 				<div className="col-xl-3 col-sm-6">
 					<div className="card">
 						<div className="card-header border-0 pb-0">
@@ -557,7 +552,7 @@ const ManagerDashboard = () => {
 						</div>
 						<div className="card-body pt-2">
 							<h2 className="card-title mb-0">{totalRequests}</h2>
-							<span><small className="text-muted">FY {selectedFY || "All"}</small></span>
+							<span><small className="text-muted">{fyLabel(selectedFY)}</small></span>
 							<div className="progress mt-3" style={{ height: "6px" }}>
 								<div className="progress-bar bg-primary" style={{ width: "100%" }}></div>
 							</div>
@@ -569,7 +564,6 @@ const ManagerDashboard = () => {
 					</div>
 				</div>
 
-				{/* Approval Queue */}
 				<div className="col-xl-3 col-sm-6">
 					<div className="card">
 						<div className="card-header border-0 pb-0">
@@ -599,7 +593,6 @@ const ManagerDashboard = () => {
 					</div>
 				</div>
 
-				{/* Pending Amount */}
 				<div className="col-xl-3 col-sm-6">
 					<div className="card">
 						<div className="card-header border-0 pb-0">
@@ -634,7 +627,6 @@ const ManagerDashboard = () => {
 					</div>
 				</div>
 
-				{/* Active Users */}
 				<div className="col-xl-3 col-sm-6">
 					<div className="card">
 						<div className="card-header border-0 pb-0">
@@ -662,9 +654,8 @@ const ManagerDashboard = () => {
 				</div>
 			</div>
 
-			{/* ── ROW 2B: Interventions + Expense Overview bar chart project wise ── */}
+			{/* ── ROW 2B: Interventions + Expense Overview ── */}
 			<div className="row">
-
 				<div className="col-xl-3">
 					<div className="card">
 						<div className="card-header pb-0 border-0">
@@ -739,10 +730,7 @@ const ManagerDashboard = () => {
 								</h4>
 							</div>
 						</div>
-
 						<ExpenseOverviewChart data={projectWiseData} />
-
-						{/* Summary footer — IDs removed, only names/counts/amounts */}
 						<div className="ttl-project">
 							<div className="pr-data">
 								<h5>{totalRequests}</h5>
@@ -763,10 +751,9 @@ const ManagerDashboard = () => {
 						</div>
 					</div>
 				</div>
-
 			</div>
 
-			{/* ── ROW 3B: EXPENSE TABS (Approval Queue / Payment Overview / Project-wise) ── */}
+			{/* ── ROW 3B: EXPENSE TABS ── */}
 			<div className="row">
 				<div className="col-xl-9">
 					<div className="card">
@@ -796,7 +783,6 @@ const ManagerDashboard = () => {
 
 								<div style={{ maxHeight: "400px", overflowY: "auto" }}>
 									<Tab.Content>
-										{/* ── TAB 1: APPROVAL QUEUE ── */}
 										<Tab.Pane eventKey="approval">
 											<div className="table-responsive">
 												<table className="table card-table border-no success-tbl">
@@ -817,9 +803,7 @@ const ManagerDashboard = () => {
 														) : (
 															approvalQueue.map((item) => (
 																<tr key={item.expense_id}>
-																	<td>
-																		<span className="font-w600 text-primary">{approvalQueue.indexOf(item) + 1}</span>
-																	</td>
+																	<td><span className="font-w600 text-primary">{approvalQueue.indexOf(item) + 1}</span></td>
 																	<td>
 																		<div className="d-flex align-items-center gap-2">
 																			<div
@@ -847,7 +831,6 @@ const ManagerDashboard = () => {
 											</div>
 										</Tab.Pane>
 
-										{/* ── TAB 2: PAYMENT OVERVIEW ── */}
 										<Tab.Pane eventKey="payment">
 											<div className="table-responsive">
 												<table className="table card-table border-no success-tbl">
@@ -865,58 +848,19 @@ const ManagerDashboard = () => {
 															<tr><td colSpan={5} className="text-center text-muted py-4">No payment data available</td></tr>
 														) : (
 															paymentOverview.map((item, i) => {
-																const payLabel = item.payment_status === 1
-																	? "Paid"
-																	: item.payment_status === 2
-																		? "Processing"
-																		: "Unpaid";
-																const approvalLabel = item.approval_status === 1
-																	? "Approved"
-																	: item.approval_status === 2
-																		? "Rejected"
-																		: "Pending";
-																const payBadge = item.payment_status === 1
-																	? "badge-success"
-																	: item.payment_status === 2
-																		? "badge-info"
-																		: "badge-secondary";
-																const approvalBadge = item.approval_status === 1
-																	? "badge-success"
-																	: item.approval_status === 2
-																		? "badge-danger"
-																		: "badge-warning";
-																const combinedLabel = item.approval_status === 0
-																	? "Pending Approval"
-																	: item.payment_status === 1
-																		? "Paid"
-																		: item.payment_status === 2
-																			? "Processing"
-																			: "Approved / Unpaid";
-																const combinedBadge = item.approval_status === 0
-																	? "badge-warning"
-																	: item.payment_status === 1
-																		? "badge-success"
-																		: item.payment_status === 2
-																			? "badge-info"
-																			: "badge-primary";
-
+																const payLabel = item.payment_status === 1 ? "Paid" : item.payment_status === 2 ? "Processing" : "Unpaid";
+																const approvalLabel = item.approval_status === 1 ? "Approved" : item.approval_status === 2 ? "Rejected" : "Pending";
+																const payBadge = item.payment_status === 1 ? "badge-success" : item.payment_status === 2 ? "badge-info" : "badge-secondary";
+																const approvalBadge = item.approval_status === 1 ? "badge-success" : item.approval_status === 2 ? "badge-danger" : "badge-warning";
+																const combinedLabel = item.approval_status === 0 ? "Pending Approval" : item.payment_status === 1 ? "Paid" : item.payment_status === 2 ? "Processing" : "Approved / Unpaid";
+																const combinedBadge = item.approval_status === 0 ? "badge-warning" : item.payment_status === 1 ? "badge-success" : item.payment_status === 2 ? "badge-info" : "badge-primary";
 																return (
 																	<tr key={i}>
-																		<td>
-																			<span className={`badge ${payBadge} light border-0`}>{payLabel}</span>
-																		</td>
-																		<td>
-																			<span className={`badge ${approvalBadge} light border-0`}>{approvalLabel}</span>
-																		</td>
-																		<td>
-																			<span className="font-w600">{item.totalCount}</span> requests
-																		</td>
-																		<td>
-																			<span className="font-w700">{formatINR(item.totalAmount)}</span>
-																		</td>
-																		<td>
-																			<span className={`badge ${combinedBadge} light border-0`}>{combinedLabel}</span>
-																		</td>
+																		<td><span className={`badge ${payBadge} light border-0`}>{payLabel}</span></td>
+																		<td><span className={`badge ${approvalBadge} light border-0`}>{approvalLabel}</span></td>
+																		<td><span className="font-w600">{item.totalCount}</span> requests</td>
+																		<td><span className="font-w700">{formatINR(item.totalAmount)}</span></td>
+																		<td><span className={`badge ${combinedBadge} light border-0`}>{combinedLabel}</span></td>
 																	</tr>
 																);
 															})
@@ -926,7 +870,6 @@ const ManagerDashboard = () => {
 											</div>
 										</Tab.Pane>
 
-										{/* ── TAB 3: PROJECT WISE ── */}
 										<Tab.Pane eventKey="projectwise">
 											<div className="table-responsive">
 												<table className="table card-table border-no success-tbl">
@@ -945,9 +888,7 @@ const ManagerDashboard = () => {
 															<tr><td colSpan={6} className="text-center text-muted py-4">No project data available</td></tr>
 														) : (
 															projectWiseData.map((row) => {
-																const paidPct = row.totalAmount > 0
-																	? Math.round((row.totalPaid / row.totalAmount) * 100)
-																	: 0;
+																const paidPct = row.totalAmount > 0 ? Math.round((row.totalPaid / row.totalAmount) * 100) : 0;
 																return (
 																	<tr key={row.project_id}>
 																		<td>
@@ -959,7 +900,6 @@ const ManagerDashboard = () => {
 																					{row.project_name?.charAt(0) ?? "P"}
 																				</div>
 																				<div>
-																					{/* Project name only — no ID shown */}
 																					<h6 className="mb-0 fs-14 font-w600">{row.project_name}</h6>
 																				</div>
 																			</div>
@@ -994,7 +934,6 @@ const ManagerDashboard = () => {
 					</div>
 				</div>
 
-				{/* Active Projects — */}
 				<div className="col-xl-3">
 					<div className="card">
 						<div className="card-header">
@@ -1008,14 +947,7 @@ const ManagerDashboard = () => {
 										<li className="text-muted text-center py-3">No projects available</li>
 									) : (
 										availableProjects.map((p, idx) => {
-											const badgeColors = [
-												"border-primary",
-												"border-success",
-												"border-warning",
-												"border-info",
-												"border-danger",
-												"border-dark",
-											];
+											const badgeColors = ["border-primary", "border-success", "border-warning", "border-info", "border-danger", "border-dark"];
 											const color = badgeColors[idx % badgeColors.length];
 											return (
 												<li key={p.project_id}>
