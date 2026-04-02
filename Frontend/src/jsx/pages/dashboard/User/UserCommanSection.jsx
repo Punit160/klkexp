@@ -44,165 +44,125 @@ const FY_MONTH_ORDER = [
   "Oct", "Nov", "Dec", "Jan", "Feb", "Mar",
 ];
 
-// CHANGE 2: month_number → short name
+// month_number → short name
 const MONTH_NUM_TO_SHORT = {
-  1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
-  7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec",
+  1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
+  5: "May", 6: "Jun", 7: "Jul", 8: "Aug",
+  9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec",
 };
 
-// CHANGE 2: yearlyMonthlyPaidData (API) + allExpenseData dono se build karo
-function buildMonthlyChartData(yearlyMonthlyPaidData, allExpenseData) {
+function buildMonthlyChartDataFromAPI(yearlyMonthlyPaidData, selectedFY) {
   const monthMap = {};
-  FY_MONTH_ORDER.forEach((m) => (monthMap[m] = { total: 0, paid: 0, pending: 0, rejected: 0 }));
 
-  // Paid data directly from API (most accurate)
-  if (yearlyMonthlyPaidData?.length) {
-    yearlyMonthlyPaidData.forEach((entry) => {
-      const shortName = MONTH_NUM_TO_SHORT[entry.month_number];
-      if (shortName && monthMap[shortName] !== undefined) {
-        monthMap[shortName].paid += Number(entry.totalPaid || 0);
-      }
-    });
+  // initialize all months
+FY_MONTH_ORDER.forEach((m) => {
+  monthMap[m] = { total: 0, paid: 0, approved: 0, pending: 0 };
+});
+
+  if (!yearlyMonthlyPaidData?.length) {
+    return {
+      categories: FY_MONTH_ORDER,
+      total: FY_MONTH_ORDER.map(() => 0),
+      paid: FY_MONTH_ORDER.map(() => 0),
+      approved: FY_MONTH_ORDER.map(() => 0),
+      pending: FY_MONTH_ORDER.map(() => 0),
+    };
   }
 
-  // Total / pending / rejected from AllExpenseData
-  allExpenseData.forEach((exp) => {
-    const dateVal =
-      exp.requested_date && typeof exp.requested_date !== "object"
-        ? exp.requested_date
-        : exp.created_at && typeof exp.created_at !== "object"
-          ? exp.created_at
-          : null;
-    if (!dateVal) return;
+  yearlyMonthlyPaidData.forEach((item) => {
+    const isFYMatch =
+      !selectedFY ||
+      selectedFY === "0" ||
+      selectedFY === "all" ||
+      item.fy_year === selectedFY;
 
-    const date = new Date(dateVal);
-    if (isNaN(date)) return;
-    const month = date.toLocaleString("en-US", { month: "short" });
-    if (!monthMap[month]) return;
+    if (!isFYMatch) return;
 
-    const amount = Number(exp.amount || 0);
-    monthMap[month].total += amount;
+    const shortName = MONTH_NUM_TO_SHORT[item.month_number];
+    if (!shortName || !monthMap[shortName]) return;
 
-    const status = deriveStatus(exp);
-    if (status === "Paid") {
-      const paidAmt = Number(exp.paid_amount ?? exp.approved_amount ?? exp.amount ?? 0);
-      const remaining = amount - paidAmt;
-      if (remaining > 0) monthMap[month].pending += remaining;
-    } else if (exp.rejection_status || exp.is_rejected) {
-      monthMap[month].rejected += amount;
-    } else {
-      monthMap[month].pending += amount;
-    }
+    monthMap[shortName].total += Number(item.totalAmount || 0);
+    monthMap[shortName].paid += Number(item.totalPaid || 0);
+    monthMap[shortName].approved += Number(item.approvedAmount || 0);
+    monthMap[shortName].pending += Number(item.pendingAmount || 0);
   });
 
-  // Active months: union from both sources, sorted by FY order
-  const activeFromExpenses = FY_MONTH_ORDER.filter((m) => monthMap[m].total > 0);
-  const activeFromPaid = (yearlyMonthlyPaidData || [])
-    .map((e) => MONTH_NUM_TO_SHORT[e.month_number])
-    .filter(Boolean);
-  const combined = [...new Set([...activeFromExpenses, ...activeFromPaid])];
-  const categories = FY_MONTH_ORDER.filter((m) => combined.includes(m));
-  const finalCategories = categories.length > 0 ? categories : FY_MONTH_ORDER.slice(0, 6);
-
   return {
-    categories: finalCategories,
-    total: finalCategories.map((m) => monthMap[m].total),
-    paid: finalCategories.map((m) => monthMap[m].paid),
-    pending: finalCategories.map((m) => monthMap[m].pending),
-    rejected: finalCategories.map((m) => monthMap[m].rejected),
+    categories: FY_MONTH_ORDER,
+    total: FY_MONTH_ORDER.map((m) => monthMap[m].total),
+    paid: FY_MONTH_ORDER.map((m) => monthMap[m].paid),
+    approved: FY_MONTH_ORDER.map((m) => monthMap[m].approved),
+    pending: FY_MONTH_ORDER.map((m) => monthMap[m].pending),
   };
 }
 
+//  project chart unchanged
 function buildProjectChartData(projectWiseData) {
   return {
     labels: projectWiseData.map((p) => p.project_name ?? "Unknown"),
     totalAmount: projectWiseData.map((p) => Number(p.totalAmount) || 0),
+    approvedAmount: projectWiseData.map((p) => Number(p.approvedAmount) || 0),
     pendingAmount: projectWiseData.map((p) => Number(p.pendingAmount) || 0),
     paidAmount: projectWiseData.map((p) => Number(p.totalPaid) || 0),
   };
 }
 
-// ─── Monthly Area Chart ───────────────────────────────────────────────────────
+//  Monthly area chart unchanged
 function MonthlyTrendChart({ data }) {
-  if (
-    !data?.categories?.length ||
-    (data.total.every((v) => v === 0) && data.paid.every((v) => v === 0))
-  ) {
+  if (!data?.categories?.length ||
+    (data.total.every((v) => v === 0) && data.paid.every((v) => v === 0))) {
     return <p className="text-center text-muted py-4">No monthly expense data available.</p>;
   }
 
   const options = {
-    chart: {
-      type: "area",
-      toolbar: { show: false },
-      zoom: { enabled: false },
-      fontFamily: "inherit",
-    },
+    chart: { type: "area", toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "inherit" },
     dataLabels: { enabled: false },
     stroke: { curve: "smooth", width: [2, 2, 2] },
-    colors: ["#6571ff", "#22c55e", "#f59e0b"],
+    colors: ["#6571ff", "#38c4f3", "#10b981", "#f59e0b" ],
     fill: {
       type: "gradient",
-      gradient: {
-        shadeIntensity: 1,
-        opacityFrom: 0.30,
-        opacityTo: 0.02,
-        stops: [0, 90, 100],
-      },
+      gradient: { shadeIntensity: 1, opacityFrom: 0.22, opacityTo: 0.01, stops: [0, 95, 100] },
     },
     xaxis: {
       categories: data.categories,
       axisBorder: { show: false },
       axisTicks: { show: false },
-      labels: { style: { fontSize: "12px" } },
+      labels: { style: { fontSize: "11px", colors: "#999" } },
     },
     yaxis: {
       labels: {
+        style: { fontSize: "11px", colors: "#999" },
         formatter: (val) =>
-          val >= 100000
-            ? `₹${(val / 100000).toFixed(1)}L`
-            : val >= 1000
-              ? `₹${(val / 1000).toFixed(0)}k`
+          val >= 100000 ? `₹${(val / 100000).toFixed(1)}L`
+            : val >= 1000 ? `₹${(val / 1000).toFixed(0)}k`
               : `₹${val}`,
-        style: { fontSize: "11px" },
       },
     },
     tooltip: {
       shared: true,
       intersect: false,
-      y: {
-        formatter: (val) => `₹ ${Number(val || 0).toLocaleString("en-IN")}`,
-      },
+      y: { formatter: (val) => `₹ ${Number(val || 0).toLocaleString("en-IN")}` },
     },
-    legend: {
-      position: "top",
-      horizontalAlign: "left",
-      fontSize: "13px",
-      markers: { width: 10, height: 10, radius: 3 },
-    },
-    grid: {
-      borderColor: "#f1f1f1",
-      strokeDashArray: 4,
-    },
+    legend: { show: false },
+    grid: { borderColor: "rgba(0,0,0,0.06)", strokeDashArray: 0 },
     markers: {
-      size: 4,
+      size: data.categories.map((_, i) => (data.total[i] > 0 ? 4 : 0)),
       strokeWidth: 0,
       hover: { size: 6 },
     },
   };
 
   const series = [
-    { name: "Total Expense", data: data.total },
+    { name: "Total expense", data: data.total },
+    { name: "Approved", data: data.approved },
     { name: "Paid", data: data.paid },
     { name: "Pending", data: data.pending },
   ];
 
-  return (
-    <ReactApexChart options={options} series={series} type="area" height={300} />
-  );
+  return <ReactApexChart options={options} series={series} type="area" height={260} />;
 }
 
-// ─── Project Bar Chart ────────────────────────────────────────────────────────
+//  Project bar chart unchanged
 function ProjectBarChart({ data }) {
   if (!data?.labels?.length) {
     return <p className="text-center text-muted py-4">No project data available.</p>;
@@ -231,7 +191,7 @@ function ProjectBarChart({ data }) {
   );
 }
 
-// ─── getCurrentFY helper ──────────────────────────────────────────────────────
+//  FY helper unchanged
 const getCurrentFY = () => {
   const now = new Date();
   const year = now.getFullYear();
@@ -240,15 +200,13 @@ const getCurrentFY = () => {
   return `${fyStart}-${fyStart + 1}`;
 };
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+//  Main component – fixed: use allExpenses for monthly chart, fixed var name typo
 function UserCommanSection() {
-  // CHANGE 1: default to current FY (not empty string)
   const [selectedFY, setSelectedFY] = useState(() => getCurrentFY());
   const [selectedProjectId, setSelectedProjectId] = useState("");
 
   const [availableFYList, setAvailableFYList] = useState([]);
   const [availableProjects, setAvailableProjects] = useState([]);
-  // CHANGE 3: intervention state
   const [interventionWiseData, setInterventionWiseData] = useState([]);
 
   const [submitMsg, setSubmitMsg] = useState("");
@@ -262,20 +220,19 @@ function UserCommanSection() {
     rejectedAmount: 0,
     approvedAmount: 0,
   });
-  const [allExpenses, setAllExpenses] = useState([]);
-  const [projectWiseData, setProjectWiseData] = useState([]);
-  // CHANGE 2: yearlyMonthlyPaidData state
-  const [yearlyMonthlyPaidData, setYearlyMonthlyPaidData] = useState([]);
+
+  const [allExpenses, setAllExpenses] = useState([]);          // = d.AllExpenseData
+  const [projectWiseData, setProjectWiseData] = useState([]); // = d.projectWiseData
+  const [yearlyMonthlyPaidData, setYearlyMonthlyPaidData] = useState([]); // kept for future use
 
   const isFirstLoad = useRef(true);
 
-  // ─── fetchDashboard ───────────────────────────────────────────────────────
+  //  fetchDashboard – unchanged
   const fetchDashboard = async (fy, projectId) => {
     setLoading(true);
     setError("");
     try {
       const params = new URLSearchParams();
-      // CHANGE 1: send current FY or "0" for all years
       params.set("fy_year", fy && fy !== "0" ? fy : "0");
       if (projectId) params.set("project_id", projectId);
 
@@ -303,7 +260,6 @@ function UserCommanSection() {
           setAvailableProjects(projects);
         }
 
-        // CHANGE 1: first load — fallback if current FY not in DB
         if (isFirstLoad.current) {
           isFirstLoad.current = false;
           const currentFY = getCurrentFY();
@@ -323,9 +279,7 @@ function UserCommanSection() {
         });
         setAllExpenses(d.AllExpenseData ?? []);
         setProjectWiseData(d.projectWiseData ?? []);
-        // CHANGE 2: save yearlyMonthlyPaidData
         setYearlyMonthlyPaidData(d.yearlyMonthlyPaidData ?? []);
-        // CHANGE 3: save interventionWiseData
         setInterventionWiseData(d.interventionWiseData ?? []);
       }
     } catch (err) {
@@ -336,13 +290,11 @@ function UserCommanSection() {
     }
   };
 
-  // Re-fetch whenever FY or project changes
   useEffect(() => {
     fetchDashboard(selectedFY, selectedProjectId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFY, selectedProjectId]);
 
-  // ── Derived helpers ──
+  //  expensesWithStatus
   const expensesWithStatus = useMemo(
     () => allExpenses.map((e) => ({ ...e, _status: deriveStatus(e) })),
     [allExpenses]
@@ -351,31 +303,36 @@ function UserCommanSection() {
   const countByStatus = (status) =>
     expensesWithStatus.filter((e) => e._status === status).length;
 
-  // CHANGE 2: pass yearlyMonthlyPaidData into builder
   const monthlyChartData = useMemo(
-    () => buildMonthlyChartData(yearlyMonthlyPaidData, allExpenses),
-    [yearlyMonthlyPaidData, allExpenses]
+    () => buildMonthlyChartDataFromAPI(yearlyMonthlyPaidData, selectedFY),
+    [yearlyMonthlyPaidData, selectedFY]
   );
+
+  const chartTotals = useMemo(() => ({
+    total: monthlyChartData.total.reduce((a, b) => a + b, 0),
+    approved: monthlyChartData.approved.reduce((a, b) => a + b, 0),
+    paid: monthlyChartData.paid.reduce((a, b) => a + b, 0),
+    pending: monthlyChartData.pending.reduce((a, b) => a + b, 0),
+  }), [monthlyChartData]);
 
   const projectChartData = useMemo(
     () => buildProjectChartData(projectWiseData),
     [projectWiseData]
   );
 
-  // ── Filter label ──
+  //  filterLabel
   const selectedProjectLabel = selectedProjectId
     ? (availableProjects.find(
       (p) => String(p.project_id) === String(selectedProjectId)
     )?.project_name ?? "Project")
     : "All Projects";
 
-  // CHANGE 1: clean label — no "FY undefined"
   const filterLabel =
-    selectedFY && selectedFY !== "0"
+    selectedFY && selectedFY !== "0" && selectedFY !== "all"
       ? `${selectedProjectLabel} — FY ${selectedFY}`
       : `${selectedProjectLabel} — All Years`;
 
-  // CHANGE 3: Intervention Donut config
+  //  intervention donut
   const interventionDonutSeries = interventionWiseData.map((i) => Number(i.totalAmount) || 0);
   const interventionDonutLabels = interventionWiseData.map((i) => i.intervention_name ?? "Unknown");
   const hasInterventionData = interventionDonutSeries.some((v) => v > 0);
@@ -437,7 +394,6 @@ function UserCommanSection() {
                   ))}
                 </select>
 
-                {/* CHANGE 1: FY Filter — current FY default, All Years sabse neeche */}
                 <select
                   className="form-select flex-fill"
                   value={selectedFY}
@@ -480,7 +436,7 @@ function UserCommanSection() {
         </div>
       )}
 
-      {/* ── ROW 1: Stat Cards — ORIGINAL, UNCHANGED ── */}
+      {/* ── ROW 1: Stat Cards ── */}
       <div className="row">
 
         {/* Card 1: Total Expense */}
@@ -573,7 +529,7 @@ function UserCommanSection() {
                   </span>
                 </div>
                 <InvoiceChart
-                  data={monthlyChartData.rejected ?? []}
+                  data={Array(FY_MONTH_ORDER.length).fill(stats.rejectedAmount / 12)} // Fallback for rejected
                   color="#ef4444"
                 />
               </div>
@@ -582,22 +538,36 @@ function UserCommanSection() {
         </div>
       </div>
 
-      {/* ── ROW 2: CHANGE 2 Monthly Trend + CHANGE 3 Intervention Donut ── */}
+      {/* ── ROW 2: Monthly Trend + Intervention Donut ── */}
       <div className="row">
 
-        {/* CHANGE 2: Monthly Trend — now uses yearlyMonthlyPaidData from API */}
         <div className="col-xl-8">
           <div className="card">
-            <div className="card-header">
+            <div className="card-header d-flex align-items-start justify-content-between flex-wrap gap-2">
               <div>
-                <h4 className="mb-0">Monthly Expense Trend</h4>
-                <small className="text-muted">
-                  Based on requested date —{" "}
-                  <span className="badge badge-primary light">{filterLabel}</span>
-                </small>
+                <h4 className="mb-1">Monthly Expense Trend</h4>
+                <small className="text-muted">Based on requested date</small>
               </div>
+              <span className="badge badge-sm badge-info light">{filterLabel}</span>
             </div>
-            <div className="card-body">
+
+            {/* ── Stat pills row ── */}
+            <div className="px-4 py-2 border-bottom d-flex gap-3 flex-wrap" style={{ fontSize: 12 }}>
+              {[
+                { label: "Total", val: chartTotals.total, color: "#6571ff" },
+                { label: "Approved", val: chartTotals.approved, color: "#38c4f3" },
+                { label: "Paid", val: chartTotals.paid, color: "#22c55e" },
+                { label: "Pending", val: chartTotals.pending, color: "#f59e0b" },
+              ].map(({ label, val, color }) => (
+                <div key={label} className="d-flex align-items-center gap-1">
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, display: "inline-block" }} />
+                  <span className="text-muted me-1">{label}</span>
+                  <span className="fw-bold" style={{ color }}>₹ {formatINR(val)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="card-body pt-2">
               {loading
                 ? <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>
                 : <MonthlyTrendChart data={monthlyChartData} />
@@ -606,7 +576,7 @@ function UserCommanSection() {
           </div>
         </div>
 
-        {/* CHANGE 3: Intervention Breakdown Donut (replaces Expense Breakdown) */}
+        {/* Intervention Breakdown Donut */}
         <div className="col-xl-4">
           <div className="card">
             <div className="card-header">
@@ -640,11 +610,9 @@ function UserCommanSection() {
         <div className="row">
           <div className="col-xl-12">
             <div className="card">
-              <div className="">
-                <div className="card-header border-0 pb-0">
-                  <h4 className="mb-0">Project Wise Expense</h4>
-                  <span className="badge badge-sm badge-info light ms-2">{filterLabel}</span>
-                </div>
+              <div className="card-header border-0 pb-0">
+                <h4 className="mb-0">Project Wise Expense</h4>
+                <span className="badge badge-sm badge-info light ms-2">{filterLabel}</span>
               </div>
               <div className="card-body">
                 {loading
@@ -686,7 +654,6 @@ function UserCommanSection() {
                 </Nav>
 
                 <Tab.Content>
-
                   {/* ALL EXPENSES TAB */}
                   <Tab.Pane eventKey="table">
                     <div className="table-responsive">

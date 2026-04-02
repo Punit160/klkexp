@@ -305,15 +305,18 @@ export const UserDashboard = async (req, res) => {
         // ─── 3. Yearly Monthly Paid Data ──────────────────
         const yearlyMonthlyPaidData = await prisma.$queryRaw`
             SELECT
-                financial_year           AS fy_year,
+                ep.financial_year           AS fy_year,
                 MONTH(ep.created_at)     AS month_number,
                 MONTHNAME(ep.created_at) AS month_name,
-                SUM(ep.paid_amount)      AS totalPaid,
-                COUNT(ep.id)             AS totalCount
+                COUNT(ep.id)             AS totalCount,
+                COALESCE(SUM(ep.amount), 0) AS totalAmount,
+                COALESCE(SUM(CASE WHEN ep.payment_status = 1 THEN ep.paid_amount ELSE 0 END), 0) AS totalPaid,
+                COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount - COALESCE(ep.paid_amount, 0) ELSE 0 END), 0) AS pendingAmount,
+                COALESCE(SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END), 0) AS rejectedAmount,
+                COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount ELSE 0 END), 0) AS approvedAmount
             FROM expensepayment ep
             WHERE ep.company_id     = ${company_id}
               AND ep.requested_by   = ${user_id}
-              AND ep.payment_status = 1
               ${fyFragment}
               ${projectFragment}
               ${interventionFragment}
@@ -716,11 +719,29 @@ export const AdminDashboard = async (req, res) => {
     ${fyFragment}
     ${userFragment}
     ${projectFragment}
+    ${interventionFragment}
 
     GROUP BY i.id, i.name
 
     ORDER BY totalAmount DESC
 `;
+
+
+
+const UserExpenseData = await prisma.$queryRaw`
+            SELECT
+                ep.*,
+                p.name AS project_name
+            FROM expensepayment ep
+            LEFT JOIN project p ON ep.project_name = p.id
+            WHERE ep.company_id   = ${company_id}
+               ${fyFragment}
+    ${userFragment}
+    ${projectFragment}
+    ${interventionFragment}
+            ORDER BY ep.id DESC
+            LIMIT 5
+        `;
 
         // ─── 7. Year-wise Paid (always all FYs for chart) ─
         const yearlyPaidData = await prisma.$queryRaw`
@@ -798,6 +819,7 @@ export const AdminDashboard = async (req, res) => {
             projectWiseData,
             interventionWiseData,
             yearlyPaidData,
+            UserExpenseData,
         });
 
         return res.status(200).json({ success: true, data: responseData });
