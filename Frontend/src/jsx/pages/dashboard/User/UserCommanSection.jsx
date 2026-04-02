@@ -199,7 +199,7 @@ const getCurrentFY = () => {
   return `${fyStart}-${fyStart + 1}`;
 };
 
-//  Main component – fixed: use allExpenses for monthly chart, fixed var name typo
+//  Main component – fixed: use allExpenses for monthly chart, fixed
 function UserCommanSection() {
   const [selectedFY, setSelectedFY] = useState(() => getCurrentFY());
   const [selectedProjectId, setSelectedProjectId] = useState("");
