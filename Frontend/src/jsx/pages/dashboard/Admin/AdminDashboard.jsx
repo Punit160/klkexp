@@ -254,9 +254,9 @@ const UserBarChart = ({ data = [] }) => {
     );
 };
 
-// ── PeopleContactCard ─────────────
-const PeopleContactCard = ({ user, colorIndex }) => {
+const PeopleContactCards = ({ user, colorIndex }) => {
     const bg = AVATAR_COLORS[colorIndex % AVATAR_COLORS.length];
+
     const initials = user.Name
         ? user.Name.trim().split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
         : "?";
@@ -264,40 +264,53 @@ const PeopleContactCard = ({ user, colorIndex }) => {
     return (
         <div className="col-xl-4 col-sm-4 col-6">
             <div
-                className="avatar-card text-center border-dashed rounded px-2 py-3"
-                style={{ borderColor: bg + "66" }}
+                className="avatar-card text-center border-dashed h-100 rounded px-2 py-3"
+                style={{ borderColor: bg + "80" }}
             >
                 <div
                     className="mx-auto mb-2 d-flex align-items-center justify-content-center rounded-circle"
                     style={{
-                        width: 52, height: 52,
+                        width: 45,
+                        height: 45,
                         background: bg + "22",
                         border: `2px solid ${bg}`,
-                        fontSize: 18, fontWeight: 700,
-                        color: bg, letterSpacing: 1,
+                        fontSize: 17,
+                        fontWeight: 600,
+                        color: bg,
+                        letterSpacing: 1,
                     }}
                 >
                     {initials}
                 </div>
-                <h6 className="mb-0" style={{ fontSize: 13, fontWeight: 600 }}>{user.Name}</h6>
-                <span className="fs-12 text-muted d-block" style={{ wordBreak: "break-all" }}>
-                    {user.user_email}
-                </span>
-                {user.user_phone && (
-                    <span className="fs-12 text-muted d-block">{user.user_phone}</span>
-                )}
-                <div className="d-flex justify-content-center gap-1 mt-2 flex-wrap">
-                    <span className="badge" style={{ background: "#0073fd22", color: "#0073fd", fontSize: 10 }} title="Total Requests">
-                        {user.totalRequests} req
+
+                <h6 className="mb-0" style={{ fontSize: 13, fontWeight: 600 }}>
+                    {user.Name}
+                </h6>
+
+
+                <div className="mt-2 text-center">
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                        {formatINR(user.amount || 0)}
+                    </div>
+
+                    <div style={{ fontSize: 12, color: "#666" }}>
+                        {user.project_name}
+                    </div>
+
+                    <div style={{ fontSize: 12, color: "#999" }}>
+                        {user.intervention_name}
+                    </div>
+
+                    <span
+                        className="badge mt-1"
+                        style={{
+                            background: user.payment_status === 1 ? "#E1F5EE" : "#FAEEDA",
+                            color: user.payment_status === 1 ? "#0F6E56" : "#854F0B",
+                            fontSize: 11,
+                        }}
+                    >
+                        {user.payment_status === 1 ? "Paid" : "Pending"}
                     </span>
-                    <span className="badge" style={{ background: "#1d9e7522", color: "#1d9e75", fontSize: 10 }} title="Total Paid">
-                        {formatINRShort(user.totalPaid)} paid
-                    </span>
-                    {user.pendingAmount > 0 && (
-                        <span className="badge" style={{ background: "#ee974222", color: "#ee9742", fontSize: 10 }} title="Pending">
-                            {formatINRShort(user.pendingAmount)} pending
-                        </span>
-                    )}
                 </div>
             </div>
         </div>
@@ -376,6 +389,18 @@ const AdminDashboard = () => {
     const availableProjects = dashData?.filterOptions?.availableProjects ?? [];
 
     const totalRequests = userWiseSummary.reduce((s, u) => s + u.totalRequests, 0);
+
+    // console.log({ dashData, userWiseSummary });
+
+    const userExpenseList = (dashData?.UserExpenseData ?? [])
+        .slice(0, 6)
+        .map((item) => ({
+            Name: item.requested_by_name,   
+            amount: item.amount,
+            project_name: item.project_name,
+            intervention_name: item.intervention_name,
+            payment_status: item.payment_status,
+        }));
 
     const selectedProjectLabel = selectedProjectId
         ? (availableProjects.find(p => String(p.project_id) === String(selectedProjectId))?.project_name ?? "Project")
@@ -695,6 +720,7 @@ const AdminDashboard = () => {
                     </div>
                 </div>
 
+                {/* ── User Expense Summary Card ── */}
                 <div className="col-xl-4">
                     <div className="card">
                         <div className="card-header border-0 pb-0">
@@ -703,13 +729,20 @@ const AdminDashboard = () => {
                                 view all
                             </Link>
                         </div>
+
                         <div className="card-body">
-                            {userWiseSummary.length === 0 ? (
-                                <p className="text-muted text-center py-4">No users found.</p>
+                            {userExpenseList.length === 0 ? (
+                                <p className="text-muted text-center py-4">
+                                    No expenses found.
+                                </p>
                             ) : (
                                 <div className="row g-2">
-                                    {userWiseSummary.map((user, i) => (
-                                        <PeopleContactCard key={user.userid ?? i} user={user} colorIndex={i} />
+                                    {userExpenseList.map((user, i) => (
+                                        <PeopleContactCards
+                                            key={i}
+                                            user={user}
+                                            colorIndex={i}
+                                        />
                                     ))}
                                 </div>
                             )}
@@ -785,6 +818,7 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             </div>
+
 
             {/* ── ROW 6: INTERVENTION-WISE SUMMARY ── */}
             <div className="row">

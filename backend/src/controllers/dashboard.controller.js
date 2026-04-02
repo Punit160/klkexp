@@ -731,17 +731,24 @@ export const AdminDashboard = async (req, res) => {
 const UserExpenseData = await prisma.$queryRaw`
             SELECT
                 ep.*,
-                p.name AS project_name
+                p.name AS project_name,
+                u.username AS requested_by_name,
+                i.name AS intervention_name
             FROM expensepayment ep
+            LEFT JOIN user u ON u.id = ep.requested_by
             LEFT JOIN project p ON ep.project_name = p.id
+            LEFT JOIN intervention i ON ep.intervention = i.id
             WHERE ep.company_id   = ${company_id}
-               ${fyFragment}
-    ${userFragment}
-    ${projectFragment}
-    ${interventionFragment}
+            ${fyFragment}
+            ${userFragment}
+            ${projectFragment}
+            ${interventionFragment}
             ORDER BY ep.id DESC
-            LIMIT 5
+            LIMIT 6
         `;
+        
+
+
 
         // ─── 7. Year-wise Paid (always all FYs for chart) ─
         const yearlyPaidData = await prisma.$queryRaw`

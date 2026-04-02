@@ -339,10 +339,8 @@ function UserCommanSection() {
   const interventionDonutOptions = {
     chart: { type: "donut" },
     labels: interventionDonutLabels,
-    colors: ["#6571ff", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#8b5cf6", "#ec4899"],
-
+    colors: ["#6571ff", "#22c55e", "#f59e0b", "#ff5f5f", "#06b6d4", "#8b5cf6", "#ec4899"],
     legend: { position: "bottom" },
-
     dataLabels: {
       enabled: true,
       style: {
