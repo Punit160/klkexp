@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Dropdown, Nav, Tab } from "react-bootstrap";
 import { SVGICON } from "../../../constant/theme";
-
 import { BsCheckCircle, BsXCircle } from "react-icons/bs";
 import ReactApexChart from "react-apexcharts";
 import SkyGreeting from "../../../components/Common/SkyGreeting";
@@ -55,9 +54,9 @@ function buildMonthlyChartDataFromAPI(yearlyMonthlyPaidData, selectedFY) {
   const monthMap = {};
 
   // initialize all months
-FY_MONTH_ORDER.forEach((m) => {
-  monthMap[m] = { total: 0, paid: 0, approved: 0, pending: 0 };
-});
+  FY_MONTH_ORDER.forEach((m) => {
+    monthMap[m] = { total: 0, paid: 0, approved: 0, pending: 0 };
+  });
 
   if (!yearlyMonthlyPaidData?.length) {
     return {
@@ -118,7 +117,7 @@ function MonthlyTrendChart({ data }) {
     chart: { type: "area", toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "inherit" },
     dataLabels: { enabled: false },
     stroke: { curve: "smooth", width: [2, 2, 2] },
-    colors: ["#6571ff", "#38c4f3", "#10b981", "#f59e0b" ],
+    colors: ["#6571ff", "#38c4f3", "#10b981", "#f59e0b"],
     fill: {
       type: "gradient",
       gradient: { shadeIntensity: 1, opacityFrom: 0.22, opacityTo: 0.01, stops: [0, 95, 100] },
@@ -221,13 +220,13 @@ function UserCommanSection() {
     approvedAmount: 0,
   });
 
-  const [allExpenses, setAllExpenses] = useState([]);          // = d.AllExpenseData
-  const [projectWiseData, setProjectWiseData] = useState([]); // = d.projectWiseData
-  const [yearlyMonthlyPaidData, setYearlyMonthlyPaidData] = useState([]); // kept for future use
+  const [allExpenses, setAllExpenses] = useState([]);
+  const [projectWiseData, setProjectWiseData] = useState([]);
+  const [yearlyMonthlyPaidData, setYearlyMonthlyPaidData] = useState([]);
 
   const isFirstLoad = useRef(true);
 
-  //  fetchDashboard – unchanged
+  //  fetchDashboard 
   const fetchDashboard = async (fy, projectId) => {
     setLoading(true);
     setError("");
@@ -266,7 +265,7 @@ function UserCommanSection() {
           const currentExists = fyList.some((f) => f.fy_year === currentFY);
           if (!currentExists && fyList.length > 0) {
             setSelectedFY(fyList[fyList.length - 1].fy_year);
-            return; // useEffect re-triggers
+            return;
           }
         }
 
@@ -341,24 +340,43 @@ function UserCommanSection() {
     chart: { type: "donut" },
     labels: interventionDonutLabels,
     colors: ["#6571ff", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#8b5cf6", "#ec4899"],
+
     legend: { position: "bottom" },
-    dataLabels: { enabled: true },
-    tooltip: { y: { formatter: (val) => `₹ ${formatINR(val)}` } },
+
+    dataLabels: {
+      enabled: true,
+      style: {
+        fontSize: "13px",
+      },
+      formatter: (val, opts) => {
+        const value = opts.w.config.series[opts.seriesIndex];
+        return `₹ ${formatINR(value)}`;
+      }
+    },
+
+    tooltip: {
+      y: { formatter: (val) => `₹ ${formatINR(val)}` }
+    },
+
     plotOptions: {
       pie: {
         donut: {
           labels: {
             show: true,
+
             total: {
               show: true,
               label: "Total",
+              fontWeight: 400,
               formatter: () =>
-                `₹ ${formatINR(interventionDonutSeries.reduce((a, b) => a + b, 0))}`,
-            },
-          },
-        },
-      },
-    },
+                `₹ ${formatINR(
+                  interventionDonutSeries.reduce((a, b) => a + b, 0)
+                )}`
+            }
+          }
+        }
+      }
+    }
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -448,10 +466,9 @@ function UserCommanSection() {
             <div className="card-body pt-2">
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  {loading
-                    ? <div className="placeholder-glow"><span className="placeholder col-8" style={{ height: 36 }} /></div>
-                    : <h2 className="card-title">₹ {formatINR(stats.totalExpense)}</h2>
-                  }
+                  <h2 className="card-title">
+                    ₹ {formatINR(stats.totalExpense)}
+                  </h2>
                   <small className="text-muted">{filterLabel}</small>
                 </div>
                 <InvoiceChart data={monthlyChartData.total} color="#6571ff" />
@@ -568,10 +585,8 @@ function UserCommanSection() {
             </div>
 
             <div className="card-body pt-2">
-              {loading
-                ? <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>
-                : <MonthlyTrendChart data={monthlyChartData} />
-              }
+              <MonthlyTrendChart data={monthlyChartData} />
+
             </div>
           </div>
         </div>
@@ -588,17 +603,17 @@ function UserCommanSection() {
               </div>
             </div>
             <div className="card-body">
-              {loading ? (
-                <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>
-              ) : hasInterventionData ? (
+              {hasInterventionData ? (
                 <ReactApexChart
                   options={interventionDonutOptions}
                   series={interventionDonutSeries}
                   type="donut"
-                  height={300}
+                  height={350}
                 />
               ) : (
-                <p className="text-center text-muted py-4">No intervention data available.</p>
+                <p className="text-center text-muted py-4">
+                  No intervention data available.
+                </p>
               )}
             </div>
           </div>
@@ -670,13 +685,8 @@ function UserCommanSection() {
                           </tr>
                         </thead>
                         <tbody>
-                          {loading ? (
-                            <tr><td colSpan={7} className="text-center py-4">
-                              <div className="spinner-border spinner-border-sm text-primary me-2" role="status" />
-                              Loading expenses...
-                            </td></tr>
-                          ) : expensesWithStatus.length === 0 ? (
-                            <tr><td colSpan={7} className="text-center text-muted py-4">No expenses found.</td></tr>
+                          {expensesWithStatus.length === 0 ? (
+                            <tr><td colSpan={7}>No expenses found.</td></tr>
                           ) : (
                             expensesWithStatus.map((exp, i) => (
                               <tr key={exp.id ?? i}>
