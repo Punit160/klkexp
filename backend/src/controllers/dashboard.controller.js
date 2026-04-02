@@ -363,7 +363,7 @@ export const UserDashboard = async (req, res) => {
             FROM expensepayment ep
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
-            ORDER BY financial_year ASC
+            ORDER BY financial_year DESC
         `;
 
         // ─── 7. Intervention-wise Data ────────────────────

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Dropdown, Nav, Tab } from "react-bootstrap";
 import { SVGICON } from "../../../constant/theme";
@@ -30,7 +30,7 @@ function formatINR(amount) {
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return "—";
+  if (!dateStr || typeof dateStr === "object") return "—";
   return new Date(dateStr).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -44,49 +44,72 @@ const FY_MONTH_ORDER = [
   "Oct", "Nov", "Dec", "Jan", "Feb", "Mar",
 ];
 
-function buildMonthlyChartData(allExpenseData) {
-  // initialise every FY month with zeroes
+// CHANGE 2: month_number → short name
+const MONTH_NUM_TO_SHORT = {
+  1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
+  7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec",
+};
+
+// CHANGE 2: yearlyMonthlyPaidData (API) + allExpenseData dono se build karo
+function buildMonthlyChartData(yearlyMonthlyPaidData, allExpenseData) {
   const monthMap = {};
   FY_MONTH_ORDER.forEach((m) => (monthMap[m] = { total: 0, paid: 0, pending: 0, rejected: 0 }));
 
-  allExpenseData.forEach((exp) => {
-    const date = new Date(exp.requested_date || exp.created_at);
-    if (isNaN(date)) return;
+  // Paid data directly from API (most accurate)
+  if (yearlyMonthlyPaidData?.length) {
+    yearlyMonthlyPaidData.forEach((entry) => {
+      const shortName = MONTH_NUM_TO_SHORT[entry.month_number];
+      if (shortName && monthMap[shortName] !== undefined) {
+        monthMap[shortName].paid += Number(entry.totalPaid || 0);
+      }
+    });
+  }
 
-    // Always English short month so it matches FY_MONTH_ORDER keys
+  // Total / pending / rejected from AllExpenseData
+  allExpenseData.forEach((exp) => {
+    const dateVal =
+      exp.requested_date && typeof exp.requested_date !== "object"
+        ? exp.requested_date
+        : exp.created_at && typeof exp.created_at !== "object"
+          ? exp.created_at
+          : null;
+    if (!dateVal) return;
+
+    const date = new Date(dateVal);
+    if (isNaN(date)) return;
     const month = date.toLocaleString("en-US", { month: "short" });
     if (!monthMap[month]) return;
 
     const amount = Number(exp.amount || 0);
     monthMap[month].total += amount;
 
-    // ── Accurate status bucketing ──────────────────────────────────────────
     const status = deriveStatus(exp);
     if (status === "Paid") {
-      // Use paid_amount if present, else fall back to approved_amount, else full amount
       const paidAmt = Number(exp.paid_amount ?? exp.approved_amount ?? exp.amount ?? 0);
-      monthMap[month].paid += paidAmt;
-      // Partial payment? Remainder stays pending
       const remaining = amount - paidAmt;
       if (remaining > 0) monthMap[month].pending += remaining;
     } else if (exp.rejection_status || exp.is_rejected) {
       monthMap[month].rejected += amount;
     } else {
-      // Approved / Under Review / Pending → not yet paid
       monthMap[month].pending += amount;
     }
   });
 
-  // Trim future months (no data) so chart doesn't show a flat tail
-  const activeMonths = FY_MONTH_ORDER.filter((m) => monthMap[m].total > 0);
-  const categories = activeMonths.length > 0 ? activeMonths : FY_MONTH_ORDER;
+  // Active months: union from both sources, sorted by FY order
+  const activeFromExpenses = FY_MONTH_ORDER.filter((m) => monthMap[m].total > 0);
+  const activeFromPaid = (yearlyMonthlyPaidData || [])
+    .map((e) => MONTH_NUM_TO_SHORT[e.month_number])
+    .filter(Boolean);
+  const combined = [...new Set([...activeFromExpenses, ...activeFromPaid])];
+  const categories = FY_MONTH_ORDER.filter((m) => combined.includes(m));
+  const finalCategories = categories.length > 0 ? categories : FY_MONTH_ORDER.slice(0, 6);
 
   return {
-    categories,
-    total: categories.map((m) => monthMap[m].total),
-    paid: categories.map((m) => monthMap[m].paid),
-    pending: categories.map((m) => monthMap[m].pending),
-    rejected: categories.map((m) => monthMap[m].rejected),
+    categories: finalCategories,
+    total: finalCategories.map((m) => monthMap[m].total),
+    paid: finalCategories.map((m) => monthMap[m].paid),
+    pending: finalCategories.map((m) => monthMap[m].pending),
+    rejected: finalCategories.map((m) => monthMap[m].rejected),
   };
 }
 
@@ -101,7 +124,10 @@ function buildProjectChartData(projectWiseData) {
 
 // ─── Monthly Area Chart ───────────────────────────────────────────────────────
 function MonthlyTrendChart({ data }) {
-  if (!data?.categories?.length || data.total.every((v) => v === 0)) {
+  if (
+    !data?.categories?.length ||
+    (data.total.every((v) => v === 0) && data.paid.every((v) => v === 0))
+  ) {
     return <p className="text-center text-muted py-4">No monthly expense data available.</p>;
   }
 
@@ -205,15 +231,25 @@ function ProjectBarChart({ data }) {
   );
 }
 
+// ─── getCurrentFY helper ──────────────────────────────────────────────────────
+const getCurrentFY = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const fyStart = month >= 4 ? year : year - 1;
+  return `${fyStart}-${fyStart + 1}`;
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 function UserCommanSection() {
-  // ── Filter State (mirrors AdminDashboard) ──
-  const [selectedFY, setSelectedFY] = useState("");          // "" = All Years
-  const [selectedProjectId, setSelectedProjectId] = useState(""); // "" = All Projects
+  // CHANGE 1: default to current FY (not empty string)
+  const [selectedFY, setSelectedFY] = useState(() => getCurrentFY());
+  const [selectedProjectId, setSelectedProjectId] = useState("");
 
-  // ── Options populated from first API response ──
   const [availableFYList, setAvailableFYList] = useState([]);
   const [availableProjects, setAvailableProjects] = useState([]);
+  // CHANGE 3: intervention state
+  const [interventionWiseData, setInterventionWiseData] = useState([]);
 
   const [submitMsg, setSubmitMsg] = useState("");
   const [loading, setLoading] = useState(true);
@@ -228,20 +264,19 @@ function UserCommanSection() {
   });
   const [allExpenses, setAllExpenses] = useState([]);
   const [projectWiseData, setProjectWiseData] = useState([]);
+  // CHANGE 2: yearlyMonthlyPaidData state
+  const [yearlyMonthlyPaidData, setYearlyMonthlyPaidData] = useState([]);
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // fetchDashboard — accepts fy + projectId, mirrors admin pattern exactly
-  //   fy === ""   → send fy_year=0  (all years)
-  //   fy === "2024-2025" etc. → send as-is
-  //   projectId === "" → omit param (all projects)
-  // ─────────────────────────────────────────────────────────────────────────────
+  const isFirstLoad = useRef(true);
+
+  // ─── fetchDashboard ───────────────────────────────────────────────────────
   const fetchDashboard = async (fy, projectId) => {
     setLoading(true);
     setError("");
     try {
       const params = new URLSearchParams();
-      // Map empty string → "0" (all years), otherwise send the FY string
-      params.set("fy_year", fy === "" ? "0" : fy);
+      // CHANGE 1: send current FY or "0" for all years
+      params.set("fy_year", fy && fy !== "0" ? fy : "0");
       if (projectId) params.set("project_id", projectId);
 
       const res = await fetch(
@@ -258,25 +293,25 @@ function UserCommanSection() {
       if (json.success && json.data) {
         const d = json.data;
 
-        // ── Populate filter dropdowns only on first load ──
-        if (availableFYList.length === 0 && d.availableFYList?.length) {
-          const list = d.availableFYList
-            .map((item) => item.fy_year ?? item)
-            .filter(Boolean);
-          setAvailableFYList(list);
+        const fyList = d.filterOptions?.availableFYList ?? [];
+        const projects = d.filterOptions?.availableProjects ?? [];
+
+        if (fyList.length) {
+          setAvailableFYList(fyList.map((item) => item.fy_year).filter(Boolean));
+        }
+        if (projects.length) {
+          setAvailableProjects(projects);
         }
 
-        if (availableProjects.length === 0 && d.availableProjects?.length) {
-          setAvailableProjects(d.availableProjects);
-        }
-
-        // ── On very first load, default to the active FY ──
-        if (fy === "" && d.activeFY && d.activeFY !== "all") {
-          setSelectedFY(d.activeFY);
-          // Re-fetch immediately with the active FY so data is correct
-          // (avoid infinite loop: only do this when fy was empty/unset)
-          fetchDashboard(d.activeFY, projectId);
-          return;
+        // CHANGE 1: first load — fallback if current FY not in DB
+        if (isFirstLoad.current) {
+          isFirstLoad.current = false;
+          const currentFY = getCurrentFY();
+          const currentExists = fyList.some((f) => f.fy_year === currentFY);
+          if (!currentExists && fyList.length > 0) {
+            setSelectedFY(fyList[fyList.length - 1].fy_year);
+            return; // useEffect re-triggers
+          }
         }
 
         setStats({
@@ -288,6 +323,10 @@ function UserCommanSection() {
         });
         setAllExpenses(d.AllExpenseData ?? []);
         setProjectWiseData(d.projectWiseData ?? []);
+        // CHANGE 2: save yearlyMonthlyPaidData
+        setYearlyMonthlyPaidData(d.yearlyMonthlyPaidData ?? []);
+        // CHANGE 3: save interventionWiseData
+        setInterventionWiseData(d.interventionWiseData ?? []);
       }
     } catch (err) {
       console.error("Dashboard fetch error:", err);
@@ -297,13 +336,7 @@ function UserCommanSection() {
     }
   };
 
-  // Initial load
-  useEffect(() => {
-    fetchDashboard("", "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Re-fetch whenever either filter changes
+  // Re-fetch whenever FY or project changes
   useEffect(() => {
     fetchDashboard(selectedFY, selectedProjectId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -318,40 +351,57 @@ function UserCommanSection() {
   const countByStatus = (status) =>
     expensesWithStatus.filter((e) => e._status === status).length;
 
+  // CHANGE 2: pass yearlyMonthlyPaidData into builder
   const monthlyChartData = useMemo(
-    () => buildMonthlyChartData(allExpenses),
-    [allExpenses]
+    () => buildMonthlyChartData(yearlyMonthlyPaidData, allExpenses),
+    [yearlyMonthlyPaidData, allExpenses]
   );
+
   const projectChartData = useMemo(
     () => buildProjectChartData(projectWiseData),
     [projectWiseData]
   );
 
-  // ── Filter label (shown in card headers / badges) ──
+  // ── Filter label ──
   const selectedProjectLabel = selectedProjectId
     ? (availableProjects.find(
       (p) => String(p.project_id) === String(selectedProjectId)
     )?.project_name ?? "Project")
     : "All Projects";
-  const filterLabel = `${selectedProjectLabel} — FY ${selectedFY || "All"}`;
 
-  // ── Donut chart ──
-  const donutSeries = [
-    Number(stats.totalExpense) || 0,
-    Number(stats.paidAmount) || 0,
-    Number(stats.pendingAmount) || 0,
-    Number(stats.rejectedAmount) || 0,
-    Number(stats.approvedAmount) || 0,
-  ];
-  const hasDonutData = donutSeries.some((v) => v > 0);
+  // CHANGE 1: clean label — no "FY undefined"
+  const filterLabel =
+    selectedFY && selectedFY !== "0"
+      ? `${selectedProjectLabel} — FY ${selectedFY}`
+      : `${selectedProjectLabel} — All Years`;
 
-  const donutOptions = {
+  // CHANGE 3: Intervention Donut config
+  const interventionDonutSeries = interventionWiseData.map((i) => Number(i.totalAmount) || 0);
+  const interventionDonutLabels = interventionWiseData.map((i) => i.intervention_name ?? "Unknown");
+  const hasInterventionData = interventionDonutSeries.some((v) => v > 0);
+
+  const interventionDonutOptions = {
     chart: { type: "donut" },
-    labels: ["Total", "Paid", "Pending", "Rejected", "Approved"],
-    colors: ["#6571ff", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4"],
+    labels: interventionDonutLabels,
+    colors: ["#6571ff", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#8b5cf6", "#ec4899"],
     legend: { position: "bottom" },
     dataLabels: { enabled: true },
     tooltip: { y: { formatter: (val) => `₹ ${formatINR(val)}` } },
+    plotOptions: {
+      pie: {
+        donut: {
+          labels: {
+            show: true,
+            total: {
+              show: true,
+              label: "Total",
+              formatter: () =>
+                `₹ ${formatINR(interventionDonutSeries.reduce((a, b) => a + b, 0))}`,
+            },
+          },
+        },
+      },
+    },
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -368,7 +418,7 @@ function UserCommanSection() {
             <SkyGreeting />
           </div>
 
-          {/* Right: Filters + CTA — mirrors admin header exactly */}
+          {/* Right: Filters + CTA */}
           <div className="col-12 col-md-5">
             <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 justify-content-md-end">
               <div className="d-flex gap-2 flex-grow-1 flex-md-grow-0">
@@ -387,13 +437,12 @@ function UserCommanSection() {
                   ))}
                 </select>
 
-                {/* FY Filter */}
+                {/* CHANGE 1: FY Filter — current FY default, All Years sabse neeche */}
                 <select
                   className="form-select flex-fill"
                   value={selectedFY}
                   onChange={(e) => setSelectedFY(e.target.value)}
                 >
-                  <option value="">All Years</option>
                   {availableFYList
                     .filter((fy) => fy)
                     .map((fy) => (
@@ -401,6 +450,7 @@ function UserCommanSection() {
                         FY {fy}
                       </option>
                     ))}
+                  <option value="0">All Years</option>
                 </select>
               </div>
 
@@ -430,7 +480,7 @@ function UserCommanSection() {
         </div>
       )}
 
-      {/* ── ROW 1: Stat Cards ── */}
+      {/* ── ROW 1: Stat Cards — ORIGINAL, UNCHANGED ── */}
       <div className="row">
 
         {/* Card 1: Total Expense */}
@@ -532,16 +582,21 @@ function UserCommanSection() {
         </div>
       </div>
 
-      {/* ── ROW 2: Monthly Trend + Donut ── */}
+      {/* ── ROW 2: CHANGE 2 Monthly Trend + CHANGE 3 Intervention Donut ── */}
       <div className="row">
 
-        {/* Monthly Trend Chart */}
+        {/* CHANGE 2: Monthly Trend — now uses yearlyMonthlyPaidData from API */}
         <div className="col-xl-8">
           <div className="card">
-             <div className="card-header border-0 pb-0">
-							<h4 className="mb-0">Monthly Expense Trend</h4>
-							<span className="badge badge-sm badge-info light ms-2">{filterLabel}</span>
-						</div>
+            <div className="card-header">
+              <div>
+                <h4 className="mb-0">Monthly Expense Trend</h4>
+                <small className="text-muted">
+                  Based on requested date —{" "}
+                  <span className="badge badge-primary light">{filterLabel}</span>
+                </small>
+              </div>
+            </div>
             <div className="card-body">
               {loading
                 ? <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>
@@ -551,21 +606,29 @@ function UserCommanSection() {
           </div>
         </div>
 
-        {/* Donut Breakdown */}
+        {/* CHANGE 3: Intervention Breakdown Donut (replaces Expense Breakdown) */}
         <div className="col-xl-4">
           <div className="card">
-             <div className="card-header border-0 pb-0">
-							<h4 className="mb-0">Expense Breakdown</h4>
-							<span className="badge badge-sm badge-info light ms-2">{filterLabel}</span>
-						</div>
-
+            <div className="card-header">
+              <div>
+                <h4 className="mb-0">Intervention Breakdown</h4>
+                <small className="text-muted">
+                  <span className="badge badge-info light">{filterLabel}</span>
+                </small>
+              </div>
+            </div>
             <div className="card-body">
               {loading ? (
                 <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>
-              ) : hasDonutData ? (
-                <ReactApexChart options={donutOptions} series={donutSeries} type="donut" height={300} />
+              ) : hasInterventionData ? (
+                <ReactApexChart
+                  options={interventionDonutOptions}
+                  series={interventionDonutSeries}
+                  type="donut"
+                  height={300}
+                />
               ) : (
-                <p className="text-center text-muted py-4">No expense data available.</p>
+                <p className="text-center text-muted py-4">No intervention data available.</p>
               )}
             </div>
           </div>
@@ -593,7 +656,6 @@ function UserCommanSection() {
           </div>
         </div>
       )}
-
 
       {/* ── ROW 4: Expense Table with Tabs ── */}
       <div className="row">
