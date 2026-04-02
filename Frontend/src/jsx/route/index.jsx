@@ -25,7 +25,7 @@ import Registration from "../pages/authentication/Registration";
 import ScrollToTop from "../element/scrolltotop";
 
 import AddEmployee from "../modules/Employee/AddEmployee";
-import EmployeeList from "../modules/employee/EmployeeList";
+import EmployeeList from "../modules/Employee/EmployeeList";
 import ProjectMasterForm from "../modules/project-master/ProjectForm";
 import ProjectMasterList from "../modules/project-master/ProjectList";
 import InterventionForm from "../modules/intervention/InterventionForm";

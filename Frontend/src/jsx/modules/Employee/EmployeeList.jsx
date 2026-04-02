@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Col, Card, Table } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
-import avatar1 from "../../../assets/images/User.jpg";
+import avatar1 from "../../../assets/images/user.jpg";
 import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
