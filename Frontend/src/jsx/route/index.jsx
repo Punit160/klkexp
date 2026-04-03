@@ -48,6 +48,7 @@ import RoleEdit from "../modules/RolePermission/RoleEdit"
 import PermissionList from "../modules/RolePermission/PermissionList";
 import PermissionForm from "../modules/RolePermission/PermissionForm"
 import AssignPermission from "../modules/RolePermission/AssignPermission"
+import Profile from "../profile/Profile";
 
 const ProtectedRoute = ({ children }) => {
     const token = localStorage.getItem("token");
@@ -97,6 +98,9 @@ const Markup = () => {
         { path: '/Reviewer-List', element: <ReviewerList /> },
         { path: '/Manager-List', element: <ManagerList /> },
         { path: '/Account-List', element: <AccountsList /> },
+
+        { path: '/profile', element: < Profile/> },
+
 
         { path: 'form-element', element: <Element /> },
         { path: 'form-wizard', element: <Wizard /> },

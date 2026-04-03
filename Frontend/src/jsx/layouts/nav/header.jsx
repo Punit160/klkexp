@@ -218,7 +218,7 @@ function Header({ onNote }) {
                                           <p className="mb-0">{userEmail}</p>
                                        </div>
                                     </div>
-                                    <Link to="/edit-profile">
+                                    <Link to="/profile">
                                        <div className="icon-box">{SVGICON.edit}</div>
                                     </Link>
                                  </div>
@@ -226,7 +226,7 @@ function Header({ onNote }) {
                                  <div className="media-box">
                                     <ul className="d-flex flex-colunm gap-2 flex-wrap">
                                        <li>
-                                          <Link to="/app-profile">
+                                          <Link to="/profile">
                                              <div className="icon-box-lg">{SVGICON.profile} <p>Profile</p></div>
                                           </Link>
                                        </li>
