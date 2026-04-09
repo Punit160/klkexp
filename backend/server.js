@@ -26,7 +26,7 @@ console.log("ENV JWT_SECRET:", process.env.JWT_SECRET);
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://klkexpense.cloud"],
+    origin: ["http://localhost:5173", "http://klk.co.in"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],

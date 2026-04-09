@@ -215,7 +215,7 @@ const handleSubmit = async () => {
                                    <td>
                         {item.document ? (
                           <a
-                            href={`http://localhost:5001/uploads/${item.document}`}
+                            href={`${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${item.document}`}
                             target="_blank"
                             rel="noreferrer"
                             className="text-primary"

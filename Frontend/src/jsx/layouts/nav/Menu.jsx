@@ -1,12 +1,11 @@
 export const MenuList = [
-  { 
-    title: 'Dashboard', 
-    to: 'dashboard', 
-    iconStyle: <i className="flaticon-home" />,
-    permission: "view_dashboard"
-  },
+  { title: 'Admin Dashboard', to: '/admin-dashboard', permission: "admin_dashboard" , iconStyle: <i className="flaticon-home" /> },
+  
+  { title: 'Manager Dashboard ', to: '/manager-dashboard', permission: "manager_dashboard" ,  iconStyle: <i className="flaticon-home" /> },
 
   { title: 'Masters', classsChange: 'menu-title' },
+    
+  { title: 'User Dashboard ', to: '/user-dashboard', permission: "user_dashboard" , iconStyle: <i className="flaticon-home" /> },
 
   {
     title: 'Employee',

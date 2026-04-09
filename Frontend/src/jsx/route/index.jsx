@@ -6,6 +6,9 @@ import Footer from "../layouts/Footer";
 // dashboard 
 import Home from "../pages/dashboard/Home";
 import DashboardDark from "../pages/dashboard/DashboardDark";
+import AdminDashboard from "../pages/dashboard/Admin/AdminDashboard";
+import UserCommanSection from "../pages/dashboard/User/UserCommanSection";
+import CommanSection from "../pages/dashboard/Manager/CommanSection";
 
 // forms 
 import Element from "../pages/forms/Element/Element";
@@ -72,6 +75,10 @@ const Markup = () => {
     const protectedMenu = [
         { path: 'dashboard', element: <Home /> },
         { path: 'dashboard-dark', element: <DashboardDark /> },
+
+        { path: '/admin-dashboard', element: <AdminDashboard /> },
+        { path: '/user-dashboard', element: <UserCommanSection /> },
+        { path: '/manager-dashboard', element: <CommanSection /> },
 
         { path: '/add-employee', element: <AddEmployee /> },
         { path: '/employee-List', element: <EmployeeList /> },
