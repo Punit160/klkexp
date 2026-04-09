@@ -72,72 +72,88 @@ const PaymentList = () => {
 
           <Card.Body>
             <Table responsive className="text-nowrap">
-              <thead>
-                <tr>
-                  <th>Sno</th>
-                  <th>Project</th>
-                  <th>State</th>
-                  <th>District</th>
-                  <th>Village</th>
-                  <th>Intervention</th>
-                  <th>Amount</th>
-                  <th>Document</th>
-                  <th>Request Date</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
+             <thead>
+  <tr>
+    <th>Sno</th>
+    <th>Project</th>
+    <th>State</th>
+    <th>District</th>
+    <th>Village</th>
+    <th>Intervention</th>
+    <th>Raised By</th>
+    <th>Manager</th>
+    <th>Amount</th>
+    <th>Approved Amount</th>
+    <th>Document</th>
+    <th>Request Date</th>
+    <th>Status</th>
+  </tr>
+</thead>
 
               <tbody>
-                {currentData.length > 0 ? (
-                  currentData.map((item, index) => (
-                    <tr key={item.id}>
-                      <td>{indexOfFirst + index + 1}</td>
+  {currentData.length > 0 ? (
+    currentData.map((item, index) => (
+      <tr key={item.id}>
+        <td>{indexOfFirst + index + 1}</td>
 
-                      <td>{item.project_name}</td>
-                      <td>{item.project_state}</td>
-                      <td>{item.project_district}</td>
-                      <td>{item.project_village}</td>
-                      <td>{item.intervention_name}</td>
-                      <td>₹ {item.amount}</td> 
-                      
+        <td>{item.project_name}</td>
+        <td>{item.state || "N/A"}</td>
+        <td>{item.district || "N/A"}</td>
+        <td>{item.village || "N/A"}</td>
 
-                      {/* Document */}
-                      <td>
-                        {item.document ? (
-                          <a
-                            href={`${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${item.document}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-primary"
-                          >
-                            View
-                          </a>
-                        ) : (
-                          "N/A"
-                        )}
-                      </td>
+        <td>{item.intervention_name || "N/A"}</td>
 
-                      {/* Date */}
-                      <td>
-                        {new Date(item.created_at).toLocaleDateString()}
-                      </td>
+        <td>{item.raised_by || "N/A"}</td>
+        <td>{item.manager_name || "N/A"}</td>
 
-                      {/* Status (default 0) */}
-                      <td>
-                        <span className="badge bg-warning">
-                          Pending
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="9" className="text-center">
-                      No Data Found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
+        <td>₹ {item.amount}</td>
+        <td>₹ {item.final_approved_amount || "0"}</td>
+
+        {/* Document */}
+        <td>
+          {item.document ? (
+            <a
+              href={`${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${item.document}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary"
+            >
+              View
+            </a>
+          ) : (
+            "N/A"
+          )}
+        </td>
+
+        {/* Date */}
+        <td>
+          {new Date(item.created_at).toLocaleDateString()}
+        </td>
+
+        {/* Status */}
+        <td>
+          <span
+            className={`badge ${
+              item.status === "Approved"
+                ? "bg-success"
+                : item.status === "Rejected"
+                ? "bg-danger"
+                : "bg-warning"
+            }`}
+          >
+            {item.status}
+          </span>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan="16" className="text-center">
+        No Data Found
+      </td>
+    </tr>
+  )}
+</tbody>
             </Table>
 
             {/* PAGINATION */}

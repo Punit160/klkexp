@@ -134,25 +134,23 @@ export const createExpense = async (req, res) => {
     });
   }
 };
-
-
 export const getMyCreatedExpenses = async (req, res) => {
   try {
     const company_id = req.user?.company_id;
     const user_id = req.user?.id;
 
-    if (!company_id || ! user_id) {
+    if (!company_id || !user_id) {
       return res.status(401).json({
         message: "Unauthorized",
       });
     }
 
-    // ✅ 1. Fetch all data
+    // ✅ Fetch all data
     const [expenses, projects, users, interventions] = await Promise.all([
       prisma.expensePayment.findMany({
         where: {
           company_id,
-          requested_by : user_id,
+          requested_by: user_id,
         },
         orderBy: {
           created_at: "desc",
@@ -175,37 +173,69 @@ export const getMyCreatedExpenses = async (req, res) => {
       }),
     ]);
 
-    // ✅ 2. Map data
+    // ✅ CREATE MAPS (MISSING PART - IMPORTANT)
+    const projectMap = Object.fromEntries(
+      projects.map((p) => [p.id, p.name])
+    );
+
+    const userMap = Object.fromEntries(
+      users.map((u) => [u.id, u.username])
+    );
+
+    const interventionMap = Object.fromEntries(
+      interventions.map((i) => [i.id, i.name])
+    );
+
+    // ✅ STATUS FUNCTION (MISSING)
+    const getStatusText = (status) => {
+      if (Number(status) === 1) return "Approved";
+      if (Number(status) === 2) return "Rejected";
+      return "Pending";
+    };
+
+    // ✅ MAP DATA
     const mappedExpenses = expenses.map((exp) => {
-      const project = projects.find(
-        (p) => p.id === Number(exp.project_name) // 👈 project_id stored in project_name
-      );
-
-      const manager = users.find(
-        (u) => u.id === exp.manager_id
-      );
-
-       const intervention = interventions.find(
-        (i) => i.id === Number(exp.intervention) // 👈 IMPORTANT
-      );
+      const projectId = parseInt(exp.project_name);
+      const interventionId = parseInt(exp.intervention);
+      const managerId = parseInt(exp.manager_id);
+      const reviewerId = parseInt(exp.reviewer_id);
+      const userId = parseInt(exp.requested_by);
 
       return {
         id: exp.id,
-        project_name: project?.name || "N/A",
-        manager_name: manager?.username || "N/A",
-        intervention_name: intervention?.name || "N/A",
-        project_state: exp.project_state,
-        project_district: exp.project_district,
-        project_village: exp.project_village,
+
+        project_name:
+          !isNaN(projectId)
+            ? projectMap[projectId] || "N/A"
+            : exp.project_name || "N/A",
+
+        intervention_name:
+          !isNaN(interventionId)
+            ? interventionMap[interventionId] || "N/A"
+            : exp.intervention || "N/A",
+
+        state: exp.project_state,
+        district: exp.project_district,
+        village: exp.project_village,
+
         amount: exp.amount,
         document: exp.document,
         created_at: exp.created_at,
+
+        raised_by: userMap[userId] || "N/A",
+        manager_name: userMap[managerId] || "N/A",
+
+        status: getStatusText(exp.approval_status),
+        final_approved_amount: exp.final_approved_amount  || "N/A",
+
       };
     });
 
     return res.status(200).json(mappedExpenses);
 
   } catch (error) {
+    console.error("Error in getMyCreatedExpenses:", error);
+
     return res.status(500).json({
       message: error.message,
     });

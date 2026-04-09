@@ -24,37 +24,48 @@ function SideBar() {
     fetchPermissions();
   }, []);
 
-  const fetchPermissions = async () => {
-    try {
-      const res = await getMyPermissions();
+ const fetchPermissions = async () => {
+  try {
+    const res = await getMyPermissions();
 
-      const perms = res?.data?.data || [];
-      const permKeys = perms.map((p) => p.key);
+    const perms = res?.data?.data || [];
+    const permKeys = perms.map((p) => p.key);
 
-      // ✅ FILTER MENU
-      const filteredMenu = MenuList.map((menu) => {
+    console.log("User Permissions:", permKeys); // 🔍 debug
+
+    const filteredMenu = MenuList
+      // ✅ FIRST: filter parent menus (IMPORTANT for dashboards)
+      .filter((menu) => {
+        // allow if no permission required
+        if (!menu.permission) return true;
+
+        return permKeys.includes(menu.permission);
+      })
+      // ✅ SECOND: filter submenus
+      .map((menu) => {
         if (!menu.content) return menu;
 
         const filteredSub = menu.content.filter((sub) => {
-          // show if no permission required
           if (!sub.permission) return true;
 
           return permKeys.includes(sub.permission);
         });
 
         return { ...menu, content: filteredSub };
-      }).filter((menu) => !menu.content || menu.content.length > 0);
+      })
+      // ✅ THIRD: remove empty menus
+      .filter((menu) => !menu.content || menu.content.length > 0);
 
-      // ✅ FALLBACK (IMPORTANT)
-      setMenuData(filteredMenu.length ? filteredMenu : MenuList);
+    // ✅ FINAL: no unsafe fallback
+    setMenuData(filteredMenu);
 
-    } catch (error) {
-      console.error("Sidebar permission error:", error);
+  } catch (error) {
+    console.error("Sidebar permission error:", error);
 
-      // fallback if API fails
-      setMenuData(MenuList);
-    }
-  };
+    // ❗ safer fallback → show NOTHING instead of full access
+    setMenuData([]);
+  }
+};
 
   // ACTIVE MENU
   const handleMenuActive = (status) => {
