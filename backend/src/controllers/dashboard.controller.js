@@ -66,7 +66,7 @@ export const UserDashboard = async (req, res) => {
             const amount = Number(item._sum.amount) || 0;
             const approvalamount = Number(item._sum.final_approved_amount) || 0;
             const pamount = Number(item._sum.paid_amount) || 0;
-            if (item.payment_status === 1) paidAmount += pamount;
+            if (item.payment_status  !==0) paidAmount += pamount;
             if (item.approval_status === 2) rejectedAmount += amount;
             if (item.approval_status === 1) approvedAmount += approvalamount;
             if (item.approval_status === 1) pendingAmount += approvalamount - pamount;
@@ -81,7 +81,7 @@ export const UserDashboard = async (req, res) => {
             FROM expensepayment ep
             WHERE ep.company_id     = ${company_id}
               AND ep.requested_by   = ${user_id}
-              AND ep.payment_status = 1
+              AND ep.payment_status != 0
               ${projectFragment}
               ${interventionFragment}
             GROUP BY financial_year
@@ -96,7 +96,7 @@ export const UserDashboard = async (req, res) => {
                 MONTHNAME(ep.created_at) AS month_name,
                 COUNT(ep.id)             AS totalCount,
                 COALESCE(SUM(ep.amount), 0) AS totalAmount,
-                COALESCE(SUM(CASE WHEN ep.payment_status = 1 THEN ep.paid_amount ELSE 0 END), 0) AS totalPaid,
+                COALESCE(SUM(CASE WHEN ep.payment_status != 0 THEN ep.paid_amount ELSE 0 END), 0) AS totalPaid,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount - COALESCE(ep.paid_amount, 0) ELSE 0 END), 0) AS pendingAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END), 0) AS rejectedAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount ELSE 0 END), 0) AS approvedAmount
@@ -117,7 +117,7 @@ export const UserDashboard = async (req, res) => {
                 p.name AS project_name,
                 COUNT(ep.id) AS totalRequests,
                 COALESCE(SUM(ep.amount), 0) AS totalAmount,
-                COALESCE(SUM(CASE WHEN ep.payment_status = 1 THEN ep.paid_amount ELSE 0 END), 0) AS totalPaid,
+                COALESCE(SUM(CASE WHEN ep.payment_status != 0 THEN ep.paid_amount ELSE 0 END), 0) AS totalPaid,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount - COALESCE(ep.paid_amount, 0) ELSE 0 END), 0) AS pendingAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END), 0) AS rejectedAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount ELSE 0 END), 0) AS approvedAmount
@@ -162,7 +162,7 @@ export const UserDashboard = async (req, res) => {
                 i.name AS intervention_name,
                 COUNT(ep.id) AS totalRequests,
                 COALESCE(SUM(ep.amount), 0) AS totalAmount,
-                COALESCE(SUM(CASE WHEN ep.payment_status = 1 THEN ep.paid_amount ELSE 0 END), 0) AS totalPaid,
+                COALESCE(SUM(CASE WHEN ep.payment_status != 0 THEN ep.paid_amount ELSE 0 END), 0) AS totalPaid,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount - COALESCE(ep.paid_amount, 0) ELSE 0 END), 0) AS pendingAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END), 0) AS rejectedAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount ELSE 0 END), 0) AS approvedAmount
@@ -235,8 +235,6 @@ export const UserDashboard = async (req, res) => {
 };
 
 
-
-
 export const AdminDashboard = async (req, res) => {
     try {
         const company_id = req.user.company_id;
@@ -295,7 +293,7 @@ export const AdminDashboard = async (req, res) => {
             const approvalamount = Number(item._sum.final_approved_amount) || 0;
             const pamount = Number(item._sum.paid_amount) || 0;
 
-            if (item.payment_status === 1) paidAmount += pamount;
+            if (item.payment_status !== 1) paidAmount += pamount;
             if (item.approval_status === 2) rejectedAmount += amount;
             if (item.approval_status === 1)
                 approvedAmount += approvalamount;
@@ -317,7 +315,7 @@ export const AdminDashboard = async (req, res) => {
 
         COALESCE(SUM(
             CASE 
-                WHEN ep.payment_status = 1 
+                WHEN ep.payment_status != 0 
                 THEN ep.paid_amount 
                 ELSE 0 
             END
@@ -410,7 +408,7 @@ export const AdminDashboard = async (req, res) => {
 
         COALESCE(SUM(
             CASE 
-                WHEN ep.payment_status = 1 
+                WHEN ep.payment_status != 0 
                 THEN ep.paid_amount 
                 ELSE 0 
             END
@@ -467,7 +465,7 @@ export const AdminDashboard = async (req, res) => {
 
         COALESCE(SUM(
             CASE 
-                WHEN ep.payment_status = 1 
+                WHEN ep.payment_status != 0 
                 THEN ep.paid_amount 
                 ELSE 0 
             END
@@ -544,7 +542,7 @@ const UserExpenseData = await prisma.$queryRaw`
                 COUNT(id)      AS totalCount
             FROM expensepayment
             WHERE company_id    = ${company_id}
-              AND payment_status = 1
+              AND payment_status != 0
             GROUP BY financial_year
             ORDER BY financial_year ASC
         `;
@@ -629,6 +627,7 @@ const UserExpenseData = await prisma.$queryRaw`
 export const ManagerDashboard = async (req, res) => {
     try {
         const company_id = req.user.company_id;
+        const manager_id = req.user.id;
 
         // ─── FY Resolution ────────────────────────────────
         const rawFY = req.query.fy_year;
@@ -659,6 +658,7 @@ export const ManagerDashboard = async (req, res) => {
         // ─── ORM where (for groupBy) ──────────────────────
         const whereCondition = {
             company_id,
+            manager_id,
             ...(fyYear && { financial_year: fyYear }),
             ...(filterUserId && { requested_by: filterUserId }),
             ...(filterProjectId && { project_name: filterProjectId }),
@@ -684,7 +684,7 @@ export const ManagerDashboard = async (req, res) => {
             const approvalamount = Number(item._sum.final_approved_amount) || 0;
             const pamount = Number(item._sum.paid_amount) || 0;
 
-            if (item.payment_status === 1) paidAmount += pamount;
+            if (item.payment_status !== 1) paidAmount += pamount;
             if (item.approval_status === 2) rejectedAmount += amount;
             if (item.approval_status === 1)
                 approvedAmount += approvalamount;
@@ -706,7 +706,7 @@ export const ManagerDashboard = async (req, res) => {
 
         COALESCE(SUM(
             CASE 
-                WHEN ep.payment_status = 1 
+                WHEN ep.payment_status != 0 
                 THEN ep.paid_amount 
                 ELSE 0 
             END
@@ -740,6 +740,7 @@ export const ManagerDashboard = async (req, res) => {
     LEFT JOIN user u ON u.id = ep.requested_by
 
     WHERE ep.company_id = ${company_id}
+        AND ep.manager_id = ${manager_id}
     ${fyFragment}
     ${projectFragment}
     ${interventionFragment}
@@ -766,6 +767,7 @@ export const ManagerDashboard = async (req, res) => {
             LEFT JOIN project p      ON p.id  = ep.project_name
             LEFT JOIN intervention i ON i.id  = ep.intervention
             WHERE ep.company_id      = ${company_id}
+                AND ep.manager_id      = ${manager_id}
               AND ep.approval_status = 0
               ${fyFragment}
               ${userFragment}
@@ -783,6 +785,7 @@ export const ManagerDashboard = async (req, res) => {
                 SUM(ep.paid_amount) AS totalAmount
             FROM expensepayment ep
             WHERE ep.company_id = ${company_id}
+                AND ep.manager_id = ${manager_id}
               ${extraFilters}
             GROUP BY ep.payment_status, ep.approval_status
         `;
@@ -799,7 +802,7 @@ export const ManagerDashboard = async (req, res) => {
 
         COALESCE(SUM(
             CASE 
-                WHEN ep.payment_status = 1 
+                WHEN ep.payment_status != 0 
                 THEN ep.paid_amount 
                 ELSE 0 
             END
@@ -834,6 +837,7 @@ export const ManagerDashboard = async (req, res) => {
     LEFT JOIN project p ON p.id = ep.project_name
 
     WHERE ep.company_id = ${company_id}
+        AND ep.manager_id = ${manager_id}
     ${fyFragment}
     ${projectFragment}
     ${userFragment}
@@ -856,7 +860,7 @@ export const ManagerDashboard = async (req, res) => {
 
         COALESCE(SUM(
             CASE 
-                WHEN ep.payment_status = 1 
+                WHEN ep.payment_status != 0 
                 THEN ep.paid_amount 
                 ELSE 0 
             END
@@ -891,6 +895,7 @@ export const ManagerDashboard = async (req, res) => {
     LEFT JOIN intervention i ON i.id = ep.intervention
 
     WHERE ep.company_id = ${company_id}
+        AND ep.manager_id = ${manager_id}
     ${fyFragment}
     ${userFragment}
     ${projectFragment}
@@ -914,6 +919,7 @@ const UserExpenseData = await prisma.$queryRaw`
             LEFT JOIN project p ON ep.project_name = p.id
             LEFT JOIN intervention i ON ep.intervention = i.id
             WHERE ep.company_id   = ${company_id}
+                AND ep.manager_id   = ${manager_id}
             ${fyFragment}
             ${userFragment}
             ${projectFragment}
@@ -933,7 +939,8 @@ const UserExpenseData = await prisma.$queryRaw`
                 COUNT(id)      AS totalCount
             FROM expensepayment
             WHERE company_id    = ${company_id}
-              AND payment_status = 1
+              AND payment_status != 0
+              AND manager_id      = ${manager_id}
             GROUP BY financial_year
             ORDER BY financial_year ASC
         `;
@@ -943,6 +950,7 @@ const UserExpenseData = await prisma.$queryRaw`
             SELECT DISTINCT financial_year AS fy_year
             FROM expensepayment
             WHERE company_id = ${company_id}
+              AND manager_id   = ${manager_id}
             ORDER BY financial_year DESC
         `;
 
@@ -953,6 +961,7 @@ const UserExpenseData = await prisma.$queryRaw`
             FROM expensepayment ep
             LEFT JOIN user u ON u.id = ep.requested_by
             WHERE ep.company_id = ${company_id}
+              AND ep.manager_id   = ${manager_id}
             ORDER BY u.username ASC
         `;
 
@@ -963,6 +972,7 @@ const UserExpenseData = await prisma.$queryRaw`
             FROM expensepayment ep
             LEFT JOIN project p ON p.id = ep.project_name
             WHERE ep.company_id = ${company_id}
+              AND ep.manager_id   = ${manager_id}
             ORDER BY p.name ASC
         `;
 
@@ -973,6 +983,7 @@ const UserExpenseData = await prisma.$queryRaw`
             FROM expensepayment ep
             LEFT JOIN intervention i ON i.id = ep.intervention
             WHERE ep.company_id = ${company_id}
+              AND ep.manager_id   = ${manager_id}
             ORDER BY i.name ASC
         `;
         // ─── Serialize BigInt → Number then Respond ───────
@@ -1084,7 +1095,7 @@ const UserExpenseData = await prisma.$queryRaw`
 //                 u.phone_no          AS user_phone,
 //                 COUNT(ep.id)        AS totalRequests,
 //                 SUM(ep.amount)      AS totalAmount,
-//                 SUM(CASE WHEN ep.payment_status = 1 THEN ep.amount ELSE 0 END)                            AS totalPaid,
+//                 SUM(CASE WHEN ep.payment_status != 0 THEN ep.amount ELSE 0 END)                            AS totalPaid,
 //                 SUM(CASE WHEN ep.approval_status = 0 THEN ep.amount ELSE 0 END)                           AS pendingAmount,
 //                 SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END)                           AS rejectedAmount,
 //                 SUM(CASE WHEN ep.approval_status = 1 AND ep.payment_status = 0 THEN ep.amount ELSE 0 END) AS approvedAmount
@@ -1143,7 +1154,7 @@ const UserExpenseData = await prisma.$queryRaw`
 //                 p.name              AS project_name,
 //                 COUNT(ep.id)        AS totalRequests,
 //                 SUM(ep.amount)      AS totalAmount,
-//                 SUM(CASE WHEN ep.payment_status = 1 THEN ep.amount ELSE 0 END)                            AS totalPaid,
+//                 SUM(CASE WHEN ep.payment_status != 0 THEN ep.amount ELSE 0 END)                            AS totalPaid,
 //                 SUM(CASE WHEN ep.approval_status = 0 THEN ep.amount ELSE 0 END)                           AS pendingAmount,
 //                 SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END)                           AS rejectedAmount,
 //                 SUM(CASE WHEN ep.approval_status = 1 AND ep.payment_status = 0 THEN ep.amount ELSE 0 END) AS approvedAmount
@@ -1165,7 +1176,7 @@ const UserExpenseData = await prisma.$queryRaw`
 //                 i.name              AS intervention_name,
 //                 COUNT(ep.id)        AS totalRequests,
 //                 SUM(ep.amount)      AS totalAmount,
-//                 SUM(CASE WHEN ep.payment_status = 1 THEN ep.amount ELSE 0 END)                            AS totalPaid,
+//                 SUM(CASE WHEN ep.payment_status != 0 THEN ep.amount ELSE 0 END)                            AS totalPaid,
 //                 SUM(CASE WHEN ep.approval_status = 0 THEN ep.amount ELSE 0 END)                           AS pendingAmount,
 //                 SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END)                           AS rejectedAmount,
 //                 SUM(CASE WHEN ep.approval_status = 1 AND ep.payment_status = 0 THEN ep.amount ELSE 0 END) AS approvedAmount
@@ -1187,7 +1198,7 @@ const UserExpenseData = await prisma.$queryRaw`
 //                 COUNT(id)      AS totalCount
 //             FROM expensepayment
 //             WHERE company_id    = ${company_id}
-//               AND payment_status = 1
+//               AND payment_status != 0
 //             GROUP BY financial_year
 //             ORDER BY financial_year ASC
 //         `;

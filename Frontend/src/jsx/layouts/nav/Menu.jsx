@@ -1,63 +1,60 @@
 export const MenuList = [
+  { title: 'Admin Dashboard', to: '/admin-dashboard', permission: "admin_dashboard" , iconStyle: <i className="flaticon-home" /> },
+  
+  { title: 'Manager Dashboard ', to: '/manager-dashboard', permission: "manager_dashboard" ,  iconStyle: <i className="flaticon-home" /> },
 
-
-    { title: 'Dashboard ', to: 'dashboard', iconStyle: <i className="flaticon-home" /> },
-
-    { title: 'Admin Dashboard', to: '/admin-dashboard', iconStyle: <i className="flaticon-home" /> },
-    { title: 'Manager Dashboard ', to: '/manager-dashboard', iconStyle: <i className="flaticon-home" /> },
+  { title: 'Masters', classsChange: 'menu-title' },
     
-    { title: 'Masters', classsChange: 'menu-title' },
-    
-    { title: 'User Dashboard ', to: '/user-dashboard', iconStyle: <i className="flaticon-home" /> },    
+  { title: 'User Dashboard ', to: '/user-dashboard', permission: "user_dashboard" , iconStyle: <i className="flaticon-home" /> },
 
+  {
+    title: 'Employee',
+    iconStyle: <i className="flaticon flaticon-user" />,
+    classsChange: 'mm-collapse',
+    permission: "view_user",
+    content: [
+      { title: 'Add Employee', to: 'add-employee', permission: "create_user" },
+      { title: 'Employee List', to: 'employee-List', permission: "view_user" },
+    ]
+  },
 
-    {
-        title: 'Employee',
-        iconStyle: <i className="flaticon flaticon-user" />,
-        classsChange: 'mm-collapse',
-        content: [
-            { title: 'Add Employee', to: 'add-employee' },
-            { title: 'Employee List', to: 'employee-List' },
-        ]
-    },
+  {
+    title: 'Project Master',
+    iconStyle: <i className="flaticon flaticon-file" />,
+    classsChange: 'mm-collapse',
+    permission: "view_project",
+    content: [
+      { title: 'Add Project', to: 'project-master', permission: "create_project" },
+      { title: 'Project List', to: 'project-list', permission: "view_project" },
+    ]
+  },
 
-    {
-        title: 'Project Master',
-        iconStyle: <i className="flaticon flaticon-file" />,
-        classsChange: 'mm-collapse',
-        content: [
-            { title: 'Add Project', to: 'project-master' },
-            { title: 'Project List', to: 'project-list' },
-        ]
-    },
+  {
+    title: 'Intervention',
+    iconStyle: <i className="flaticon-registration" />,
+    classsChange: 'mm-collapse',
+    permission: "view_intervention",
+    content: [
+      { title: 'Add Intervention', to: 'intervention-form', permission: "create_intervention" },
+      { title: 'Intervention List', to: 'intervention-List', permission: "view_intervention" },
+    ]
+  },
 
-    {
-        title: 'Intervention',
-        iconStyle: <i className="flaticon-registration" />,  
-        classsChange: 'mm-collapse',
-        content: [
-            { title: 'Add Intervention', to: 'intervention-form' },
-            { title: 'Intervention List', to: 'intervention-List' },
-        ]
-    },
+  {
+    title: 'Employee Payment',
+    iconStyle: <i className="flaticon-grid" />,
+    classsChange: 'mm-collapse',
+    permission: "view_expense",
+    content: [
+      { title: 'Add Expense', to: '/Add-Expense', permission: "create_expense" },
+      { title: 'Payment List', to: '/payment-list', permission: "view_expense" },
+      { title: 'Manager List', to: '/manager-list', permission: "manager_expense" },
+      { title: 'Reviewer List', to: '/reviewer-list', permission: "reviewer_expense" },
+      { title: 'Accounts List', to: '/account-list', permission: "account_expense" },
+    ]
+  },
 
-
-
-
-    {
-        title: 'Employee Payment',
-       iconStyle: <i className="flaticon-grid" />,
-        classsChange: 'mm-collapse',
-        content: [
-            { title: 'Add Expense', to: '/Add-Expense' },
-            { title: 'Payment List', to: '/payment-list' },
-            { title: 'Manager List', to: '/manager-list' },
-            { title: 'Reviewer List', to: '/reviewer-list' },
-            { title: 'Accounts List', to: '/account-list' },
-
-        ]
-    },    // Settings Panel
-     {
+  {
     title: 'Settings',
     classsChange: 'mm-collapse',
     iconStyle: <i className="flaticon-registration" />,
@@ -69,6 +66,4 @@ export const MenuList = [
       { title: 'Permission List', to: '/permission/list', permission: "view_permission" },
     ],
   },
-
-
-]
+];

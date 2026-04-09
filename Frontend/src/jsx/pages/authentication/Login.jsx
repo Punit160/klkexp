@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { connect, useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
@@ -47,6 +48,8 @@ function Login() {
     try {
       setLoading(true);
       dispatch(loadingToggleAction(true));
+
+      console.log(import.meta.env.VITE_BACKEND_API_URL);
 
       const response = await axios.post(
         `${import.meta.env.VITE_BACKEND_API_URL}login/loginuser`,

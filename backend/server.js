@@ -26,7 +26,7 @@ console.log("ENV JWT_SECRET:", process.env.JWT_SECRET);
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://klkexpense.cloud"],
+    origin: ["http://localhost:5174", "http://klk.co.in"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -39,7 +39,7 @@ app.use(session({
   secret: "your_secret_key",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, httpOnly: true }
+  cookie: { secure: false, httpOnly: true } 
 }));
 
 
@@ -61,13 +61,13 @@ if (!fs.existsSync(uploadDir)) {
 
 app.use("/api/login", loginRoutes);
 
-import { auth } from "./src/middlewares/auth.js"
+import {auth} from "./src/middlewares/auth.js"
 
 app.use(auth)
 // routes
 app.use("/api/users", userRoutes);
 app.use("/api/projects", projectRoutes);
-app.use("/api/interventions", interventionRoutes);
+app.use("/api/interventions", interventionRoutes); 
 app.use("/api/expense", expenseRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/role", roleRoutes);

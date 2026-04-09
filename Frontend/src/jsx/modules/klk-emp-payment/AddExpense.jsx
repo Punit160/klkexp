@@ -16,7 +16,7 @@ const AddExpense = () => {
     remarks: "",
   });
 
-  //   FETCH DROPDOWN DATA
+  // 🔥 FETCH DROPDOWN DATA
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -31,7 +31,7 @@ const AddExpense = () => {
 
         const data = await res.json();
 
-        console.log("API DATA", data);
+        console.log("API DATA 👉", data);
 
         setProjects(data.projects || []);
         setInterventions(data.interventions || []);
@@ -44,7 +44,7 @@ const AddExpense = () => {
     fetchData();
   }, []);
 
-  //   HANDLE CHANGE
+  // 🔥 HANDLE CHANGE
   const handleChange = (e) => {
     const { name, value, files } = e.target;
 
@@ -55,7 +55,7 @@ const AddExpense = () => {
     }
   };
 
-  //   SUBMIT FORM
+  // 🔥 SUBMIT FORM
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -92,9 +92,9 @@ const AddExpense = () => {
         return;
       }
 
-      alert("Expense Created Successfully");
+      alert("Expense Created Successfully ✅");
 
-      // RESET FORM
+      // 🔄 RESET FORM
       setFormData({
         project_name: "",
         project_state: "",

@@ -9,6 +9,8 @@ export const createPermission = async (req, res) => {
     const company_id = req.user?.company_id;
     const created_by = req.user?.id;
 
+    console.log("USER:", req.user);
+
     if (!company_id || !created_by) {
       return res.status(401).json({ message: "Unauthorized" });
     }

@@ -22,7 +22,7 @@ const ManagerList = () => {
     managertoreviewer: "",
     });
 
-  //   FETCH DATA
+  // ✅ FETCH DATA
   useEffect(() => {
     fetchExpenses();
     fetchReviewers();
@@ -44,7 +44,7 @@ const ManagerList = () => {
     }
   };
 
-  //   FETCH REVIEWERS
+  // ✅ FETCH REVIEWERS
   const fetchReviewers = async () => {
     try {
       const res = await axios.get(
@@ -74,26 +74,26 @@ const ManagerList = () => {
 
   
 
-  //   OPEN REVIEW MODAL
+  // ✅ OPEN REVIEW MODAL
 const handleOpenModal = (item) => {
   setSelectedItem(item);
 
   setReviewData({
     managerApproval: "1",
-    approvedamount: getFinalAmount(item), //   correct now
+    approvedamount: getFinalAmount(item), // ✅ correct now
     remark: "",
   });
 
   setShowModal(true);
 };
 
-  //   OPEN ASSIGN MODAL
+  // ✅ OPEN ASSIGN MODAL
   const handleAssign = (item) => {
     setSelectedItem(item);
     setShowAssignModal(true);
   };
 
-  //   HANDLE CHANGE
+  // ✅ HANDLE CHANGE
 const handleChange = (e) => {
   const { name, value } = e.target;
 
@@ -111,7 +111,7 @@ const handleChange = (e) => {
     setAssignData({ ...assignData, [name]: value });
     };
 
-  //   SUBMIT APPROVAL
+  // ✅ SUBMIT APPROVAL
 const handleSubmit = async () => {
   try {
     await axios.patch(
@@ -128,7 +128,7 @@ const handleSubmit = async () => {
       }
     );
 
-    alert("  Manager decision saved");
+    alert("✅ Manager decision saved");
 
     setShowModal(false);
     fetchExpenses();
@@ -138,7 +138,7 @@ const handleSubmit = async () => {
   }
 };
 
-  //   ASSIGN REVIEWER API
+  // ✅ ASSIGN REVIEWER API
  const handleAssignSubmit = async () => {
   try {
     await axios.patch(
@@ -154,7 +154,7 @@ const handleSubmit = async () => {
       }
     );
 
-    alert("  Reviewer assigned successfully");
+    alert("✅ Reviewer assigned successfully");
     setShowAssignModal(false);
     setAssignData({
       reviewer_id: "",
@@ -215,7 +215,7 @@ const handleSubmit = async () => {
                                    <td>
                         {item.document ? (
                           <a
-                            href={`http://localhost:5001/uploads/${item.document}`}
+                            href={`${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${item.document}`}
                             target="_blank"
                             rel="noreferrer"
                             className="text-primary"
