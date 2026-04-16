@@ -78,22 +78,10 @@ export const createProject = async (req, res) => {
 //   GET ALL PROJECTS (with pagination + search)
 export const getProjects = async (req, res) => {
   try {
-    let { page = 1, limit = 10, search = "" } = req.query;
-
-    page = parseInt(page);
-    limit = parseInt(limit);
-
     const projects = await prisma.project.findMany({
-
       where: {
         company_id: req.user.company_id,
-        OR: [
-          { name: { contains: search } },
-          { funder_name: { contains: search } },
-        ],
       },
-      // skip: (page - 1) * limit,
-      // take: limit,
       orderBy: {
         created_at: "desc",
       },
@@ -101,22 +89,19 @@ export const getProjects = async (req, res) => {
 
     const total = await prisma.project.count({
       where: {
-        OR: [
-          { name: { contains: search } },
-          { funder_name: { contains: search } },
-        ],
+        company_id: req.user.company_id,
       },
     });
 
     return res.json({
       total,
-      page,
-      // limit,
       data: projects,
     });
 
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error.message,
+    });
   }
 };
 
