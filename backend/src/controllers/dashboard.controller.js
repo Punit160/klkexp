@@ -49,7 +49,7 @@ export const UserDashboard = async (req, res) => {
         };
 
         // ─── 1. Status Summary ────────────────────────────
-        const data = await prisma.expensePayment.groupBy({
+        const data = await prisma.ExpensePayment.groupBy({
             by: ['approval_status', 'payment_status'],
             where: whereCondition,
             _sum: {
@@ -78,7 +78,7 @@ export const UserDashboard = async (req, res) => {
             SELECT
                 financial_year   AS fy_year,
                 SUM(ep.paid_amount) AS totalPaid
-            FROM expensepayment ep
+            FROM Expensepayment ep
             WHERE ep.company_id     = ${company_id}
               AND ep.requested_by   = ${user_id}
               AND ep.payment_status != 0
@@ -100,7 +100,7 @@ export const UserDashboard = async (req, res) => {
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount - COALESCE(ep.paid_amount, 0) ELSE 0 END), 0) AS pendingAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END), 0) AS rejectedAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount ELSE 0 END), 0) AS approvedAmount
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             WHERE ep.company_id     = ${company_id}
               AND ep.requested_by   = ${user_id}
               ${fyFragment}
@@ -121,7 +121,7 @@ export const UserDashboard = async (req, res) => {
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount - COALESCE(ep.paid_amount, 0) ELSE 0 END), 0) AS pendingAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END), 0) AS rejectedAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount ELSE 0 END), 0) AS approvedAmount
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN project p ON p.id = ep.project_name
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
@@ -135,7 +135,7 @@ export const UserDashboard = async (req, res) => {
             SELECT
                 ep.*,
                 p.name AS project_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN project p ON ep.project_name = p.id
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
@@ -149,7 +149,7 @@ export const UserDashboard = async (req, res) => {
         // ─── 6. Available FY List ─────────────────────────
         const availableFYList = await prisma.$queryRaw`
             SELECT DISTINCT financial_year AS fy_year
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
             ORDER BY financial_year DESC
@@ -166,7 +166,7 @@ export const UserDashboard = async (req, res) => {
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount - COALESCE(ep.paid_amount, 0) ELSE 0 END), 0) AS pendingAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END), 0) AS rejectedAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount ELSE 0 END), 0) AS approvedAmount
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN intervention i ON i.id = ep.intervention
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
@@ -180,7 +180,7 @@ export const UserDashboard = async (req, res) => {
             SELECT DISTINCT
                 p.id   AS project_id,
                 p.name AS project_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN project p ON p.id = ep.project_name
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
@@ -191,7 +191,7 @@ export const UserDashboard = async (req, res) => {
             SELECT DISTINCT
                 i.id   AS intervention_id,
                 i.name AS intervention_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN intervention i ON i.id = ep.intervention
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
@@ -277,7 +277,7 @@ export const AdminDashboard = async (req, res) => {
         };
 
         // ─── 1. Status Summary ────────────────────────────
-        const summaryData = await prisma.expensePayment.groupBy({
+        const summaryData = await prisma.ExpensePayment.groupBy({
             by: ['approval_status', 'payment_status'],
             where: whereCondition,
             _sum: {
@@ -347,7 +347,7 @@ export const AdminDashboard = async (req, res) => {
             END
         ), 0) AS pendingAmount
 
-    FROM expensepayment ep
+    FROM ExpensePayment ep
     LEFT JOIN user u ON u.id = ep.requested_by
 
     WHERE ep.company_id = ${company_id}
@@ -372,7 +372,7 @@ export const AdminDashboard = async (req, res) => {
                 u.email             AS user_email,
                 p.name              AS project_name,
                 i.name              AS intervention_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN user u         ON u.id  = ep.requested_by
             LEFT JOIN project p      ON p.id  = ep.project_name
             LEFT JOIN intervention i ON i.id  = ep.intervention
@@ -392,7 +392,7 @@ export const AdminDashboard = async (req, res) => {
                 ep.approval_status,
                 COUNT(ep.id)   AS totalCount,
                 SUM(ep.paid_amount) AS totalAmount
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             WHERE ep.company_id = ${company_id}
               ${extraFilters}
             GROUP BY ep.payment_status, ep.approval_status
@@ -441,7 +441,7 @@ export const AdminDashboard = async (req, res) => {
             END
         ), 0) AS approvedAmount
 
-    FROM expensepayment ep
+    FROM ExpensePayment ep
     LEFT JOIN project p ON p.id = ep.project_name
 
     WHERE ep.company_id = ${company_id}
@@ -498,7 +498,7 @@ export const AdminDashboard = async (req, res) => {
             END
         ), 0) AS approvedAmount
 
-    FROM expensepayment ep
+    FROM ExpensePayment ep
     LEFT JOIN intervention i ON i.id = ep.intervention
 
     WHERE ep.company_id = ${company_id}
@@ -520,7 +520,7 @@ export const AdminDashboard = async (req, res) => {
                 p.name AS project_name,
                 u.username AS requested_by_name,
                 i.name AS intervention_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN user u ON u.id = ep.requested_by
             LEFT JOIN project p ON ep.project_name = p.id
             LEFT JOIN intervention i ON ep.intervention = i.id
@@ -542,7 +542,7 @@ export const AdminDashboard = async (req, res) => {
                 financial_year AS fy_year,
                 SUM(amount)    AS totalPaid,
                 COUNT(id)      AS totalCount
-            FROM expensepayment
+            FROM ExpensePayment
             WHERE company_id    = ${company_id}
               AND payment_status != 0
             GROUP BY financial_year
@@ -552,7 +552,7 @@ export const AdminDashboard = async (req, res) => {
         // ─── 8. Filter Dropdown Lists ─────────────────────
         const availableFYList = await prisma.$queryRaw`
             SELECT DISTINCT financial_year AS fy_year
-            FROM expensepayment
+            FROM ExpensePayment
             WHERE company_id = ${company_id}
             ORDER BY financial_year DESC
         `;
@@ -561,7 +561,7 @@ export const AdminDashboard = async (req, res) => {
             SELECT DISTINCT
                 u.id       AS user_id,
                 u.username AS user_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN user u ON u.id = ep.requested_by
             WHERE ep.company_id = ${company_id}
             ORDER BY u.username ASC
@@ -571,7 +571,7 @@ export const AdminDashboard = async (req, res) => {
             SELECT DISTINCT
                 p.id   AS project_id,
                 p.name AS project_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN project p ON p.id = ep.project_name
             WHERE ep.company_id = ${company_id}
             ORDER BY p.name ASC
@@ -581,7 +581,7 @@ export const AdminDashboard = async (req, res) => {
             SELECT DISTINCT
                 i.id   AS intervention_id,
                 i.name AS intervention_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN intervention i ON i.id = ep.intervention
             WHERE ep.company_id = ${company_id}
             ORDER BY i.name ASC
@@ -668,7 +668,7 @@ export const ManagerDashboard = async (req, res) => {
         };
 
         // ─── 1. Status Summary ────────────────────────────
-        const summaryData = await prisma.expensePayment.groupBy({
+        const summaryData = await prisma.ExpensePayment.groupBy({
             by: ['approval_status', 'payment_status'],
             where: whereCondition,
             _sum: {
@@ -738,7 +738,7 @@ export const ManagerDashboard = async (req, res) => {
             END
         ), 0) AS pendingAmount
 
-    FROM expensepayment ep
+    FROM ExpensePayment ep
     LEFT JOIN user u ON u.id = ep.requested_by
 
     WHERE ep.company_id = ${company_id}
@@ -764,7 +764,7 @@ export const ManagerDashboard = async (req, res) => {
                 u.email             AS user_email,
                 p.name              AS project_name,
                 i.name              AS intervention_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN user u         ON u.id  = ep.requested_by
             LEFT JOIN project p      ON p.id  = ep.project_name
             LEFT JOIN intervention i ON i.id  = ep.intervention
@@ -785,7 +785,7 @@ export const ManagerDashboard = async (req, res) => {
                 ep.approval_status,
                 COUNT(ep.id)   AS totalCount,
                 SUM(ep.paid_amount) AS totalAmount
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             WHERE ep.company_id = ${company_id}
                 AND ep.manager_id = ${manager_id}
               ${extraFilters}
@@ -835,7 +835,7 @@ export const ManagerDashboard = async (req, res) => {
             END
         ), 0) AS approvedAmount
 
-    FROM expensepayment ep
+    FROM ExpensePayment ep
     LEFT JOIN project p ON p.id = ep.project_name
 
     WHERE ep.company_id = ${company_id}
@@ -893,7 +893,7 @@ export const ManagerDashboard = async (req, res) => {
             END
         ), 0) AS approvedAmount
 
-    FROM expensepayment ep
+    FROM ExpensePayment ep
     LEFT JOIN intervention i ON i.id = ep.intervention
 
     WHERE ep.company_id = ${company_id}
@@ -916,7 +916,7 @@ export const ManagerDashboard = async (req, res) => {
                 p.name AS project_name,
                 u.username AS requested_by_name,
                 i.name AS intervention_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN user u ON u.id = ep.requested_by
             LEFT JOIN project p ON ep.project_name = p.id
             LEFT JOIN intervention i ON ep.intervention = i.id
@@ -939,7 +939,7 @@ export const ManagerDashboard = async (req, res) => {
                 financial_year AS fy_year,
                 SUM(amount)    AS totalPaid,
                 COUNT(id)      AS totalCount
-            FROM expensepayment
+            FROM ExpensePayment
             WHERE company_id    = ${company_id}
                 AND manager_id    = ${manager_id}
               AND payment_status != 0
@@ -950,7 +950,7 @@ export const ManagerDashboard = async (req, res) => {
         // ─── 8. Filter Dropdown Lists ─────────────────────
         const availableFYList = await prisma.$queryRaw`
             SELECT DISTINCT financial_year AS fy_year
-            FROM expensepayment
+            FROM ExpensePayment
             WHERE company_id = ${company_id}
                 AND manager_id = ${manager_id}
             ORDER BY financial_year DESC
@@ -960,7 +960,7 @@ export const ManagerDashboard = async (req, res) => {
             SELECT DISTINCT
                 u.id       AS user_id,
                 u.username AS user_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN user u ON u.id = ep.requested_by
             WHERE ep.company_id = ${company_id}
                 AND ep.manager_id = ${manager_id}
@@ -971,7 +971,7 @@ export const ManagerDashboard = async (req, res) => {
             SELECT DISTINCT
                 p.id   AS project_id,
                 p.name AS project_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN project p ON p.id = ep.project_name
             WHERE ep.company_id = ${company_id}
                 AND ep.manager_id = ${manager_id}
@@ -982,7 +982,7 @@ export const ManagerDashboard = async (req, res) => {
             SELECT DISTINCT
                 i.id   AS intervention_id,
                 i.name AS intervention_name
-            FROM expensepayment ep
+            FROM ExpensePayment ep
             LEFT JOIN intervention i ON i.id = ep.intervention
             WHERE ep.company_id = ${company_id}
                 AND ep.manager_id = ${manager_id}
