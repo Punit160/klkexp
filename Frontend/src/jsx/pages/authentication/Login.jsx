@@ -61,7 +61,7 @@ function Login() {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
 
-        navigate("/dashboard");
+        navigate("/user-dashboard");
         toast.success("Login successful! Welcome back", {
           position: "top-right",
           autoClose: 3000,

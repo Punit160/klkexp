@@ -21,6 +21,7 @@ export const createUser = async (req, res) => {
       gender,
       qualification,
       status,
+      role_id
     } = req.body;
 
     //  FROM JWT (FIXED)
@@ -32,9 +33,10 @@ export const createUser = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized ❌" });
     }
 
-    const statusValue = status == 1;
     const photo = req.file ? req.file.filename : null;
     const user_id = "EMP" + Date.now();
+
+    const statusValue = status === "1" || status === 1 || status === true;
 
     const employee = await prisma.user.create({
       data: {
@@ -56,6 +58,7 @@ export const createUser = async (req, res) => {
         pfesi: false,
         status: statusValue,
         created_by,
+        role_id : Number(role_id),
         created_at: new Date(),
         updated_at: new Date(),
       },
@@ -69,7 +72,7 @@ export const createUser = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({
-      message: "Server error ",
+      message: error.message ,
     });
   }
 };
@@ -148,8 +151,6 @@ export const getUserById = async (req, res) => {
 };
 
 
-
-
 export const updateUser = async (req, res) => {
   const { id } = req.params;
 
@@ -168,9 +169,10 @@ export const updateUser = async (req, res) => {
       status,
       dob,
       qualification,
+      role_id, // ✅ added
     } = req.body;
 
-    // 🔥 SAFE STATUS CONVERSION (NO JSON.parse, NO ERROR)
+    // ✅ SAFE STATUS CONVERSION
     let parsedStatus;
     if (status !== undefined) {
       if (
@@ -190,7 +192,7 @@ export const updateUser = async (req, res) => {
       }
     }
 
-    // 🔥 CLEAN OBJECT (NO undefined)
+    // ✅ CLEAN UPDATE OBJECT
     const updatedData = {};
 
     if (empName) updatedData.username = empName;
@@ -207,18 +209,24 @@ export const updateUser = async (req, res) => {
     if (dol) updatedData.dol = new Date(dol);
     if (dob) updatedData.dob = new Date(dob);
 
+    // ✅ STATUS UPDATE
     if (parsedStatus !== undefined) {
       updatedData.status = parsedStatus;
     }
 
-    //  image update
+    // ✅ ROLE UPDATE (FIXED)
+    if (role_id !== undefined) {
+      updatedData.role_id = Number(role_id);
+    }
+
+    // ✅ IMAGE UPDATE
     if (req.file) {
       updatedData.user_img = req.file.filename;
     }
 
     updatedData.updated_at = new Date();
 
-    // 🔍 DEBUG (VERY IMPORTANT)
+    // 🔍 DEBUG
     console.log("FINAL UPDATE DATA:", updatedData);
 
     const user = await prisma.user.update({
@@ -227,7 +235,7 @@ export const updateUser = async (req, res) => {
     });
 
     res.json({
-      message: "User updated successfully  ",
+      message: "User updated successfully",
       data: user,
     });
 

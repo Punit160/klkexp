@@ -4,6 +4,7 @@ import PageTitle from "../../layouts/PageTitle";
 import { useNavigate } from "react-router-dom";
 import { createEmployee, getReportingHeads } from "./employeeApi";
 import { useEffect } from "react";
+import { getRoles } from "../RolePermission/roleApi";
 
 
 const AddEmployee = () => {
@@ -28,10 +29,12 @@ const AddEmployee = () => {
     qualification: "",
     status: "1",
     photo: null,
+    role_id: "",
   });
 
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [roles, setRoles] = useState([]);
 
   //   Handle input change
   const handleChange = (e) => {
@@ -48,14 +51,19 @@ const AddEmployee = () => {
     }
   };
 
+    useEffect(() => {
+      const fetchData = async () => {
+        const { ok: okHeads, result: heads } = await getReportingHeads();
+        if (okHeads) setReportingHeads(heads);
 
-  useEffect(() => {
-    const fetchReportingHeads = async () => {
-      const { ok, result } = await getReportingHeads();
-      if (ok) setReportingHeads(result);
-    };
-    fetchReportingHeads();
-  }, []);
+        const rolesData = await getRoles();
+
+        setRoles(rolesData?.data || []);
+      };
+
+      fetchData();
+    }, []);
+
 
 
   //   Submit form
@@ -93,6 +101,7 @@ const AddEmployee = () => {
       if (formData.photo) {
         data.append("user_img", formData.photo);
       }
+      data.append("role_id", formData.role_id);
 
       //  
       const { ok, result } = await createEmployee(data);
@@ -115,6 +124,7 @@ const AddEmployee = () => {
           qualification: "",
           status: "1",
           photo: null,
+          role_id: Number(role_id),
         });
         setPreview(null);
         navigate("/employee-List");
@@ -341,6 +351,23 @@ const AddEmployee = () => {
                     />
                   )}
                 </div>
+
+                <div className="col-lg-6 mb-3">
+              <label>Role *</label>
+              <select
+                name="role_id"
+                className="form-control"
+                value={formData.role_id}
+                onChange={handleChange}
+              >
+                <option value="">Select Role</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
                 {/* Submit Button */}
                 <div className="text-end mt-2">
