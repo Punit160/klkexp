@@ -395,7 +395,7 @@ const AdminDashboard = () => {
     const userExpenseList = (dashData?.UserExpenseData ?? [])
         .slice(0, 6)
         .map((item) => ({
-            Name: item.requested_by_name,   
+            Name: item.requested_by_name,
             amount: item.amount,
             project_name: item.project_name,
             intervention_name: item.intervention_name,

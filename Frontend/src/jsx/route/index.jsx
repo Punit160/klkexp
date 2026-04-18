@@ -47,6 +47,8 @@ import PermissionList from "../modules/RolePermission/PermissionList";
 import PermissionForm from "../modules/RolePermission/PermissionForm"
 import AssignPermission from "../modules/RolePermission/AssignPermission"
 
+import InterventionReports from "../modules/Report/InterventionReports";
+
 
 
 const ProtectedRoute = ({ children }) => {
@@ -96,6 +98,12 @@ const Markup = () => {
         { path: '/Reviewer-List', element: <ReviewerList /> },
         { path: '/Manager-List', element: <ManagerList /> },
         { path: '/Account-List', element: <AccountsList /> },
+
+
+        { path: '/Intervention-Reports', element: <InterventionReports /> },
+
+
+
 
         { path: 'form-element', element: <Element /> },
         { path: 'form-wizard', element: <Wizard /> },

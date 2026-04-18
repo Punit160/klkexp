@@ -1,11 +1,11 @@
 export const MenuList = [
-  { title: 'Admin Dashboard', to: '/admin-dashboard', permission: "admin_dashboard" , iconStyle: <i className="flaticon-home" /> },
-  
-  { title: 'Manager Dashboard ', to: '/manager-dashboard', permission: "manager_dashboard" ,  iconStyle: <i className="flaticon-home" /> },
+  { title: 'Admin Dashboard', to: '/admin-dashboard', permission: "admin_dashboard", iconStyle: <i className="flaticon-home" /> },
+
+  { title: 'Manager Dashboard ', to: '/manager-dashboard', permission: "manager_dashboard", iconStyle: <i className="flaticon-home" /> },
 
   { title: 'Masters', classsChange: 'menu-title' },
-    
-  { title: 'User Dashboard ', to: '/user-dashboard', permission: "user_dashboard" , iconStyle: <i className="flaticon-home" /> },
+
+  { title: 'User Dashboard ', to: '/user-dashboard', permission: "user_dashboard", iconStyle: <i className="flaticon-home" /> },
 
   {
     title: 'Employee',
@@ -31,7 +31,7 @@ export const MenuList = [
 
   {
     title: 'Intervention',
-    iconStyle: <i className="flaticon-registration" />,
+    iconStyle: <i className="flaticon-cms" />,
     classsChange: 'mm-collapse',
     permission: "view_intervention",
     content: [
@@ -66,4 +66,17 @@ export const MenuList = [
       { title: 'Permission List', to: '/permission/list', permission: "view_permission" },
     ],
   },
+
+  {
+    title: 'Reports',
+    classsChange: 'mm-collapse',
+    iconStyle: <i className=" flaticon-project" />,
+    permission: "",
+    content: [
+      { title: 'Intervention Reports', to: '/Intervention-Reports', permission: "" },
+
+    ],
+  },
 ];
+
+

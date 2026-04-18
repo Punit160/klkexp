@@ -357,7 +357,8 @@ export const AdminDashboard = async (req, res) => {
 
     GROUP BY u.id, u.username, u.email, u.phone_no
 
-    ORDER BY totalAmount DESC
+    ORDER BY MAX(ep.id) DESC   -- latest request_id
+    LIMIT 5;
 `;
 
         // ─── 3. Approval Queue (pending approvals) ────────
