@@ -66,7 +66,7 @@ export const UserDashboard = async (req, res) => {
             const amount = Number(item._sum.amount) || 0;
             const approvalamount = Number(item._sum.final_approved_amount) || 0;
             const pamount = Number(item._sum.paid_amount) || 0;
-            if (item.payment_status === 1) paidAmount += pamount;
+            if (item.payment_status !== 0) paidAmount += pamount;
             if (item.approval_status === 2) rejectedAmount += amount;
             if (item.approval_status === 1) approvedAmount += approvalamount;
             if (item.approval_status === 1) pendingAmount += approvalamount - pamount;
@@ -78,7 +78,7 @@ export const UserDashboard = async (req, res) => {
             SELECT
                 financial_year   AS fy_year,
                 SUM(ep.paid_amount) AS totalPaid
-            FROM ExpensePayment ep
+            FROM Expensepayment ep
             WHERE ep.company_id     = ${company_id}
               AND ep.requested_by   = ${user_id}
               AND ep.payment_status != 0
@@ -122,7 +122,7 @@ export const UserDashboard = async (req, res) => {
                 COALESCE(SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END), 0) AS rejectedAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount ELSE 0 END), 0) AS approvedAmount
             FROM ExpensePayment ep
-            LEFT JOIN Project p ON p.id = ep.project_name
+            LEFT JOIN project p ON p.id = ep.project_name
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
               ${fyFragment}
@@ -136,7 +136,7 @@ export const UserDashboard = async (req, res) => {
                 ep.*,
                 p.name AS project_name
             FROM ExpensePayment ep
-            LEFT JOIN Project p ON ep.project_name = p.id
+            LEFT JOIN project p ON ep.project_name = p.id
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
               ${fyFragment}
@@ -167,7 +167,7 @@ export const UserDashboard = async (req, res) => {
                 COALESCE(SUM(CASE WHEN ep.approval_status = 2 THEN ep.amount ELSE 0 END), 0) AS rejectedAmount,
                 COALESCE(SUM(CASE WHEN ep.approval_status = 1 THEN ep.final_approved_amount ELSE 0 END), 0) AS approvedAmount
             FROM ExpensePayment ep
-            LEFT JOIN Intervention i ON i.id = ep.intervention
+            LEFT JOIN intervention i ON i.id = ep.intervention
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
               ${fyFragment}
@@ -181,7 +181,7 @@ export const UserDashboard = async (req, res) => {
                 p.id   AS project_id,
                 p.name AS project_name
             FROM ExpensePayment ep
-            LEFT JOIN Project p ON p.id = ep.project_name
+            LEFT JOIN project p ON p.id = ep.project_name
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
             ORDER BY p.name ASC
@@ -192,7 +192,7 @@ export const UserDashboard = async (req, res) => {
                 i.id   AS intervention_id,
                 i.name AS intervention_name
             FROM ExpensePayment ep
-            LEFT JOIN Intervention i ON i.id = ep.intervention
+            LEFT JOIN intervention i ON i.id = ep.intervention
             WHERE ep.company_id   = ${company_id}
               AND ep.requested_by = ${user_id}
             ORDER BY i.name ASC
@@ -295,7 +295,7 @@ export const AdminDashboard = async (req, res) => {
             const approvalamount = Number(item._sum.final_approved_amount) || 0;
             const pamount = Number(item._sum.paid_amount) || 0;
 
-            if (item.payment_status === 1) paidAmount += pamount;
+            if (item.payment_status !== 0) paidAmount += pamount;
             if (item.approval_status === 2) rejectedAmount += amount;
             if (item.approval_status === 1)
                 approvedAmount += approvalamount;
@@ -348,7 +348,7 @@ export const AdminDashboard = async (req, res) => {
         ), 0) AS pendingAmount
 
     FROM ExpensePayment ep
-    LEFT JOIN User u ON u.id = ep.requested_by
+    LEFT JOIN user u ON u.id = ep.requested_by
 
     WHERE ep.company_id = ${company_id}
     ${fyFragment}
@@ -357,8 +357,7 @@ export const AdminDashboard = async (req, res) => {
 
     GROUP BY u.id, u.username, u.email, u.phone_no
 
-    ORDER BY MAX(ep.id) DESC   -- latest request_id
-    LIMIT 5;
+    ORDER BY totalAmount DESC
 `;
 
         // ─── 3. Approval Queue (pending approvals) ────────
@@ -374,9 +373,9 @@ export const AdminDashboard = async (req, res) => {
                 p.name              AS project_name,
                 i.name              AS intervention_name
             FROM ExpensePayment ep
-            LEFT JOIN User u         ON u.id  = ep.requested_by
-            LEFT JOIN Project p      ON p.id  = ep.project_name
-            LEFT JOIN Intervention i ON i.id  = ep.intervention
+            LEFT JOIN user u         ON u.id  = ep.requested_by
+            LEFT JOIN project p      ON p.id  = ep.project_name
+            LEFT JOIN intervention i ON i.id  = ep.intervention
             WHERE ep.company_id      = ${company_id}
               AND ep.approval_status = 0
               ${fyFragment}
@@ -443,7 +442,7 @@ export const AdminDashboard = async (req, res) => {
         ), 0) AS approvedAmount
 
     FROM ExpensePayment ep
-    LEFT JOIN Project p ON p.id = ep.project_name
+    LEFT JOIN project p ON p.id = ep.project_name
 
     WHERE ep.company_id = ${company_id}
     ${fyFragment}
@@ -500,7 +499,7 @@ export const AdminDashboard = async (req, res) => {
         ), 0) AS approvedAmount
 
     FROM ExpensePayment ep
-    LEFT JOIN Intervention i ON i.id = ep.intervention
+    LEFT JOIN intervention i ON i.id = ep.intervention
 
     WHERE ep.company_id = ${company_id}
     ${fyFragment}
@@ -522,9 +521,9 @@ export const AdminDashboard = async (req, res) => {
                 u.username AS requested_by_name,
                 i.name AS intervention_name
             FROM ExpensePayment ep
-            LEFT JOIN User u ON u.id = ep.requested_by
-            LEFT JOIN Project p ON ep.project_name = p.id
-            LEFT JOIN Intervention i ON ep.intervention = i.id
+            LEFT JOIN user u ON u.id = ep.requested_by
+            LEFT JOIN project p ON ep.project_name = p.id
+            LEFT JOIN intervention i ON ep.intervention = i.id
             WHERE ep.company_id   = ${company_id}
             ${fyFragment}
             ${userFragment}
@@ -563,7 +562,7 @@ export const AdminDashboard = async (req, res) => {
                 u.id       AS user_id,
                 u.username AS user_name
             FROM ExpensePayment ep
-            LEFT JOIN User u ON u.id = ep.requested_by
+            LEFT JOIN user u ON u.id = ep.requested_by
             WHERE ep.company_id = ${company_id}
             ORDER BY u.username ASC
         `;
@@ -573,7 +572,7 @@ export const AdminDashboard = async (req, res) => {
                 p.id   AS project_id,
                 p.name AS project_name
             FROM ExpensePayment ep
-            LEFT JOIN Project p ON p.id = ep.project_name
+            LEFT JOIN project p ON p.id = ep.project_name
             WHERE ep.company_id = ${company_id}
             ORDER BY p.name ASC
         `;
@@ -583,7 +582,7 @@ export const AdminDashboard = async (req, res) => {
                 i.id   AS intervention_id,
                 i.name AS intervention_name
             FROM ExpensePayment ep
-            LEFT JOIN Intervention i ON i.id = ep.intervention
+            LEFT JOIN intervention i ON i.id = ep.intervention
             WHERE ep.company_id = ${company_id}
             ORDER BY i.name ASC
         `;
@@ -687,7 +686,7 @@ export const ManagerDashboard = async (req, res) => {
             const approvalamount = Number(item._sum.final_approved_amount) || 0;
             const pamount = Number(item._sum.paid_amount) || 0;
 
-            if (item.payment_status === 1) paidAmount += pamount;
+            if (item.payment_status !== 0) paidAmount += pamount;
             if (item.approval_status === 2) rejectedAmount += amount;
             if (item.approval_status === 1)
                 approvedAmount += approvalamount;
@@ -740,7 +739,7 @@ export const ManagerDashboard = async (req, res) => {
         ), 0) AS pendingAmount
 
     FROM ExpensePayment ep
-    LEFT JOIN User u ON u.id = ep.requested_by
+    LEFT JOIN user u ON u.id = ep.requested_by
 
     WHERE ep.company_id = ${company_id}
         AND ep.manager_id = ${manager_id}
@@ -766,9 +765,9 @@ export const ManagerDashboard = async (req, res) => {
                 p.name              AS project_name,
                 i.name              AS intervention_name
             FROM ExpensePayment ep
-            LEFT JOIN User u         ON u.id  = ep.requested_by
-            LEFT JOIN Project p      ON p.id  = ep.project_name
-            LEFT JOIN Intervention i ON i.id  = ep.intervention
+            LEFT JOIN user u         ON u.id  = ep.requested_by
+            LEFT JOIN project p      ON p.id  = ep.project_name
+            LEFT JOIN intervention i ON i.id  = ep.intervention
             WHERE ep.company_id      = ${company_id}
               AND ep.approval_status = 0
                 AND ep.manager_id       = ${manager_id}
@@ -837,7 +836,7 @@ export const ManagerDashboard = async (req, res) => {
         ), 0) AS approvedAmount
 
     FROM ExpensePayment ep
-    LEFT JOIN Project p ON p.id = ep.project_name
+    LEFT JOIN project p ON p.id = ep.project_name
 
     WHERE ep.company_id = ${company_id}
         AND ep.manager_id = ${manager_id}
@@ -895,7 +894,7 @@ export const ManagerDashboard = async (req, res) => {
         ), 0) AS approvedAmount
 
     FROM ExpensePayment ep
-    LEFT JOIN Intervention i ON i.id = ep.intervention
+    LEFT JOIN intervention i ON i.id = ep.intervention
 
     WHERE ep.company_id = ${company_id}
         AND ep.manager_id = ${manager_id}
@@ -918,9 +917,9 @@ export const ManagerDashboard = async (req, res) => {
                 u.username AS requested_by_name,
                 i.name AS intervention_name
             FROM ExpensePayment ep
-            LEFT JOIN User u ON u.id = ep.requested_by
-            LEFT JOIN Project p ON ep.project_name = p.id
-            LEFT JOIN Intervention i ON ep.intervention = i.id
+            LEFT JOIN user u ON u.id = ep.requested_by
+            LEFT JOIN project p ON ep.project_name = p.id
+            LEFT JOIN intervention i ON ep.intervention = i.id
             WHERE ep.company_id   = ${company_id}
             AND ep.manager_id   = ${manager_id}
             ${fyFragment}
@@ -962,7 +961,7 @@ export const ManagerDashboard = async (req, res) => {
                 u.id       AS user_id,
                 u.username AS user_name
             FROM ExpensePayment ep
-            LEFT JOIN User u ON u.id = ep.requested_by
+            LEFT JOIN user u ON u.id = ep.requested_by
             WHERE ep.company_id = ${company_id}
                 AND ep.manager_id = ${manager_id}
             ORDER BY u.username ASC
@@ -973,7 +972,7 @@ export const ManagerDashboard = async (req, res) => {
                 p.id   AS project_id,
                 p.name AS project_name
             FROM ExpensePayment ep
-            LEFT JOIN Project p ON p.id = ep.project_name
+            LEFT JOIN project p ON p.id = ep.project_name
             WHERE ep.company_id = ${company_id}
                 AND ep.manager_id = ${manager_id}
             ORDER BY p.name ASC
@@ -984,7 +983,7 @@ export const ManagerDashboard = async (req, res) => {
                 i.id   AS intervention_id,
                 i.name AS intervention_name
             FROM ExpensePayment ep
-            LEFT JOIN Intervention i ON i.id = ep.intervention
+            LEFT JOIN intervention i ON i.id = ep.intervention
             WHERE ep.company_id = ${company_id}
                 AND ep.manager_id = ${manager_id}
             ORDER BY i.name ASC
