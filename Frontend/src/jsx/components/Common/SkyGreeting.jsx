@@ -16,9 +16,10 @@ const getUserInfo = () => {
   return {
    name: user?.username || user?.name || "Super Admin",
    role: user?.designation || user?.role || "admin",
+   reporting_head: user?.reporting_head || "N/A",
   };
  } catch {
-  return { name: "Super Admin", role: "admin" };
+  return { name: "Super Admin", role: "admin", reporting_head: "N/A" };
  }
 };
 
@@ -253,7 +254,7 @@ export default function SkyGreeting() {
  const canvasRef = useRef(null);
  const [greeting, setGreeting] = useState(getGreeting());
 
- //  Dynamic user info — future mein role ke hisaab se alag message bhi dikh sakta hai
+ 
  const [userInfo, setUserInfo] = useState(getUserInfo);
 
  useEffect(() => {
@@ -261,11 +262,11 @@ export default function SkyGreeting() {
 
   const interval = setInterval(() => {
    setGreeting(getGreeting());
-   setUserInfo(getUserInfo());    //  har minute refresh — login change pe bhi sync
+   setUserInfo(getUserInfo());    
    if (canvasRef.current) drawScene(canvasRef.current);
   }, 60000);
 
-  //  localStorage change (dusre tab se logout/login) pe bhi sync karo
+ 
   const handleStorage = () => setUserInfo(getUserInfo());
   window.addEventListener("storage", handleStorage);
 
@@ -286,6 +287,7 @@ export default function SkyGreeting() {
    <div>
     <h3 className="mb-0">{greeting}, {userInfo.name}</h3>
     <p className="mb-0">{"Here's what's happening with your store today"}</p>
+    <p>Reporting head: {userInfo.reporting_head}</p>
    </div>
   </div>
  );

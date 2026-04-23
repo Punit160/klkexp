@@ -9,7 +9,7 @@ const AssignPermission = () => {
 
   const [permissions, setPermissions] = useState([]);
   const [selected, setSelected] = useState([]);
-  const [roleName, setRoleName] = useState("");
+  const [ roleName, setRoleName] = useState("");
 
   useEffect(() => {
     fetchPermissions();
@@ -94,7 +94,7 @@ const AssignPermission = () => {
                   <input
                     type="checkbox"
                     className="form-check-input"
-                    checked={selected.includes(perm.id)}   // ✅ FIXED
+                    checked={selected.includes(perm.id)}  
                     onChange={() => handleCheck(perm.id)}
                   />
 
