@@ -744,11 +744,7 @@ const ManagerDashboard = () => {
 											{SVGICON.project} <span>Approval Queue</span>
 										</Nav.Link>
 									</Nav.Item>
-									<Nav.Item className="nav-item">
-										<Nav.Link eventKey="payment" className="nav-link w-100">
-											{SVGICON.scale} <span>Payment Overview</span>
-										</Nav.Link>
-									</Nav.Item>
+						
 									<Nav.Item className="nav-item">
 										<Nav.Link eventKey="projectwise" className="nav-link w-100">
 											{SVGICON.socialheart} <span>Project Wise</span>
@@ -809,87 +805,7 @@ const ManagerDashboard = () => {
 											</div>
 										</Tab.Pane>
 
-										{/* ── TAB 2: PAYMENT OVERVIEW ── */}
-										<Tab.Pane eventKey="payment">
-											<div className="table-responsive">
-												<table className="table card-table border-no success-tbl">
-													<thead>
-														<tr>
-															<th>Payment Status</th>
-															<th>Approval Status</th>
-															<th>Total Requests</th>
-															<th>Total Amount</th>
-															<th>Status Label</th>
-														</tr>
-													</thead>
-													<tbody>
-														{paymentOverview.length === 0 ? (
-															<tr><td colSpan={5} className="text-center text-muted py-4">No payment data available</td></tr>
-														) : (
-															paymentOverview.map((item, i) => {
-																// Derive human-readable labels
-																const payLabel = item.payment_status === 1
-																	? "Paid"
-																	: item.payment_status === 2
-																		? "Processing"
-																		: "Unpaid";
-																const approvalLabel = item.approval_status === 1
-																	? "Approved"
-																	: item.approval_status === 2
-																		? "Rejected"
-																		: "Pending";
-																const payBadge = item.payment_status === 1
-																	? "badge-success"
-																	: item.payment_status === 2
-																		? "badge-info"
-																		: "badge-secondary";
-																const approvalBadge = item.approval_status === 1
-																	? "badge-success"
-																	: item.approval_status === 2
-																		? "badge-danger"
-																		: "badge-warning";
-																// Combined status label
-																const combinedLabel = item.approval_status === 0
-																	? "Pending Approval"
-																	: item.payment_status === 1
-																		? "Paid"
-																		: item.payment_status === 2
-																			? "Processing"
-																			: "Approved / Unpaid";
-																const combinedBadge = item.approval_status === 0
-																	? "badge-warning"
-																	: item.payment_status === 1
-																		? "badge-success"
-																		: item.payment_status === 2
-																			? "badge-info"
-																			: "badge-primary";
-
-																return (
-																	<tr key={i}>
-																		<td>
-																			<span className={`badge ${payBadge} light border-0`}>{payLabel}</span>
-																		</td>
-																		<td>
-																			<span className={`badge ${approvalBadge} light border-0`}>{approvalLabel}</span>
-																		</td>
-																		<td>
-																			<span className="font-w600">{item.totalCount}</span> requests
-																		</td>
-																		<td>
-																			<span className="font-w700">{formatINR(item.totalAmount)}</span>
-																		</td>
-																		<td>
-																			<span className={`badge ${combinedBadge} light border-0`}>{combinedLabel}</span>
-																		</td>
-																	</tr>
-																);
-															})
-														)}
-													</tbody>
-												</table>
-											</div>
-										</Tab.Pane>
-
+									
 										{/* ── TAB 3: PROJECT WISE ── */}
 										<Tab.Pane eventKey="projectwise">
 											<div className="table-responsive">
