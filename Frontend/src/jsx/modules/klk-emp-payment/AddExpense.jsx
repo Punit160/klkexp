@@ -74,12 +74,10 @@ const AddExpense = () => {
         if (!value) return "Amount is required.";
         if (isNaN(value) || Number(value) <= 0)
           return "Amount must be a positive number.";
-        if (Number(value) > 10000000)
-          return "Amount cannot exceed ₹1,00,00,000.";
         return "";
 
       case "document": {
-        if (!value) return ""; 
+        if (!value) return "";
         const allowedTypes = [
           "image/jpeg",
           "image/png",
@@ -326,11 +324,13 @@ const AddExpense = () => {
                   value={formData.amount}
                   onChange={handleChange}
                   placeholder="Enter amount"
-                  min="1"
+                  min="0.01"
+                  onKeyDown={(e) => {
+                    if (e.key === "-" || e.key === "e" || e.key === "E") {
+                      e.preventDefault();
+                    }
+                  }}
                 />
-                {errors.amount && (
-                  <div className="invalid-feedback">{errors.amount}</div>
-                )}
               </div>
 
               {/* Document */}
