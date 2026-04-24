@@ -302,10 +302,17 @@ function UserCommanSection() {
   const countByStatus = (status) =>
     expensesWithStatus.filter((e) => e._status === status).length;
 
+  // const monthlyChartData = useMemo(
+  //   () => buildMonthlyChartDataFromAPI(yearlyMonthlyPaidData, selectedFY),
+  //   [yearlyMonthlyPaidData, selectedFY]
+  // );
+
+
   const monthlyChartData = useMemo(
-    () => buildMonthlyChartDataFromAPI(yearlyMonthlyPaidData, selectedFY),
-    [yearlyMonthlyPaidData, selectedFY]
-  );
+  () => buildMonthlyChartDataFromAPI(yearlyMonthlyPaidData, selectedFY),
+  [yearlyMonthlyPaidData, selectedFY]
+);
+
 
   const chartTotals = useMemo(() => ({
     total: monthlyChartData.total.reduce((a, b) => a + b, 0),
@@ -543,10 +550,9 @@ function UserCommanSection() {
                     <small className="text-danger font-w600 me-1">{countByStatus("Rejected")} expenses</small>rejected
                   </span>
                 </div>
-                <InvoiceChart
-                  data={Array(FY_MONTH_ORDER.length).fill(stats.rejectedAmount / 12)} // Fallback for rejected
-                  color="#ef4444"
-                />
+
+
+
               </div>
             </div>
           </div>

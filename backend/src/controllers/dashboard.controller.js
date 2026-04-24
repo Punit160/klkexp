@@ -66,7 +66,7 @@ export const UserDashboard = async (req, res) => {
             const amount = Number(item._sum.amount) || 0;
             const approvalamount = Number(item._sum.final_approved_amount) || 0;
             const pamount = Number(item._sum.paid_amount) || 0;
-            if (item.payment_status === 1) paidAmount += pamount;
+            if (item.payment_status !== 0) paidAmount += pamount;
             if (item.approval_status === 2) rejectedAmount += amount;
             if (item.approval_status === 1) approvedAmount += approvalamount;
             if (item.approval_status === 1) pendingAmount += approvalamount - pamount;
@@ -295,7 +295,7 @@ export const AdminDashboard = async (req, res) => {
             const approvalamount = Number(item._sum.final_approved_amount) || 0;
             const pamount = Number(item._sum.paid_amount) || 0;
 
-            if (item.payment_status === 1) paidAmount += pamount;
+            if (item.payment_status !== 0) paidAmount += pamount;
             if (item.approval_status === 2) rejectedAmount += amount;
             if (item.approval_status === 1)
                 approvedAmount += approvalamount;
@@ -687,7 +687,7 @@ export const ManagerDashboard = async (req, res) => {
             const approvalamount = Number(item._sum.final_approved_amount) || 0;
             const pamount = Number(item._sum.paid_amount) || 0;
 
-            if (item.payment_status === 1) paidAmount += pamount;
+            if (item.payment_status !== 0) paidAmount += pamount;
             if (item.approval_status === 2) rejectedAmount += amount;
             if (item.approval_status === 1)
                 approvedAmount += approvalamount;

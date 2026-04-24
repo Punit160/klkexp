@@ -8,7 +8,7 @@ const getGreeting = () => {
  return "Good Night";
 };
 
-//  localStorage se user info fetch karo
+//  localStorage  user info fetch 
 const getUserInfo = () => {
  try {
   const stored = localStorage.getItem("user");

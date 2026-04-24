@@ -294,7 +294,6 @@ const ManagerDashboard = () => {
 	const projectWiseData = dashData?.projectWiseData ?? [];
 	const interventionWiseData = dashData?.interventionWiseData ?? [];
 	const approvalQueue = dashData?.approvalQueue ?? [];
-	const paymentOverview = dashData?.paymentOverview ?? [];
 	const availableFYList = dashData?.filterOptions?.availableFYList ?? [];
 	const availableProjects = dashData?.filterOptions?.availableProjects ?? [];
 	const availableUsers = dashData?.filterOptions?.availableUsers ?? [];
