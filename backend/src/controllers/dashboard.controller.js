@@ -760,6 +760,8 @@ export const ManagerDashboard = async (req, res) => {
                 ep.final_approved_amount AS amount,
                 ep.financial_year,
                 ep.created_at,
+                ep.payment_status,
+                ep.paid_amount,
                 u.id                AS userid,
                 u.username          AS user_name,
                 u.email             AS user_email,
@@ -770,7 +772,7 @@ export const ManagerDashboard = async (req, res) => {
             LEFT JOIN Project p      ON p.id  = ep.project_name
             LEFT JOIN Intervention i ON i.id  = ep.intervention
             WHERE ep.company_id      = ${company_id}
-              AND ep.approval_status = 0
+              AND ep.approval_status = 1
                 AND ep.manager_id       = ${manager_id}
               ${fyFragment}
               ${userFragment}

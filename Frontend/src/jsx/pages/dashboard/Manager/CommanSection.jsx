@@ -617,9 +617,8 @@ const ManagerDashboard = () => {
 
 			{/* ── ROW 2B: Interventions + Expense Overview bar chart project wise ── */}
 			<div className="row">
-
 				<div className="col-xl-3">
-					<div className="card">
+					<div className="card d-flex flex-column" style={{ height: "530px" }}>
 						<div className="card-header pb-0 border-0">
 							<div className="clearfix">
 								<h5 className="mb-0">Interventions</h5>
@@ -633,7 +632,10 @@ const ManagerDashboard = () => {
 								</button>
 							</div>
 						</div>
-						<div className="card-body">
+						<div
+							className="card-body flex-grow-1"
+							style={{ overflowY: "auto" }}
+						>
 							{availableInterventions.length === 0 ? (
 								<p className="text-muted text-center py-3">No interventions found</p>
 							) : (
@@ -721,10 +723,7 @@ const ManagerDashboard = () => {
 
 			</div>
 
-			{/* ── ROW 3: EXPENSE OVERVIEW CHART ── */}
-			<div className="row">
 
-			</div>
 
 
 			{/* ── ROW 3B: EXPENSE TABS (Approval Queue / Payment Overview / Project-wise) ── */}
@@ -743,7 +742,7 @@ const ManagerDashboard = () => {
 											{SVGICON.project} <span>Approval Queue</span>
 										</Nav.Link>
 									</Nav.Item>
-						
+
 									<Nav.Item className="nav-item">
 										<Nav.Link eventKey="projectwise" className="nav-link w-100">
 											{SVGICON.socialheart} <span>Project Wise</span>
@@ -759,7 +758,7 @@ const ManagerDashboard = () => {
 												<table className="table card-table border-no success-tbl">
 													<thead>
 														<tr>
-															<th>Expense ID</th>
+															<th>S.No</th>
 															<th>User</th>
 															<th>Project</th>
 															<th>Intervention</th>
@@ -772,10 +771,10 @@ const ManagerDashboard = () => {
 														{approvalQueue.length === 0 ? (
 															<tr><td colSpan={7} className="text-center text-muted py-4">No pending approvals</td></tr>
 														) : (
-															approvalQueue.map((item) => (
+															approvalQueue.map((item, idx) => (
 																<tr key={item.expense_id}>
 																	<td>
-																		<span className="font-w600 text-primary">#{item.expense_id}</span>
+																		<span className="font-w600 text-primary">{idx + 1}</span>
 																	</td>
 																	<td>
 																		<div className="d-flex align-items-center gap-2">
@@ -795,7 +794,31 @@ const ManagerDashboard = () => {
 																	<td><span className="text-muted">{item.intervention_name ?? <em>—</em>}</span></td>
 																	<td><span className="font-w700 text-dark">{formatINR(item.amount)}</span></td>
 																	<td><span className="badge badge-sm badge-info light border-0">{item.financial_year}</span></td>
-																	<td><span className="badge badge-warning light border-0">Pending Approval</span></td>
+																	<td>
+																		<span
+																			className="badge light border-0"
+																			style={{
+																				background:
+																					item.payment_status === 0
+																						? "#FAEEDA"
+																						: item.payment_status === 1
+																							? "#FFF4E5"
+																							: "#E1F5EE",
+																				color:
+																					item.payment_status === 0
+																						? "#854F0B"
+																						: item.payment_status === 1
+																							? "#B26A00"
+																							: "#0F6E56",
+																			}}
+																		>
+																			{item.payment_status === 0
+																				? "Pending"
+																				: item.payment_status === 1
+																					? "Partially Paid"
+																					: "Paid"}
+																		</span>
+																	</td>
 																</tr>
 															))
 														)}
@@ -804,7 +827,7 @@ const ManagerDashboard = () => {
 											</div>
 										</Tab.Pane>
 
-									
+
 										{/* ── TAB 3: PROJECT WISE ── */}
 										<Tab.Pane eventKey="projectwise">
 											<div className="table-responsive">
@@ -839,7 +862,6 @@ const ManagerDashboard = () => {
 																				</div>
 																				<div>
 																					<h6 className="mb-0 fs-14 font-w600">{row.project_name}</h6>
-																					<small className="text-muted">ID #{row.project_id}</small>
 																				</div>
 																			</div>
 																		</td>
@@ -900,7 +922,7 @@ const ManagerDashboard = () => {
 											const color = badgeColors[idx % badgeColors.length];
 											return (
 												<li key={p.project_id}>
-													<span className="timeline-status">#{p.project_id}</span>
+													<span className="timeline-status">{idx + 1}</span>
 													<div className={`timeline-badge ${color}`}></div>
 													<div className="timeline-panel">
 														<span className="text-black fs-14 fw-semibold">{p.project_name}</span>

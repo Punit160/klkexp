@@ -300,16 +300,15 @@ const PeopleContactCards = ({ user, colorIndex }) => {
                     <div style={{ fontSize: 12, color: "#999" }}>
                         {user.intervention_name}
                     </div>
-
                     <span
                         className="badge mt-1"
                         style={{
-                            background: user.payment_status === 1 ? "#E1F5EE" : "#FAEEDA",
-                            color: user.payment_status === 1 ? "#0F6E56" : "#854F0B",
+                            background: user.payment_status === 0 ? "#FAEEDA" : user.payment_status === 1 ? "#FFF4E5" : "#E1F5EE",
+                            color: user.payment_status === 0 ? "#854F0B" : user.payment_status === 1 ? "#B26A00" : "#0F6E56",
                             fontSize: 11,
                         }}
                     >
-                        {user.payment_status === 1 ? "Paid" : "Pending"}
+                        {user.payment_status === 0 ? "Pending" : user.payment_status === 1 ? "Partially Paid" : "Paid"}
                     </span>
                 </div>
             </div>
