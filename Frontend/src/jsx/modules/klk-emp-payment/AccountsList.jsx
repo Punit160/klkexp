@@ -73,6 +73,29 @@ const PaymentList = () => {
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentData = data.slice(indexOfFirst, indexOfLast);
 
+
+  /* ---------------- EXPORT ---------------- */
+  const exportData = data.map((item) => ({
+    ...item,
+    payment_status:
+      item.payment_status === 2 ? "Fully Paid" :
+        item.payment_status === 1 ? "Partially Paid" : "Unpaid",
+    requested_date: new Date(item.requested_date).toLocaleDateString(),
+  }));
+
+  const columns = [
+    { label: "Raised By", key: "raised_by" },
+    { label: "Date", key: "requested_date" },
+    { label: "Project", key: "project" },
+    { label: "Intervention", key: "intervention" },
+    { label: "Manager", key: "manager_name" },
+    { label: "Document", key: "document" },
+    { label: "Amount", key: "final_approved_amount" },
+    { label: "Paid", key: "paid_amount" },
+    { label: "Payment Status", key: "payment_status" },
+  ];
+
+
   /* ---------------- HANDLERS ---------------- */
 
   const handleAccount = (item) => {
@@ -129,39 +152,39 @@ const PaymentList = () => {
 
   /* ---------------- PDF VIEW ---------------- */
 
-const handleViewPDF = async (id) => {
-  try {
-    const res = await axios.get(
-      `${import.meta.env.VITE_BACKEND_API_URL}expense/payment-receipt/${id}`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        responseType: "blob",
-      }
-    );
+  const handleViewPDF = async (id) => {
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_BACKEND_API_URL}expense/payment-receipt/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          responseType: "blob",
+        }
+      );
 
-    const file = new Blob([res.data], { type: "application/pdf" });
-    const fileURL = URL.createObjectURL(file);
+      const file = new Blob([res.data], { type: "application/pdf" });
+      const fileURL = URL.createObjectURL(file);
 
-    window.open(fileURL);
+      window.open(fileURL);
 
-  } catch (error) {
-    console.error(error);
-  }
-};
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   /* ---------------- PAYMENT STATUS ---------------- */
 
- const getPaymentStatus = (item) => {
-  if (item.payment_status === 2) {
-    return <span className="badge bg-success">Fully Paid</span>;
-  } else if (item.payment_status === 1) {
-    return <span className="badge bg-warning">Partially Paid</span>;
-  } else {
-    return <span className="badge bg-secondary">Unpaid</span>;
-  }
-};
+  const getPaymentStatus = (item) => {
+    if (item.payment_status === 2) {
+      return <span className="badge bg-success">Fully Paid</span>;
+    } else if (item.payment_status === 1) {
+      return <span className="badge bg-warning">Partially Paid</span>;
+    } else {
+      return <span className="badge bg-secondary">Unpaid</span>;
+    }
+  };
 
   return (
     <>
@@ -174,8 +197,8 @@ const handleViewPDF = async (id) => {
             <Card.Title>Accounts</Card.Title>
 
             <TableExportActions
-              data={data}
-              columns={[]}
+              data={exportData}
+              columns={columns}
               fileName="Payment_List"
             />
           </Card.Header>
@@ -210,8 +233,8 @@ const handleViewPDF = async (id) => {
                       <td>{indexOfFirst + index + 1}</td>
                       <td>{item.raised_by}</td>
                       <td>{new Date(item.requested_date).toLocaleDateString()}</td>
-                      <td>{item.project}</td> 
-                      <td>{item.intervention}</td> 
+                      <td>{item.project}</td>
+                      <td>{item.intervention}</td>
                       <td>{item.manager_name}</td>
                       <td>
                         {item.document ? (

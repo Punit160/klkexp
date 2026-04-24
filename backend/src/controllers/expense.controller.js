@@ -225,8 +225,11 @@ export const getMyCreatedExpenses = async (req, res) => {
         raised_by: userMap[userId] || "N/A",
         manager_name: userMap[managerId] || "N/A",
 
-        status: getStatusText(exp.approval_status),
         final_approved_amount: exp.final_approved_amount  || "N/A",
+        payment_amount: exp.paid_amount || 0, 
+        reviewer_status: getStatusText(exp.reviewer_approval_status),
+        Approval_status: getStatusText(exp.approval_status),
+        payment_status: exp.payment_status || 0,
 
       };
     });
