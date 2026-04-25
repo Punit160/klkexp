@@ -5,9 +5,6 @@ import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
 
-import TableExportActions from "../../components/Common/TableExportActions";
-import Pagination from "../../components/Common/Pagination";
-
 const ReviewerList = () => {
 
   const [data, setData] = useState([]);
@@ -49,23 +46,13 @@ const ReviewerList = () => {
     }
   };
 
-<<<<<<< HEAD
-=======
-
-
-
-  /* ---------------- PAGINATION ---------------- */
-  const itemsPerPage = 10;
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const indexOfLast = currentPage * itemsPerPage;
-  const indexOfFirst = indexOfLast - itemsPerPage;
-  const currentData = data.slice(indexOfFirst, indexOfLast);
 
 
 
 
->>>>>>> a968f6a60e88c2c6e01c108169178684d03b8091
+
+
+
   /* ---------------- EXPORT ---------------- */
   const exportData = data.map((item) => ({
     ...item,
@@ -92,13 +79,8 @@ const ReviewerList = () => {
     { label: "Reviewer Remarks", key: "reviewer_remarks" },
     { label: "Status", key: "reviewer_status" },
   ];
-<<<<<<< HEAD
-
-  /* ---------------- HANDLERS ---------------- */
-=======
   
   // ✅ OPEN MODAL
->>>>>>> a968f6a60e88c2c6e01c108169178684d03b8091
   const handleOpenModal = (item) => {
     setSelectedItem(item);
     setReviewData({

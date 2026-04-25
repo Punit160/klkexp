@@ -21,15 +21,7 @@ const PaymentList = () => {
         );
 
         const data = await res.json();
-<<<<<<< HEAD
-
-        console.log("EXPENSES", data);
-
-        setExpenses(data || []);
-
-=======
         setExpenses(Array.isArray(data) ? data : []);
->>>>>>> a968f6a60e88c2c6e01c108169178684d03b8091
       } catch (error) {
         console.error(error);
       }
@@ -38,34 +30,6 @@ const PaymentList = () => {
     fetchExpenses();
   }, []);
 
-<<<<<<< HEAD
-/* ---------------- EXPORT ---------------- */
-const columns = [
-  { label: "Project", key: "project_name" },
-  { label: "State", key: "state" },          
-  { label: "District", key: "district" },    
-  { label: "Village", key: "village" },     
-  { label: "Intervention", key: "intervention_name" },  
-  { label: "Raised By", key: "raised_by" },            
-  { label: "Manager", key: "manager_name" },         
-  { label: "Amount", key: "amount" },
-  { label: "Approved Amount", key: "final_approved_amount" },  
-  { label: "Document", key: "document" },             
-  { label: "Request Date", key: "created_at" },
-  { label: "Payment Amount", key: "payment_amount" },   
-  { label: "Reviewer Status", key: "reviewer_status" }, 
-  { label: "Approval Status", key: "Approval_status" }, 
-  { label: "Payment Status", key: "payment_status" },  
-];
-
-
-const exportData = expenses.map(item => ({
-  ...item,
-  payment_status:
-    item.payment_status === 2 ? "Paid" :
-    item.payment_status === 1 ? "Partially Paid" : "Pending",
-}));
-=======
   /* ---------------- EXPORT ---------------- */
   const columns = [
     { label: "Project", key: "project_name" },
@@ -84,7 +48,6 @@ const exportData = expenses.map(item => ({
     { label: "Approval Status", key: "approval_status" },
     { label: "Payment Status", key: "payment_status" },
   ];
->>>>>>> a968f6a60e88c2c6e01c108169178684d03b8091
 
   const exportData = expenses.map((item) => ({
     ...item,
@@ -160,83 +123,6 @@ const exportData = expenses.map(item => ({
                       <td>{item.village || "N/A"}</td>
 
                       <td>{item.intervention_name || "N/A"}</td>
-<<<<<<< HEAD
-
-                      <td>{item.raised_by || "N/A"}</td>
-                      <td>{item.manager_name || "N/A"}</td>
-
-                      <td>₹ {item.amount}</td>
-                      <td>₹ {item.final_approved_amount || "0"}</td>
-
-                      {/* Document */}
-                      <td>
-                        {item.document ? (
-                          <a
-                            href={`${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${item.document}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-primary"
-                          >
-                            View
-                          </a>
-                        ) : (
-                          "N/A"
-                        )}
-                      </td>
-
-                      {/* Date */}
-                      <td>
-                        {new Date(item.created_at).toLocaleDateString()}
-                      </td>
-
-                      {/* Payment Amount */}
-                      <td>₹ {item.payment_amount || "0"}</td>
-
-                      {/* Reviewer status */}
-                      <td>
-                        <span
-                          className={`badge ${item.reviewer_status === "Approved"
-                              ? "bg-success"
-                              : item.reviewer_status === "Rejected"
-                                ? "bg-danger"
-                                : item.reviewer_status === "Pending"
-                                  ? "bg-warning"
-                                  : "bg-secondary"
-                            }`}
-                        >
-                          {item.reviewer_status || "N/A"}
-                        </span>
-                      </td>
-
-                      {/* Approval Status */}
-                      <td>
-                        <span
-                          className={`badge ${item.Approval_status === "Approved"
-                              ? "bg-success"
-                              : item.Approval_status === "Rejected"
-                                ? "bg-danger"
-                                : "bg-warning"
-                            }`}
-                        >
-                          {item.Approval_status}
-                        </span>
-                      </td>
-
-                      <td>
-                        <span
-                          className={`badge ${item.payment_status === 2
-                              ? "bg-success"      
-                              : item.payment_status === 1
-                                ? "bg-info"         
-                                : "bg-warning"      
-                            }`}
-                        >
-                          {item.payment_status === 2
-                            ? "Paid"
-                            : item.payment_status === 1
-                              ? "Partially Paid"
-                              : "Pending"}
-=======
                       <td>{item.raised_by || "N/A"}</td>
                       <td>{item.manager_name || "N/A"}</td>
 
@@ -285,7 +171,6 @@ const exportData = expenses.map(item => ({
                       <td>
                         <span className={`badge ${getBadgeClass(item.payment_status)}`}>
                           {item.payment_status}
->>>>>>> a968f6a60e88c2c6e01c108169178684d03b8091
                         </span>
                       </td>
                     </tr>
