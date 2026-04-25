@@ -334,7 +334,7 @@ const AddExpense = () => {
               </div>
 
               {/* Document */}
-              <div className="col-lg-6 mb-3">
+              <div className="col-lg-12 mb-3">
                 <label>Upload Document</label>
                 <input
                   type="file"

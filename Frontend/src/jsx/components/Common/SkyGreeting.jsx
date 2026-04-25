@@ -277,7 +277,7 @@ export default function SkyGreeting() {
  }, []);
 
  return (
-  <div className="col-sm-6 mb-sm-4 mb-3 d-flex align-items-center gap-3">
+<div className="col-sm-6 mb-sm-4 mb-3 d-flex align-items-center gap-3">
    <canvas
     ref={canvasRef}
     width={300}
@@ -286,7 +286,7 @@ export default function SkyGreeting() {
    />
    <div>
     <h3 className="mb-0">{greeting}, {userInfo.name}</h3>
-    <p className="mb-0">{"Here's what's happening with your store today"}</p>
+    {/* <p className="mb-0">{"Here's what's happening with your store today"}</p> */}
     <p>Reporting head: {userInfo.reporting_head}</p>
    </div>
   </div>

@@ -4,6 +4,12 @@ import axios from "axios";
 import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
+<<<<<<< HEAD
+=======
+
+
+
+>>>>>>> a968f6a60e88c2c6e01c108169178684d03b8091
 
 const ManagerList = () => {
   const [data, setData] = useState([]);
@@ -83,6 +89,22 @@ const ManagerList = () => {
     review_assign: item.review_assign ? "Assigned" : "Pending",
   }));
 
+<<<<<<< HEAD
+=======
+  /* ---------------- EXPORT ---------------- */
+  const exportData = data.map((item) => ({
+    ...item,
+    status:
+      item.status === "Approved"
+        ? "Approved"
+        : item.status === "Rejected"
+        ? "Rejected"
+        : "Pending",
+    reviewer_approval_text: item.reviewer_approval_text || "Pending",
+    review_assign: item.review_assign ? "Assigned" : "Pending",
+  }));
+
+>>>>>>> a968f6a60e88c2c6e01c108169178684d03b8091
   const columns = [
     { label: "Raised By", key: "raised_by" },
     { label: "Manager", key: "manager_name" },
@@ -98,7 +120,21 @@ const ManagerList = () => {
     { label: "Manager Approval", key: "status" },
   ];
 
+<<<<<<< HEAD
   /* ---------------- HELPERS ---------------- */
+=======
+
+
+  /* ---------------- PAGINATION ---------------- */
+  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
+  const currentData = data.slice(indexOfFirst, indexOfLast);
+
+
+>>>>>>> a968f6a60e88c2c6e01c108169178684d03b8091
   const getFinalAmount = (item) => {
     if (
       item.review_assign === true &&
@@ -190,7 +226,7 @@ const ManagerList = () => {
     <>
       <PageTitle activeMenu="Manager Panel" motherMenu="Payment" />
 
-      <Col lg={12}>
+     <Col lg={12}>
         <Card>
 
           {/*   Header with Export */}
@@ -341,7 +377,6 @@ const ManagerList = () => {
           </Card.Body>
         </Card>
       </Col>
-
       {/* REVIEW MODAL */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
         <Modal.Header closeButton>
