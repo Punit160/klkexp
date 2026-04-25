@@ -3,6 +3,9 @@ import { Table, Card, Col, Modal, Button, Form } from "react-bootstrap";
 import axios from "axios";
 import PageTitle from "../../layouts/PageTitle";
 
+import TableExportActions from "../../components/Common/TableExportActions";
+import Pagination from "../../components/Common/Pagination";
+
 const ReviewerList = () => {
 
   const [data, setData] = useState([]);
@@ -37,6 +40,47 @@ const ReviewerList = () => {
     }
   };
 
+
+
+
+  /* ---------------- PAGINATION ---------------- */
+  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
+  const currentData = data.slice(indexOfFirst, indexOfLast);
+
+
+
+
+  /* ---------------- EXPORT ---------------- */
+  const exportData = data.map((item) => ({
+    ...item,
+    reviewer_status:
+      item.reviewer_status === "Approved"
+        ? "Approved"
+        : item.reviewer_status === "Rejected"
+        ? "Rejected"
+        : "Pending",
+  }));
+
+  const columns = [
+    { label: "Raised By", key: "raised_by" },
+    { label: "Manager", key: "manager_name" },
+    { label: "Reviewer", key: "reviewer_name" },
+    { label: "Project", key: "project" },
+    { label: "Intervention", key: "intervention" },
+    { label: "State", key: "state" },
+    { label: "District", key: "district" },
+    { label: "Village", key: "village" },
+    { label: "Amount", key: "amount" },
+    { label: "Approved Amount", key: "approved_amount" },
+    { label: "Manager Remark", key: "manager_remark" },
+    { label: "Reviewer Remarks", key: "reviewer_remarks" },
+    { label: "Status", key: "reviewer_status" },
+  ];
+  
   // ✅ OPEN MODAL
   const handleOpenModal = (item) => {
   setSelectedItem(item);
@@ -88,10 +132,18 @@ const handleSubmit = async () => {
     <>
       <PageTitle activeMenu="Reviewer Panel" motherMenu="Payment" />
 
-      <Col lg={12}>
+     <Col lg={12}>
         <Card>
-          <Card.Header>
+
+          {/* ✅ Header with Export */}
+          <Card.Header className="d-flex justify-content-between">
             <Card.Title>Reviewer Tasks</Card.Title>
+
+            <TableExportActions
+              data={exportData}
+              columns={columns}
+              fileName="Reviewer_List"
+            />
           </Card.Header>
 
           <Card.Body>
@@ -118,10 +170,11 @@ const handleSubmit = async () => {
               </thead>
 
               <tbody>
-                {data.length > 0 ? (
-                  data.map((item, index) => (
+                {currentData.length > 0 ? (
+                  currentData.map((item, index) => (
                     <tr key={item.id}>
-                      <td>{index + 1}</td>
+                      {/* ✅ Correct serial number across pages */}
+                      <td>{indexOfFirst + index + 1}</td>
                       <td>{item.raised_by}</td>
                       <td>{item.manager_name}</td>
                       <td>{item.reviewer_name}</td>
@@ -130,7 +183,8 @@ const handleSubmit = async () => {
                       <td>{item.state}</td>
                       <td>{item.district}</td>
                       <td>{item.village}</td>
-                                   <td>
+
+                      <td>
                         {item.document ? (
                           <a
                             href={`${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${item.document}`}
@@ -144,13 +198,11 @@ const handleSubmit = async () => {
                           "N/A"
                         )}
                       </td>
+
                       <td>₹ {item.amount}</td>
                       <td>₹ {item.approved_amount}</td>
                       <td>{item.manager_remark}</td>
-
-                     <td>
-                      {item.reviewer_remarks} 
-                    </td>
+                      <td>{item.reviewer_remarks}</td>
 
                       {/* STATUS */}
                       <td>
@@ -178,25 +230,32 @@ const handleSubmit = async () => {
                             Review
                           </Button>
                         ) : (
-                          <span className="badge bg-secondary">
-                            Done
-                          </span>
+                          <span className="badge bg-secondary">Done</span>
                         )}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="10" className="text-center">
+                    <td colSpan="16" className="text-center">
                       No Data Found
                     </td>
                   </tr>
                 )}
               </tbody>
             </Table>
+
+            {/* ✅ Pagination */}
+            <Pagination
+              totalItems={data.length}
+              itemsPerPage={itemsPerPage}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
           </Card.Body>
         </Card>
       </Col>
+
 
       {/* ✅ MODAL */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>

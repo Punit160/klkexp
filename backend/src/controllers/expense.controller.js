@@ -134,6 +134,8 @@ export const createExpense = async (req, res) => {
     });
   }
 };
+
+
 export const getMyCreatedExpenses = async (req, res) => {
   try {
     const company_id = req.user?.company_id;
@@ -145,7 +147,6 @@ export const getMyCreatedExpenses = async (req, res) => {
       });
     }
 
-    // ✅ Fetch all data
     const [expenses, projects, users, interventions] = await Promise.all([
       prisma.expensePayment.findMany({
         where: {
@@ -173,44 +174,48 @@ export const getMyCreatedExpenses = async (req, res) => {
       }),
     ]);
 
-    // ✅ CREATE MAPS (MISSING PART - IMPORTANT)
-    const projectMap = Object.fromEntries(
-      projects.map((p) => [p.id, p.name])
-    );
+    // ✅ MAPS
+    const projectMap = Object.fromEntries(projects.map(p => [p.id, p.name]));
+    const userMap = Object.fromEntries(users.map(u => [u.id, u.username]));
+    const interventionMap = Object.fromEntries(interventions.map(i => [i.id, i.name]));
 
-    const userMap = Object.fromEntries(
-      users.map((u) => [u.id, u.username])
-    );
-
-    const interventionMap = Object.fromEntries(
-      interventions.map((i) => [i.id, i.name])
-    );
-
-    // ✅ STATUS FUNCTION (MISSING)
+    // ✅ STATUS HELPERS
     const getStatusText = (status) => {
-      if (Number(status) === 1) return "Approved";
-      if (Number(status) === 2) return "Rejected";
+      const s = Number(status);
+      if (s === 1) return "Approved";
+      if (s === 2) return "Rejected";
       return "Pending";
     };
 
-    // ✅ MAP DATA
+    const getPaymentStatusText = (status) => {
+      const s = Number(status);
+      if (s === 2) return "Paid";
+      if (s === 1) return "Partially Paid";
+      return "Pending";
+    };
+
+    // ✅ SAFE PARSER
+    const safeId = (val) => {
+      const n = Number(val);
+      return isNaN(n) ? null : n;
+    };
+
     const mappedExpenses = expenses.map((exp) => {
-      const projectId = parseInt(exp.project_name);
-      const interventionId = parseInt(exp.intervention);
-      const managerId = parseInt(exp.manager_id);
-      const reviewerId = parseInt(exp.reviewer_id);
-      const userId = parseInt(exp.requested_by);
+      const projectId = safeId(exp.project_name);
+      const interventionId = safeId(exp.intervention);
+      const managerId = safeId(exp.manager_id);
+      const userId = safeId(exp.requested_by);
 
       return {
         id: exp.id,
 
         project_name:
-          !isNaN(projectId)
+          projectId !== null
             ? projectMap[projectId] || "N/A"
             : exp.project_name || "N/A",
 
         intervention_name:
-          !isNaN(interventionId)
+          interventionId !== null
             ? interventionMap[interventionId] || "N/A"
             : exp.intervention || "N/A",
 
@@ -225,9 +230,13 @@ export const getMyCreatedExpenses = async (req, res) => {
         raised_by: userMap[userId] || "N/A",
         manager_name: userMap[managerId] || "N/A",
 
-        status: getStatusText(exp.approval_status),
-        final_approved_amount: exp.final_approved_amount  || "N/A",
+        final_approved_amount: exp.final_approved_amount ?? 0,
+        payment_amount: exp.paid_amount ?? 0,
 
+        reviewer_status: getStatusText(exp.reviewer_approval_status),
+        approval_status: getStatusText(exp.approval_status),
+
+        payment_status: getPaymentStatusText(exp.payment_status),
       };
     });
 

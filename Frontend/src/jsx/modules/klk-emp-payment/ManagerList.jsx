@@ -2,6 +2,11 @@ import React, { useState, useEffect } from "react";
 import { Table, Card, Col, Button, Modal, Form } from "react-bootstrap";
 import axios from "axios";
 import PageTitle from "../../layouts/PageTitle";
+import TableExportActions from "../../components/Common/TableExportActions";
+import Pagination from "../../components/Common/Pagination";
+
+
+
 
 const ManagerList = () => {
   const [data, setData] = useState([]);
@@ -60,6 +65,45 @@ const ManagerList = () => {
       console.error(error);
     }
   };
+
+
+  /* ---------------- EXPORT ---------------- */
+  const exportData = data.map((item) => ({
+    ...item,
+    status:
+      item.status === "Approved"
+        ? "Approved"
+        : item.status === "Rejected"
+        ? "Rejected"
+        : "Pending",
+    reviewer_approval_text: item.reviewer_approval_text || "Pending",
+    review_assign: item.review_assign ? "Assigned" : "Pending",
+  }));
+
+  const columns = [
+    { label: "Raised By", key: "raised_by" },
+    { label: "Manager", key: "manager_name" },
+    { label: "Project", key: "project" },
+    { label: "Intervention", key: "intervention" },
+    { label: "State", key: "state" },
+    { label: "District", key: "district" },
+    { label: "Village", key: "village" },
+    { label: "Amount", key: "amount" },
+    { label: "Reviewer", key: "reviewer_name" },
+    { label: "Reviewer Status", key: "reviewer_approval_text" },
+    { label: "Approved Amount", key: "approved_amount" },
+    { label: "Manager Approval", key: "status" },
+  ];
+
+
+
+  /* ---------------- PAGINATION ---------------- */
+  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
+  const currentData = data.slice(indexOfFirst, indexOfLast);
 
 
   const getFinalAmount = (item) => {
@@ -172,10 +216,18 @@ const handleSubmit = async () => {
     <>
       <PageTitle activeMenu="Manager Panel" motherMenu="Payment" />
 
-      <Col lg={12}>
+     <Col lg={12}>
         <Card>
-          <Card.Header>
+
+          {/*   Header with Export */}
+          <Card.Header className="d-flex justify-content-between">
             <Card.Title>Manager Approval</Card.Title>
+
+            <TableExportActions
+              data={exportData}
+              columns={columns}
+              fileName="Manager_List"
+            />
           </Card.Header>
 
           <Card.Body>
@@ -201,10 +253,11 @@ const handleSubmit = async () => {
               </thead>
 
               <tbody>
-                {data.length > 0 ? (
-                  data.map((item, index) => (
+                {currentData.length > 0 ? (
+                  currentData.map((item, index) => (
                     <tr key={item.id}>
-                      <td>{index + 1}</td>
+                      {/*   Serial number uses indexOfFirst like PaymentList */}
+                      <td>{indexOfFirst + index + 1}</td>
                       <td>{item.raised_by}</td>
                       <td>{item.manager_name}</td>
                       <td>{item.project}</td>
@@ -212,7 +265,8 @@ const handleSubmit = async () => {
                       <td>{item.state}</td>
                       <td>{item.district}</td>
                       <td>{item.village}</td>
-                                   <td>
+
+                      <td>
                         {item.document ? (
                           <a
                             href={`${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${item.document}`}
@@ -226,31 +280,32 @@ const handleSubmit = async () => {
                           "N/A"
                         )}
                       </td>
-                      <td>₹ {item.amount}</td>
-                 
 
-                      
+                      <td>₹ {item.amount}</td>
+
                       {/* ASSIGN */}
+                      <td>
+                        <button
+                          className={`btn btn-xs ${
+                            item.review_assign ? "btn-success" : "btn-warning"
+                          }`}
+                          onClick={() =>
+                            !item.review_assign && handleAssign(item)
+                          }
+                          disabled={!!item.review_assign}
+                        >
+                          {item.review_assign ? "Assigned" : "Pending"}
+                        </button>
+                      </td>
 
                       <td>
-                    <button
-                        className={`btn btn-xs ${
-                        item.review_assign ? "btn-success" : "btn-warning"
-                        }`}
-                        onClick={() => !item.review_assign && handleAssign(item)}
-                        disabled={!!item.review_assign}
-                    >
-                        {item.review_assign ? "Assigned" : "Pending"}
-                    </button>
-                    </td>
+                        <b>Reviewer : </b> {item.reviewer_name} <br />
+                        <b>Manager to Reviewer : </b> {item.managertoreviewer}
+                      </td>
 
-                     <td>
-                      <b> Reviewer : </b> {item.reviewer_name} <br></br>
-                      <b> Manager to Reviewer : </b> {item.managertoreviewer} 
-                    </td>
-
-                     <td>
-                      <b> Approval status : </b> <span
+                      <td>
+                        <b>Approval status : </b>
+                        <span
                           className={`badge ${
                             item.reviewer_approval_text === "Approved"
                               ? "bg-success"
@@ -260,10 +315,11 @@ const handleSubmit = async () => {
                           }`}
                         >
                           {item.reviewer_approval_text}
-                        </span><br></br>
-                      <b> Approved Amount : </b> {item.approved_amount} <br></br>
-                      <b> Reviewer to Manager : </b> {item.reviewer_remarks} 
-                    </td>
+                        </span>
+                        <br />
+                        <b>Approved Amount : </b> {item.approved_amount} <br />
+                        <b>Reviewer to Manager : </b> {item.reviewer_remarks}
+                      </td>
 
                       {/* STATUS */}
                       <td>
@@ -280,9 +336,7 @@ const handleSubmit = async () => {
                         </span>
                       </td>
 
-
-                      {/* APPROVAL */}
-
+                      {/* ACTION */}
                       <td>
                         <Button
                           size="sm"
@@ -295,17 +349,24 @@ const handleSubmit = async () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="10" className="text-center">
+                    <td colSpan="15" className="text-center">
                       No Data Found
                     </td>
                   </tr>
                 )}
               </tbody>
             </Table>
+
+            {/*   Pagination */}
+            <Pagination
+              totalItems={data.length}
+              itemsPerPage={itemsPerPage}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
           </Card.Body>
         </Card>
       </Col>
-
       {/* REVIEW MODAL */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
   <Modal.Header closeButton>

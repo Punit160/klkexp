@@ -65,6 +65,27 @@ const PaymentList = () => {
     }
   };
 
+  /* ---------------- EXPORT ---------------- */
+  const exportData = data.map((item) => ({
+    ...item,
+    payment_status:
+      item.payment_status === 2 ? "Fully Paid" :
+        item.payment_status === 1 ? "Partially Paid" : "Unpaid",
+    requested_date: new Date(item.requested_date).toLocaleDateString(),
+  }));
+
+  const columns = [
+    { label: "Raised By", key: "raised_by" },
+    { label: "Date", key: "requested_date" },
+    { label: "Project", key: "project" },
+    { label: "Intervention", key: "intervention" },
+    { label: "Manager", key: "manager_name" },
+    { label: "Document", key: "document" },
+    { label: "Amount", key: "final_approved_amount" },
+    { label: "Paid", key: "paid_amount" },
+    { label: "Payment Status", key: "payment_status" },
+  ];
+
   /* ---------------- PAGINATION ---------------- */
   const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
@@ -174,8 +195,8 @@ const handleViewPDF = async (id) => {
             <Card.Title>Accounts</Card.Title>
 
             <TableExportActions
-              data={data}
-              columns={[]}
+              data={exportData}
+              columns={columns}
               fileName="Payment_List"
             />
           </Card.Header>
