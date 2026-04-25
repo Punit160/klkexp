@@ -52,7 +52,7 @@ const ExpenseOverviewChart = ({ data = [] }) => {
 				backgroundColor: CHART_COLORS.total,
 				borderRadius: 10,
 				barPercentage: 0.25,
-				categoryPercentage: 0.8,
+				categoryPercentage: 0.8, 
 			},
 			{
 				label: "Approved",

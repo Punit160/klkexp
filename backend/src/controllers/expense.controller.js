@@ -134,6 +134,7 @@ export const createExpense = async (req, res) => {
     });
   }
 };
+
 export const getMyCreatedExpenses = async (req, res) => {
   try {
     const company_id = req.user?.company_id;
@@ -173,7 +174,7 @@ export const getMyCreatedExpenses = async (req, res) => {
       }),
     ]);
 
-    // ✅ CREATE MAPS (MISSING PART - IMPORTANT)
+    // ✅ CREATE MAPS
     const projectMap = Object.fromEntries(
       projects.map((p) => [p.id, p.name])
     );
@@ -186,11 +187,13 @@ export const getMyCreatedExpenses = async (req, res) => {
       interventions.map((i) => [i.id, i.name])
     );
 
-    // ✅ STATUS FUNCTION (MISSING)
+    // ✅ STATUS FUNCTION (FIXED)
     const getStatusText = (status) => {
-      if (Number(status) === 1) return "Approved";
-      if (Number(status) === 2) return "Rejected";
-      return "Pending";
+      const s = Number(status);
+      if (s === 0) return "Pending";
+      if (s === 1) return "Approved";
+      if (s === 2) return "Rejected";
+      return "Pending"; // fallback
     };
 
     // ✅ MAP DATA
@@ -225,12 +228,11 @@ export const getMyCreatedExpenses = async (req, res) => {
         raised_by: userMap[userId] || "N/A",
         manager_name: userMap[managerId] || "N/A",
 
-        final_approved_amount: exp.final_approved_amount  || "N/A",
-        payment_amount: exp.paid_amount || 0, 
+        final_approved_amount: exp.final_approved_amount || "N/A",
+        payment_amount: exp.paid_amount || 0,
         reviewer_status: getStatusText(exp.reviewer_approval_status),
         Approval_status: getStatusText(exp.approval_status),
-        payment_status: exp.payment_status || 0,
-
+        payment_status: Number(exp.payment_status) || 0,
       };
     });
 
@@ -244,7 +246,6 @@ export const getMyCreatedExpenses = async (req, res) => {
     });
   }
 };
-
 
 export const getManagerExpenses = async (req, res) => {
   try {
