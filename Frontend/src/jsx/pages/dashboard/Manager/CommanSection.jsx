@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { SVGICON } from "../../../constant/theme";
 import { Dropdown, Nav, Tab } from "react-bootstrap";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import SkyGreeting from "../../../components/Common/SkyGreeting";
 
 import { Bar } from "react-chartjs-2";
@@ -251,7 +251,7 @@ const ManagerDashboard = () => {
 
 	// ── Fetch ─────────────────────────────────────────────────────────────────
 
-	const fetchDashboard = async (fy = selectedFY, projectId = selectedProjectId) => {
+	const fetchDashboard = useCallback(async (fy = selectedFY, projectId = selectedProjectId) => {
 		setLoading(true);
 		setError(null);
 		try {
@@ -283,11 +283,11 @@ const ManagerDashboard = () => {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [selectedFY, selectedProjectId]);
 
 	useEffect(() => {
 		fetchDashboard(selectedFY, selectedProjectId);
-	}, [selectedFY, selectedProjectId]);
+	}, [selectedFY, selectedProjectId, fetchDashboard]);
 
 	// ── Derived values ────────────────────────────────────────────────────────
 	const totalExpense = dashData?.totalExpense ?? 0;
