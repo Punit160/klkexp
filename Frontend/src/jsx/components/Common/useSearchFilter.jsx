@@ -29,7 +29,7 @@ export const useSearchFilter = (data = [], options = {}) => {
   const totalItems = filteredData.length;
 
   const indexOfLast = currentPage * itemsPerPage;
-  const indexOfFirst = indexOfLast - itemsPerPage;  // 👈 now a named variable
+  const indexOfFirst = indexOfLast - itemsPerPage;  
 
   const paginatedData = filteredData.slice(indexOfFirst, indexOfLast);
 
@@ -41,11 +41,11 @@ export const useSearchFilter = (data = [], options = {}) => {
     totalItems,
     paginatedData,
     filteredData,
-    indexOfFirst,   // 👈 now returned
+    indexOfFirst,  
   };
 };
 
-// 🔍 SEARCH COMPONENT
+
 export const SearchInput = ({ value, onChange, placeholder = "Search..." }) => {
   return (
     <input
