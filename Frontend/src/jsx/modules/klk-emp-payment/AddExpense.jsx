@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Card, Col } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+
 
 const AddExpense = () => {
   const [projects, setProjects] = useState([]);
   const [interventions, setInterventions] = useState([]);
+  const navigate = useNavigate();
+
 
   const [formData, setFormData] = useState({
     project_name: "",
@@ -129,16 +133,33 @@ const AddExpense = () => {
   };
 
   // HANDLE CHANGE
+  // const handleChange = (e) => {
+  //   const { name, value, files } = e.target;
+  //   let newValue = name === "document" ? files[0] : value;
+
+  //   setFormData((prev) => ({ ...prev, [name]: newValue }));
+
+  //   // Live validation: clear error as user fixes it
+  //   const error = validateField(name, newValue);
+  //   setErrors((prev) => ({ ...prev, [name]: error }));
+  // };
+
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    let newValue = name === "document" ? files[0] : value;
+  const { name, value, files } = e.target;
+  
+  // Fix: check if files exists and has items
+  let newValue;
+  if (name === "document") {
+    newValue = files && files.length > 0 ? files[0] : null;
+  } else {
+    newValue = value;
+  }
 
-    setFormData((prev) => ({ ...prev, [name]: newValue }));
+  setFormData((prev) => ({ ...prev, [name]: newValue }));
 
-    // Live validation: clear error as user fixes it
-    const error = validateField(name, newValue);
-    setErrors((prev) => ({ ...prev, [name]: error }));
-  };
+  const error = validateField(name, newValue);
+  setErrors((prev) => ({ ...prev, [name]: error }));
+};
 
   // SUBMIT FORM
   const handleSubmit = async (e) => {
@@ -182,6 +203,7 @@ const AddExpense = () => {
       }
 
       alert("Expense Created Successfully");
+      navigate("/payment-list");
 
       // RESET FORM
       setFormData({
@@ -336,13 +358,14 @@ const AddExpense = () => {
               {/* Document */}
               <div className="col-lg-12 mb-3">
                 <label>Upload Document</label>
-                <input
-                  type="file"
-                  name="document"
-                  className={`form-control ${errors.document ? "is-invalid" : ""}`}
-                  onChange={handleChange}
-                  accept=".jpg,.jpeg,.png,.pdf"
-                />
+        <input
+  type="file"
+  name="document"
+  className={`form-control ${errors.document ? "is-invalid" : ""}`}
+  onChange={handleChange}
+  accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,image/jpg,application/pdf"
+  multiple={false}
+/>
                 <small className="text-muted">
                   Allowed: JPG, PNG, PDF — Max size: 5MB
                 </small>

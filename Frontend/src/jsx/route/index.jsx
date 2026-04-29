@@ -1,6 +1,7 @@
-import { useContext } from "react";
+import { useEffect, useContext } from "react";
 import { ThemeContext } from "../../context/ThemeContext";
 import { Routes, Route, Outlet, Navigate } from "react-router-dom";
+import { isTokenExpired } from "../../utils/auth";
 import Nav from "../layouts/nav";
 import Footer from "../layouts/Footer";
 // dashboard 
@@ -49,13 +50,21 @@ import AssignPermission from "../modules/RolePermission/AssignPermission"
 
 
 
+
+
 const ProtectedRoute = ({ children }) => {
     const token = localStorage.getItem("token");
     const user = localStorage.getItem("user");
 
-    if (!token || !user) {
-        return <Navigate to="/login" replace />;
-    }
+        if (!token || !user) {
+            return <Navigate to="/login" replace />;
+        }
+        
+        if (isTokenExpired(token)) {
+            localStorage.clear();
+            return <Navigate to="/login" replace />;
+        }
+
     return children;
 };
 
@@ -64,9 +73,10 @@ const PublicRoute = ({ children }) => {
     const token = localStorage.getItem("token");
     const user = localStorage.getItem("user");
 
-    if (token && user) {
+    if (token && user && !isTokenExpired(token)) {
         return <Navigate to="/dashboard" replace />;
     }
+
     return children;
 };
 
@@ -162,8 +172,24 @@ const Markup = () => {
     );
 };
 
+
 function MainLayout() {
     const { menuToggle, sidebariconHover } = useContext(ThemeContext);
+
+    // ✅ ADD THIS BLOCK
+        useEffect(() => {
+            const timeout = setTimeout(() => {
+                const token = localStorage.getItem("token");
+
+                if (token && isTokenExpired(token)) {
+                    localStorage.clear();
+                    window.location.replace("/login");
+                }
+            }, 2000);
+
+            return () => clearTimeout(timeout);
+        }, []);
+
     return (
         <div
             id="main-wrapper"
