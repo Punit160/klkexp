@@ -4,9 +4,8 @@ import axios from "axios";
 import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
-import { useSearchFilter, SearchInput } from "../../components/Common/useSearchFilter";
 
-const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
+const PaymentList = () => {
 
   const [data, setData] = useState([]);
   const [history, setHistory] = useState([]);
@@ -25,26 +24,26 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
   });
 
   /* ---------------- FETCH DATA ---------------- */
+  useEffect(() => {
+    fetchAccountsData();
+  }, []);
+
   const fetchAccountsData = async () => {
     try {
       const res = await axios.get(
         `${import.meta.env.VITE_BACKEND_API_URL}expense/accounts-expenses`,
         {
-          params: { status }, // ✅ ?status=0 or ?status=2
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         }
       );
+
       setData(res.data);
     } catch (error) {
       console.error(error);
     }
   };
-
-  useEffect(() => {
-    fetchAccountsData();
-  }, [status]);
 
   /* ---------------- FETCH HISTORY ---------------- */
   const fetchHistory = async (id) => {
@@ -57,33 +56,14 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
           },
         }
       );
+
       setHistory(res.data);
       setShowHistoryModal(true);
+
     } catch (error) {
       console.error(error);
     }
   };
-
-  /* ---------------- SEARCH FILTER + PAGINATION ---------------- */
-  const {
-    search,
-    setSearch,
-    currentPage,
-    setCurrentPage,
-    totalItems,
-    paginatedData,
-    indexOfFirst,
-  } = useSearchFilter(data, {
-    keys: [
-      "raised_by",
-      "project",
-      "intervention",
-      "manager_name",
-      "final_approved_amount",
-      "paid_amount",
-    ],
-    itemsPerPage: 100,
-  });
 
   /* ---------------- EXPORT ---------------- */
   const exportData = data.map((item) => ({
@@ -106,10 +86,22 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
     { label: "Payment Status", key: "payment_status" },
   ];
 
+  /* ---------------- PAGINATION ---------------- */
+  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
+  const currentData = data.slice(indexOfFirst, indexOfLast);
+
   /* ---------------- HANDLERS ---------------- */
+
   const handleAccount = (item) => {
     setSelectedItem(item);
-    const remaining = item.final_approved_amount - (item.paid_amount || 0);
+
+    const remaining =
+      item.final_approved_amount - (item.paid_amount || 0);
+
     setAccountData({
       budget: remaining,
       paymentMode: "Cash",
@@ -117,6 +109,7 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
       reference_no: "",
       remarks: "",
     });
+
     setShowAccountModal(true);
   };
 
@@ -126,6 +119,7 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
   };
 
   /* ---------------- PAYMENT SUBMIT ---------------- */
+
   const handleAccountSubmit = async () => {
     try {
       await axios.post(
@@ -143,68 +137,68 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
           },
         }
       );
-      alert("Payment Processed Successfully");
+
+      alert("✅ Payment Processed Successfully");
+
       setShowAccountModal(false);
       fetchAccountsData();
+
     } catch (error) {
       console.error(error);
     }
   };
 
   /* ---------------- PDF VIEW ---------------- */
-  const handleViewPDF = async (id) => {
-    try {
-      const res = await axios.get(
-        `${import.meta.env.VITE_BACKEND_API_URL}expense/payment-receipt/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          responseType: "blob",
-        }
-      );
-      const file = new Blob([res.data], { type: "application/pdf" });
-      const fileURL = URL.createObjectURL(file);
-      window.open(fileURL);
-    } catch (error) {
-      console.error(error);
-    }
-  };
 
-  /* ---------------- PAYMENT STATUS BADGE ---------------- */
-  const getPaymentStatus = (item) => {
-    if (item.payment_status === 2) {
-      return <span className="badge bg-success">Fully Paid</span>;
-    } else if (item.payment_status === 1) {
-      return <span className="badge bg-warning">Partially Paid</span>;
-    } else {
-      return <span className="badge bg-primary">Unpaid</span>;
-    }
-  };
+const handleViewPDF = async (id) => {
+  try {
+    const res = await axios.get(
+      `${import.meta.env.VITE_BACKEND_API_URL}expense/payment-receipt/${id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        responseType: "blob",
+      }
+    );
+
+    const file = new Blob([res.data], { type: "application/pdf" });
+    const fileURL = URL.createObjectURL(file);
+
+    window.open(fileURL);
+
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+  /* ---------------- PAYMENT STATUS ---------------- */
+
+ const getPaymentStatus = (item) => {
+  if (item.payment_status === 2) {
+    return <span className="badge bg-success">Fully Paid</span>;
+  } else if (item.payment_status === 1) {
+    return <span className="badge bg-warning">Partially Paid</span>;
+  } else {
+    return <span className="badge bg-secondary">Unpaid</span>;
+  }
+};
 
   return (
     <>
-      <PageTitle activeMenu={pageTitle} motherMenu="Accounts" />
+      <PageTitle activeMenu="Payment List" motherMenu="Accounts" />
 
       <Col lg={12}>
         <Card>
 
-          {/* Header with Search + Export */}
-          <Card.Header className="d-flex justify-content-between align-items-center">
-            <Card.Title>{cardTitle}</Card.Title>
+          <Card.Header className="d-flex justify-content-between">
+            <Card.Title>Accounts</Card.Title>
 
-            <div className="d-flex align-items-center gap-2">
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder="Search accounts..."
-              />
-              <TableExportActions
-                data={exportData}
-                columns={columns}
-                fileName={`Payment_${pageTitle}`}
-              />
-            </div>
+            <TableExportActions
+              data={exportData}
+              columns={columns}
+              fileName="Payment_List"
+            />
           </Card.Header>
 
           <Card.Body>
@@ -220,102 +214,88 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
                   <th>Document</th>
                   <th>Amount</th>
                   <th>Paid</th>
-                  <th>Balance Amount</th>
                   <th>Status</th>
                   <th>History</th>
                   <th>Receipt</th>
-                  {/* Pay action — only on Pending/Unpaid page */}
-                  {status === 0 && <th>Action</th>}
+                  <th>Action</th>
                 </tr>
               </thead>
 
               <tbody>
-                {paginatedData.length > 0 ? (
-                  paginatedData.map((item, index) => {
-                    const remaining =
-                      item.final_approved_amount - (item.paid_amount || 0);
+                {currentData.map((item, index) => {
+                  const remaining =
+                    item.final_approved_amount - (item.paid_amount || 0);
 
-                    return (
-                      <tr key={item.id}>
-                        <td>{indexOfFirst + index + 1}</td>
-                        <td>{item.raised_by}</td>
-                        <td>{new Date(item.requested_date).toLocaleDateString()}</td>
-                        <td>{item.project}</td>
-                        <td>{item.intervention}</td>
-                        <td>{item.manager_name}</td>
-
-                        <td>
-                          {item.document ? (
-                            <a
-                              href={`${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${item.document}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-primary"
-                            >
-                              View
-                            </a>
-                          ) : (
-                            "N/A"
-                          )}
-                        </td>
-
-                        <td>₹ {item.final_approved_amount}</td>
-                        <td>₹ {item.paid_amount || 0}</td>
-                        <td>₹ {remaining}</td>
-
-                        <td>{getPaymentStatus(item)}</td>
-
-                        {/* HISTORY */}
-                        <td>
-                          <Button
-                            size="sm"
-                            variant="info"
-                            onClick={() => fetchHistory(item.id)}
+                  return (
+                    <tr key={item.id}>
+                      <td>{indexOfFirst + index + 1}</td>
+                      <td>{item.raised_by}</td>
+                      <td>{new Date(item.requested_date).toLocaleDateString()}</td>
+                      <td>{item.project}</td> 
+                      <td>{item.intervention}</td> 
+                      <td>{item.manager_name}</td>
+                      <td>
+                        {item.document ? (
+                          <a
+                            href={`${import.meta.env.VITE_BACKEND_BASE_URL}/uploads/${item.document}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary"
                           >
                             View
-                          </Button>
-                        </td>
-
-                        {/* PDF RECEIPT */}
-                        <td>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => handleViewPDF(item.id)}
-                          >
-                            PDF
-                          </Button>
-                        </td>
-
-                        {/* PAY — only on Pending page */}
-                        {status === 0 && (
-                          <td>
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={() => handleAccount(item)}
-                              disabled={remaining <= 0}
-                            >
-                              Pay
-                            </Button>
-                          </td>
+                          </a>
+                        ) : (
+                          "N/A"
                         )}
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={status === 0 ? "13" : "12"} className="text-center">
-                      No Data Found
-                    </td>
-                  </tr>
-                )}
+                      </td>
+
+                      <td>₹ {item.final_approved_amount}</td>
+                      <td>₹ {item.paid_amount || 0}</td>
+
+                      <td>{getPaymentStatus(item)}</td>
+
+                      {/* HISTORY */}
+                      <td>
+                        <Button
+                          size="sm"
+                          variant="info"
+                          onClick={() => fetchHistory(item.id)}
+                        >
+                          View
+                        </Button>
+                      </td>
+
+                      {/* PDF */}
+                      <td>
+                        <Button
+                          size="sm"
+                          variant="dark"
+                          onClick={() => handleViewPDF(item.id)}
+                        >
+                          PDF
+                        </Button>
+                      </td>
+
+                      {/* PAY */}
+                      <td>
+                        <Button
+                          size="sm"
+                          variant="success"
+                          onClick={() => handleAccount(item)}
+                          disabled={remaining <= 0}
+                        >
+                          Pay
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </Table>
 
             <Pagination
-              totalItems={totalItems}
-              itemsPerPage={100}
+              totalItems={data.length}
+              itemsPerPage={itemsPerPage}
               currentPage={currentPage}
               onPageChange={setCurrentPage}
             />
@@ -339,6 +319,7 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
               </div>
 
               <Form>
+
                 <Form.Group className="mb-3">
                   <Form.Label>Payment Amount</Form.Label>
                   <Form.Control
@@ -391,6 +372,7 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
                     onChange={handleAccountChange}
                   />
                 </Form.Group>
+
               </Form>
             </>
           )}
@@ -419,6 +401,7 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
                 <th>Payee</th>
               </tr>
             </thead>
+
             <tbody>
               {history.map((h) => (
                 <tr key={h.id}>
@@ -437,4 +420,4 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
   );
 };
 
-export default PaymentListBase;
+export default PaymentList;
