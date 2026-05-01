@@ -896,186 +896,455 @@ export const getPaymentHistory = async (req, res) => {
 };
 
 
+// export const paymentReceipt = async (req, res) => {
+
+//     try {
+//         const { id } = req.params;
+//         const company_id = req.user.company_id;
+
+//         // ✅ Get Expense
+//         const expense = await prisma.expensePayment.findFirst({
+//             where: {
+//                 id: Number(id),
+//                 company_id,
+//             },
+//         });
+
+//         if (!expense) {
+//             return res.status(404).json({ message: "Expense not found" });
+//         }
+
+//         // ✅ Fetch Transactions
+//         const transactions = await prisma.expensePaymentTransaction.findMany({
+//             where: { expense_id: Number(id) },
+//             orderBy: { created_at: "asc" },
+//         });
+
+//         // ✅ Fetch related data
+//         const [projects, interventions, users] = await Promise.all([
+//             prisma.project.findMany({
+//                 where: { company_id },
+//                 select: { id: true, name: true },
+//             }),
+//             prisma.intervention.findMany({
+//                 where: { company_id },
+//                 select: { id: true, name: true },
+//             }),
+//             prisma.user.findMany({
+//                 where: { company_id },
+//                 select: { id: true, username: true },
+//             }),
+//         ]);
+
+//         // ✅ Maps
+//         const projectMap = Object.fromEntries(
+//             projects.map((p) => [p.id, p.name])
+//         );
+
+//         const interventionMap = Object.fromEntries(
+//             interventions.map((i) => [i.id, i.name])
+//         );
+
+//         const userMap = Object.fromEntries(
+//             users.map((u) => [u.id, u.username])
+//         );
+
+//         // ✅ Calculations
+//         const totalPaid = transactions.reduce(
+//             (sum, t) => sum + Number(t.payment_amount),
+//             0
+//         );
+
+//         const remaining =
+//             Number(expense.final_approved_amount || expense.amount) - totalPaid;
+
+//         // ✅ PDF INIT
+//         const doc = new PDFDocument({ margin: 40, size: "A4" });
+
+//         res.setHeader("Content-Type", "application/pdf");
+//         res.setHeader("Content-Disposition", `inline; filename=receipt-${id}.pdf`);
+
+//         doc.pipe(res);
+
+//         // ================= HEADER =================
+//         doc
+//             .fontSize(20)
+//             .fillColor("#333")
+//             .text("PAYMENT RECEIPT", { align: "center" });
+
+//         doc.moveDown(0.5);
+
+//         doc
+//             .fontSize(10)
+//             .fillColor("gray")
+//             .text(`Receipt ID: #${expense.id}`, { align: "right" })
+//             .text(`Date: ${new Date().toLocaleDateString("en-IN")}`, {
+//                 align: "right",
+//             });
+
+//         doc.moveDown(1);
+
+//         // ================= PROJECT INFO =================
+//         doc
+//             .fontSize(14)
+//             .fillColor("#000")
+//             .text("Project Details", { underline: true });
+
+//         doc.moveDown(0.5);
+
+//         doc.fontSize(11).fillColor("#333");
+
+//         doc.text(
+//             `Project: ${projectMap[Number(expense.project_name)] || "N/A"}`
+//         );
+//         doc.text(
+//             `Intervention: ${interventionMap[Number(expense.intervention)] || "N/A"
+//             }`
+//         );
+//         doc.text(`State: ${expense.project_state}`);
+//         doc.text(`District: ${expense.project_district}`);
+//         doc.text(`Village: ${expense.project_village}`);
+
+//         doc.moveDown();
+
+//         // ================= USER INFO =================
+//         doc
+//             .fontSize(14)
+//             .text("User Details", { underline: true })
+//             .moveDown(0.5);
+
+//         doc.fontSize(11);
+
+//         doc.text(
+//             `Raised By: ${userMap[Number(expense.requested_by)] || "N/A"}`
+//         );
+//         doc.text(
+//             `Manager: ${userMap[Number(expense.manager_id)] || "N/A"}`
+//         );
+
+//         doc.moveDown();
+
+//         // ================= PAYMENT SUMMARY =================
+//         doc
+//             .fontSize(14)
+//             .text("Payment Summary", { underline: true })
+//             .moveDown(0.5);
+
+//         doc.fontSize(11);
+
+//         doc.text(`Total Amount: ₹ ${expense.amount}`);
+//         doc.text(
+//             `Final Approved Amount: ₹ ${expense.final_approved_amount || expense.amount
+//             }`
+//         );
+//         doc.text(`Total Paid: ₹ ${totalPaid}`);
+//         doc.text(`Remaining: ₹ ${remaining}`);
+
+//         doc.moveDown();
+
+//         // ================= TRANSACTION TABLE =================
+//         doc
+//             .fontSize(14)
+//             .text("Transaction History", { underline: true })
+//             .moveDown(0.5);
+
+//         doc.fontSize(10);
+
+//         // Table Header
+//         doc.text("Date", 40);
+//         doc.text("Amount", 120);
+//         doc.text("Mode", 200);
+//         doc.text("Ref No", 280);
+//         doc.text("Remarks", 360);
+
+//         doc.moveDown(0.5);
+//         doc.moveTo(40, doc.y).lineTo(550, doc.y).stroke();
+
+//         transactions.forEach((t) => {
+//             doc.moveDown(0.5);
+
+//             doc.text(new Date(t.payment_date).toLocaleDateString("en-IN"), 40);
+//             doc.text(`₹ ${t.payment_amount}`, 120);
+//             doc.text(t.payment_mode, 200);
+//             doc.text(t.reference_no || "-", 280);
+//             doc.text(t.remarks || "-", 360);
+//         });
+
+//         doc.moveDown(2);
+
+//         // ================= FOOTER =================
+//         doc
+//             .fontSize(10)
+//             .fillColor("gray")
+//             .text("This is a system-generated receipt.", { align: "center" });
+
+//         doc.end();
+
+//     } catch (error) {
+//         res.status(500).json({ message: error.message });
+//     }
+// };
+
+
+
+
 export const paymentReceipt = async (req, res) => {
     try {
         const { id } = req.params;
         const company_id = req.user.company_id;
 
-        // ✅ Get Expense
         const expense = await prisma.expensePayment.findFirst({
-            where: {
-                id: Number(id),
-                company_id,
-            },
+            where: { id: Number(id), company_id },
         });
 
         if (!expense) {
             return res.status(404).json({ message: "Expense not found" });
         }
 
-        // ✅ Fetch Transactions
         const transactions = await prisma.expensePaymentTransaction.findMany({
             where: { expense_id: Number(id) },
             orderBy: { created_at: "asc" },
         });
 
-        // ✅ Fetch related data
         const [projects, interventions, users] = await Promise.all([
-            prisma.project.findMany({
-                where: { company_id },
-                select: { id: true, name: true },
-            }),
-            prisma.intervention.findMany({
-                where: { company_id },
-                select: { id: true, name: true },
-            }),
-            prisma.user.findMany({
-                where: { company_id },
-                select: { id: true, username: true },
-            }),
+            prisma.project.findMany({ where: { company_id }, select: { id: true, name: true } }),
+            prisma.intervention.findMany({ where: { company_id }, select: { id: true, name: true } }),
+            prisma.user.findMany({ where: { company_id }, select: { id: true, username: true } }),
         ]);
 
-        // ✅ Maps
-        const projectMap = Object.fromEntries(
-            projects.map((p) => [p.id, p.name])
-        );
+        const projectMap = Object.fromEntries(projects.map((p) => [p.id, p.name]));
+        const interventionMap = Object.fromEntries(interventions.map((i) => [i.id, i.name]));
+        const userMap = Object.fromEntries(users.map((u) => [u.id, u.username]));
 
-        const interventionMap = Object.fromEntries(
-            interventions.map((i) => [i.id, i.name])
-        );
+        const approvedAmount = Number(expense.final_approved_amount || expense.amount);
+        const totalPaid = transactions.reduce((sum, t) => sum + Number(t.payment_amount), 0);
+        const remaining = approvedAmount - totalPaid;
+        const paidPercent = approvedAmount > 0 ? Math.round((totalPaid / approvedAmount) * 100) : 0;
 
-        const userMap = Object.fromEntries(
-            users.map((u) => [u.id, u.username])
-        );
-
-        // ✅ Calculations
-        const totalPaid = transactions.reduce(
-            (sum, t) => sum + Number(t.payment_amount),
-            0
-        );
-
-        const remaining =
-            Number(expense.final_approved_amount || expense.amount) - totalPaid;
-
-        // ✅ PDF INIT
-        const doc = new PDFDocument({ margin: 40, size: "A4" });
+        const doc = new PDFDocument({ margin: 0, size: "A4" });
 
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `inline; filename=receipt-${id}.pdf`);
-
         doc.pipe(res);
 
-        // ================= HEADER =================
-        doc
-            .fontSize(20)
-            .fillColor("#333")
-            .text("PAYMENT RECEIPT", { align: "center" });
+        const PAGE_W = 595.28;
+        const PAGE_H = 841.89;
+        const MARGIN = 50;
+        const CONTENT_W = PAGE_W - MARGIN * 2;
 
-        doc.moveDown(0.5);
+        // ── PALETTE ────────────────────────────────────
+        const BRAND      = "#950000";   // <-- aapka theme color
+        const BRAND_DARK = "#6b0000";   // header ke liye thoda aur dark
+        const BRAND_LIGHT = "#fdf0f0";  // light tint for alternating rows / bg
+        const WHITE      = "#ffffff";
+        const GRAY_1     = "#333333";
+        const GRAY_2     = "#555555";
+        const GRAY_3     = "#888888";
+        const GRAY_4     = "#bbbbbb";
+        const GRAY_5     = "#dedede";
+        const GRAY_6     = "#f5f5f5";
 
-        doc
-            .fontSize(10)
-            .fillColor("gray")
-            .text(`Receipt ID: #${expense.id}`, { align: "right" })
-            .text(`Date: ${new Date().toLocaleDateString("en-IN")}`, {
-                align: "right",
+        // ── HELPERS ────────────────────────────────────
+        const fmt = (val) =>
+            `Rs. ${Number(val).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+
+        const fmtDate = (d) =>
+            new Date(d).toLocaleDateString("en-IN", {
+                day: "2-digit", month: "short", year: "numeric",
             });
 
-        doc.moveDown(1);
+        // ── HEADER ─────────────────────────────────────
+        // Main header bar — brand red
+        doc.rect(0, 0, PAGE_W, 90).fill(BRAND);
 
-        // ================= PROJECT INFO =================
-        doc
-            .fontSize(14)
-            .fillColor("#000")
-            .text("Project Details", { underline: true });
+        // Subtle darker strip on right for depth (same family)
+        doc.rect(PAGE_W - 120, 0, 120, 90).fill(BRAND_DARK);
 
-        doc.moveDown(0.5);
+        // Title
+        doc.fontSize(22).fillColor(WHITE).font("Helvetica-Bold")
+           .text("PAYMENT RECEIPT", MARGIN, 22, { width: 300 });
 
-        doc.fontSize(11).fillColor("#333");
+        doc.fontSize(9).fillColor("rgba(255,255,255,0.65)").font("Helvetica")
+           .text("Expense Management System", MARGIN, 52);
 
-        doc.text(
-            `Project: ${projectMap[Number(expense.project_name)] || "N/A"}`
-        );
-        doc.text(
-            `Intervention: ${interventionMap[Number(expense.intervention)] || "N/A"
-            }`
-        );
-        doc.text(`State: ${expense.project_state}`);
-        doc.text(`District: ${expense.project_district}`);
-        doc.text(`Village: ${expense.project_village}`);
+            //  logo 
+            
+        // Thin accent line under header
+        doc.rect(0, 90, PAGE_W, 2).fill(BRAND_DARK);
 
-        doc.moveDown();
+        // Meta row
+        const statusText =
+            remaining <= 0 ? "FULLY PAID" :
+            remaining < approvedAmount ? "PARTIALLY PAID" : "UNPAID";
 
-        // ================= USER INFO =================
-        doc
-            .fontSize(14)
-            .text("User Details", { underline: true })
-            .moveDown(0.5);
+        doc.fontSize(8).fillColor(GRAY_2).font("Helvetica")
+           .text(`Status: ${statusText}`, MARGIN, 102);
+        doc.fontSize(8).fillColor(GRAY_3).font("Helvetica")
+           .text(`Generated: ${fmtDate(new Date())}`, MARGIN, 102,
+               { width: CONTENT_W, align: "right" });
 
-        doc.fontSize(11);
+        let y = 128;
 
-        doc.text(
-            `Raised By: ${userMap[Number(expense.requested_by)] || "N/A"}`
-        );
-        doc.text(
-            `Manager: ${userMap[Number(expense.manager_id)] || "N/A"}`
-        );
+        // ── HELPERS ────────────────────────────────────
+        const divider = (yPos) => {
+            doc.moveTo(MARGIN, yPos).lineTo(MARGIN + CONTENT_W, yPos)
+               .strokeColor(GRAY_5).lineWidth(0.5).stroke();
+        };
 
-        doc.moveDown();
+        const section = (label, yPos) => {
+            // Left red accent bar + label
+            doc.rect(MARGIN, yPos, 3, 13).fill(BRAND);
+            doc.fontSize(8).fillColor(BRAND).font("Helvetica-Bold")
+               .text(label.toUpperCase(), MARGIN + 9, yPos + 1, { characterSpacing: 0.8 });
+            divider(yPos + 16);
+            return yPos + 25;
+        };
 
-        // ================= PAYMENT SUMMARY =================
-        doc
-            .fontSize(14)
-            .text("Payment Summary", { underline: true })
-            .moveDown(0.5);
+        const field = (label, value, x, yPos, w) => {
+            doc.fontSize(7.5).fillColor(GRAY_3).font("Helvetica")
+               .text(label, x, yPos, { width: w });
+            doc.fontSize(9.5).fillColor(GRAY_1).font("Helvetica-Bold")
+               .text(value || "—", x, yPos + 11, { width: w });
+            return yPos + 30;
+        };
 
-        doc.fontSize(11);
+        // ── PROJECT DETAILS ────────────────────────────
+        y = section("Project & Location Details", y);
 
-        doc.text(`Total Amount: ₹ ${expense.amount}`);
-        doc.text(
-            `Final Approved Amount: ₹ ${expense.final_approved_amount || expense.amount
-            }`
-        );
-        doc.text(`Total Paid: ₹ ${totalPaid}`);
-        doc.text(`Remaining: ₹ ${remaining}`);
+        const half = CONTENT_W / 2 - 12;
+        const c1 = MARGIN;
+        const c2 = MARGIN + CONTENT_W / 2 + 6;
 
-        doc.moveDown();
+        field("Project",      projectMap[Number(expense.project_name)],     c1, y, half);
+        field("Intervention", interventionMap[Number(expense.intervention)], c2, y, half);
+        y += 30;
+        field("State",    expense.project_state,    c1, y, half);
+        field("District", expense.project_district, c2, y, half);
+        y += 30;
+        field("Village",   expense.project_village,                  c1, y, half);
+        field("Raised By", userMap[Number(expense.requested_by)],    c2, y, half);
+        y += 36;
 
-        // ================= TRANSACTION TABLE =================
-        doc
-            .fontSize(14)
-            .text("Transaction History", { underline: true })
-            .moveDown(0.5);
+        // ── PAYMENT SUMMARY ────────────────────────────
+        y = section("Payment Summary", y);
 
-        doc.fontSize(10);
+        const thirds = (CONTENT_W - 2) / 3;
 
-        // Table Header
-        doc.text("Date", 40);
-        doc.text("Amount", 120);
-        doc.text("Mode", 200);
-        doc.text("Ref No", 280);
-        doc.text("Remarks", 360);
+        const amountBlock = (label, value, x, yPos, w, highlight = false) => {
+            doc.fontSize(7.5).fillColor(GRAY_3).font("Helvetica")
+               .text(label, x, yPos, { width: w });
+            doc.fontSize(13)
+               .fillColor(highlight ? BRAND : GRAY_1)
+               .font("Helvetica-Bold")
+               .text(value, x, yPos + 12, { width: w });
+        };
 
-        doc.moveDown(0.5);
-        doc.moveTo(40, doc.y).lineTo(550, doc.y).stroke();
+        amountBlock("Total Amount",    fmt(expense.amount),  MARGIN,              y, thirds - 10);
+        amountBlock("Approved Amount", fmt(approvedAmount),  MARGIN + thirds,     y, thirds - 10);
+        amountBlock("Total Paid",      fmt(totalPaid),       MARGIN + thirds * 2, y, thirds - 10, true);
 
-        transactions.forEach((t) => {
-            doc.moveDown(0.5);
+        y += 40;
+        divider(y);
+        y += 10;
 
-            doc.text(new Date(t.payment_date).toLocaleDateString("en-IN"), 40);
-            doc.text(`₹ ${t.payment_amount}`, 120);
-            doc.text(t.payment_mode, 200);
-            doc.text(t.reference_no || "-", 280);
-            doc.text(t.remarks || "-", 360);
-        });
+        // Remaining + progress bar
+        doc.fontSize(7.5).fillColor(GRAY_3).font("Helvetica")
+           .text("Remaining Balance", MARGIN, y);
+        doc.fontSize(12)
+           .fillColor(remaining <= 0 ? GRAY_3 : BRAND)
+           .font("Helvetica-Bold")
+           .text(fmt(remaining), MARGIN, y + 11);
 
-        doc.moveDown(2);
+        // Progress bar — brand red fill
+        const barX = MARGIN + 180;
+        const barW = CONTENT_W - 180;
+        doc.fontSize(7.5).fillColor(GRAY_3).font("Helvetica")
+           .text(`${paidPercent}% paid`, barX, y, { width: barW, align: "right" });
+        doc.roundedRect(barX, y + 14, barW, 8, 4).fill(GRAY_5);
+        if (paidPercent > 0) {
+            doc.roundedRect(barX, y + 14, Math.min(barW * paidPercent / 100, barW), 8, 4).fill(BRAND);
+        }
+        doc.fontSize(7.5).fillColor(GRAY_3).font("Helvetica")
+           .text(`Manager: ${userMap[Number(expense.manager_id)] || "—"}`, MARGIN, y + 26);
 
-        // ================= FOOTER =================
-        doc
-            .fontSize(10)
-            .fillColor("gray")
-            .text("This is a system-generated receipt.", { align: "center" });
+        y += 50;
+
+        // ── TRANSACTION HISTORY ────────────────────────
+        y = section("Transaction History", y);
+
+        if (transactions.length === 0) {
+            doc.fontSize(9).fillColor(GRAY_3).font("Helvetica")
+               .text("No transactions recorded.", MARGIN, y, { width: CONTENT_W, align: "center" });
+            y += 30;
+        } else {
+            const cols = [
+                { label: "Date",    x: MARGIN,       w: 80  },
+                { label: "Amount",  x: MARGIN + 82,  w: 90  },
+                { label: "Mode",    x: MARGIN + 174, w: 75  },
+                { label: "Ref No.", x: MARGIN + 251, w: 100 },
+                { label: "Remarks", x: MARGIN + 353, w: CONTENT_W - 303 },
+            ];
+
+            // Table header — brand red
+            doc.rect(MARGIN, y, CONTENT_W, 22).fill(BRAND);
+            cols.forEach((col) => {
+                doc.fontSize(7.5).fillColor(WHITE).font("Helvetica-Bold")
+                   .text(col.label, col.x + 4, y + 7, { width: col.w - 6 });
+            });
+            y += 22;
+
+            transactions.forEach((t, idx) => {
+                const rowH = 24;
+                if (y + rowH > PAGE_H - 80) {
+                    doc.addPage();
+                    y = MARGIN;
+                }
+
+                // Alternating: white vs very light red tint
+                doc.rect(MARGIN, y, CONTENT_W, rowH).fill(idx % 2 === 0 ? WHITE : BRAND_LIGHT);
+
+                const vals = [
+                    fmtDate(t.payment_date),
+                    fmt(t.payment_amount),
+                    t.payment_mode || "—",
+                    t.reference_no || "—",
+                    t.remarks      || "—",
+                ];
+
+                cols.forEach((col, ci) => {
+                    doc.fontSize(8.5)
+                       .fillColor(ci === 1 ? BRAND : GRAY_1)
+                       .font(ci === 1 ? "Helvetica-Bold" : "Helvetica")
+                       .text(vals[ci], col.x + 4, y + 7, { width: col.w - 8, lineBreak: false });
+                });
+
+                y += rowH;
+            });
+
+            doc.moveTo(MARGIN, y).lineTo(MARGIN + CONTENT_W, y)
+               .strokeColor(GRAY_5).lineWidth(0.5).stroke();
+        }
+
+        y += 16;
+
+        // Totals row
+        doc.fontSize(8.5).fillColor(GRAY_2).font("Helvetica")
+           .text(`Total Transactions: ${transactions.length}`, MARGIN, y);
+        doc.fontSize(8.5).fillColor(BRAND).font("Helvetica-Bold")
+           .text(`Total Paid: ${fmt(totalPaid)}`, MARGIN, y,
+               { width: CONTENT_W, align: "right" });
+
+        y += 30;
+
+        // ── FOOTER ─────────────────────────────────────
+        const footerY = PAGE_H - 50;
+
+        // Red accent line above footer
+        doc.rect(MARGIN, footerY, CONTENT_W, 1).fill(BRAND);
+
+
+        doc.fontSize(7.5).fillColor(GRAY_4)
+  
 
         doc.end();
 
