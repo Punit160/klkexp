@@ -417,14 +417,14 @@ export const getReviewers = async (req, res) => {
             username,
             email,
             role_id
-        FROM user
+        FROM User
         WHERE 
             company_id = ${company_id}
             AND status = 1
             AND role_id IN (
                 SELECT rp.role_id
-                FROM rolepermission rp
-                JOIN permission p ON p.id = rp.permission_id
+                FROM RolePermission rp
+                JOIN Permission p ON p.id = rp.permission_id
                 WHERE p.name = ${REQUIRED_PERMISSION}
             )
         ORDER BY username ASC
