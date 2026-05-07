@@ -239,6 +239,8 @@ export const getMyCreatedExpenses = async (req, res) => {
                 document: exp.document,
                 remarks: exp.remarks || "N/A",
                 created_at: exp.created_at,
+                
+                review_assign: Number(exp.review_assign),
 
                 raised_by: userMap[userId] || "N/A",
                 manager_name: userMap[managerId] || "N/A",
@@ -271,29 +273,6 @@ export const getMyCreatedExpenses = async (req, res) => {
 
 
 
-export const editExpense = async (req, res) => {
-    try {
-        const company_id = req.user.company_id;
-        const id = Number(req.params.id);
-        const expense = await prisma.expensePayment.findUnique({
-            where: { id, company_id },
-        });
-        if (!expense) {
-            return res.status(404).json({
-                message: "Expense not found",
-            });
-        }
-
-        return res.status(200).json({
-            data: expense,
-        });
-
-    } catch (error) {
-        return res.status(500).json({
-            message: error.message,
-        });
-    }
-};
 
 export const updateExpense = async (req, res) => {
     try {
@@ -345,6 +324,32 @@ export const updateExpense = async (req, res) => {
         });
     }
 };
+
+
+export const editExpense = async (req, res) => {
+    try {
+        const company_id = req.user.company_id;
+        const id = Number(req.params.id);
+        const expense = await prisma.expensePayment.findUnique({
+            where: { id, company_id },
+        });
+        if (!expense) {
+            return res.status(404).json({
+                message: "Expense not found",
+            });
+        }
+
+        return res.status(200).json({
+            data: expense,
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message,
+        });
+    }
+};
+
 
 
 export const deleteExpense = async (req, res) => {
@@ -474,6 +479,11 @@ export const getManagerExpenses = async (req, res) => {
             reviewer_approval_text: getStatusText(exp.reviewer_approval_status), // label
             reviewer_remarks: exp.reviewer_remarks || "N/A",
 
+            requested_date: formatDate(exp.requested_date),
+            assign_date: formatDate(exp.assign_date),
+            manager_approved_at: formatDate(exp.manager_approved_at),
+            reviewer_approved_at: formatDate(exp.reviewer_approved_at),
+
 
             requested_date: formatDate(exp.requested_date),
             assign_date: formatDate(exp.assign_date),
@@ -505,20 +515,25 @@ export const getReviewers = async (req, res) => {
             });
         }
 
-        const reviewers = await prisma.user.findMany({
-            where: {
-                company_id: company_id,
-                status: true,
-            },
-            select: {
-                id: true,
-                username: true,
-                email: true,
-            },
-            orderBy: {
-                username: "asc",
-            },
-        });
+        const REQUIRED_PERMISSION = "reviewer_expense";
+        const reviewers = await prisma.$queryRaw`
+        SELECT 
+            id,
+            username,
+            email,
+            role_id
+        FROM User
+        WHERE 
+            company_id = ${company_id}
+            AND status = 1
+            AND role_id IN (
+                SELECT rp.role_id
+                FROM RolePermission rp
+                JOIN Permission p ON p.id = rp.permission_id
+                WHERE p.name = ${REQUIRED_PERMISSION}
+            )
+        ORDER BY username ASC
+      `;
 
         return res.status(200).json(reviewers);
 
@@ -850,10 +865,10 @@ export const getAccountsExpenses = async (req, res) => {
             document: exp.document,
 
             // ✅ IMPORTANT
-            final_approved_amount: exp.final_approved_amount,
+               final_approved_amount: exp.final_approved_amount,
             manager_approved_date: formatDate(exp.manager_approved_at),
             paid_amount: exp.paid_amount || 0,              
-            payment_status: exp.payment_status || 0,        
+            payment_status: exp.payment_status || 0,   
 
             // ✅ USERS
             raised_by: userMap[Number(exp.requested_by)] || "N/A",
