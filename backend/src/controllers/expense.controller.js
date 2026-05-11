@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-import { request } from "express";
 import PDFDocument from "pdfkit";
 const prisma = new PrismaClient();
 
@@ -13,6 +12,7 @@ function formatDate(date) {
     const year = d.getFullYear();
     return `${day}-${month}-${year}`;
 }
+
 export const getExpenseFormData = async (req, res) => {
     try {
         const company_id = req.user?.company_id;
@@ -274,6 +274,30 @@ export const getMyCreatedExpenses = async (req, res) => {
 
 
 
+export const editExpense = async (req, res) => {
+    try {
+        const company_id = req.user.company_id;
+        const id = Number(req.params.id);
+        const expense = await prisma.expensePayment.findUnique({
+            where: { id, company_id },
+        });
+        if (!expense) {
+            return res.status(404).json({
+                message: "Expense not found",
+            });
+        }
+
+        return res.status(200).json({
+            data: expense,
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message,
+        });
+    }
+};
+
 export const updateExpense = async (req, res) => {
     try {
         const company_id = req.user.company_id;
@@ -324,33 +348,6 @@ export const updateExpense = async (req, res) => {
         });
     }
 };
-
-
-export const editExpense = async (req, res) => {
-    try {
-        const company_id = req.user.company_id;
-        const id = Number(req.params.id);
-        const expense = await prisma.expensePayment.findUnique({
-            where: { id, company_id },
-        });
-        if (!expense) {
-            return res.status(404).json({
-                message: "Expense not found",
-            });
-        }
-
-        return res.status(200).json({
-            data: expense,
-        });
-
-    } catch (error) {
-        return res.status(500).json({
-            message: error.message,
-        });
-    }
-};
-
-
 
 export const deleteExpense = async (req, res) => {
     try {
@@ -449,7 +446,6 @@ export const getManagerExpenses = async (req, res) => {
             return "Pending";
         };
 
-
         // ✅ Final Response
         const result = expenses.map((exp) => ({
             id: exp.id,
@@ -470,6 +466,7 @@ export const getManagerExpenses = async (req, res) => {
             manager_name: userMap[Number(exp.manager_id)] || "N/A",
             reviewer_name: userMap[Number(exp.reviewer_id)] || "N/A",
             document: exp.document,
+
             review_assign: exp.review_assign,
             managertoreviewer: exp.managertoreviewer,
             approved_amount: exp.approved_amount || "N/A",
@@ -477,13 +474,8 @@ export const getManagerExpenses = async (req, res) => {
             paid_amount: exp.paid_amount || "N/A",
             reviewer_approval_status: Number(exp.reviewer_approval_status), // raw value
             reviewer_approval_text: getStatusText(exp.reviewer_approval_status), // label
+
             reviewer_remarks: exp.reviewer_remarks || "N/A",
-
-            requested_date: formatDate(exp.requested_date),
-            assign_date: formatDate(exp.assign_date),
-            manager_approved_at: formatDate(exp.manager_approved_at),
-            reviewer_approved_at: formatDate(exp.reviewer_approved_at),
-
 
             requested_date: formatDate(exp.requested_date),
             assign_date: formatDate(exp.assign_date),
@@ -876,8 +868,6 @@ export const getAccountsExpenses = async (req, res) => {
 
             // ✅ STATUS
             manager_status: getStatusText(exp.approval_status),
-
-
         }));
 
         return res.json(result);
