@@ -18,40 +18,50 @@ const getFYDateRange = (fy) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const UserDetailReport = () => {
-    const [searchParams] = useSearchParams();
-    // const navigate = useNavigate();
+/**
+ * UserDetailReport can be used in two ways:
+ *
+ * 1. As a standalone page (normal route) — reads params from URL via useSearchParams
+ * 2. As a modal child (modalMode=true) — reads params from `modalParams` prop string
+ *
+ * Props:
+ *   modalMode   {boolean}  — if true, component runs in embedded/modal mode (no PageTitle)
+ *   modalParams {string}   — URLSearchParams string, e.g. "user_id=5&fy_year=2024-25"
+ */
+const UserDetailReport = ({ modalMode = false, modalParams = "" }) => {
+    // ── Resolve params depending on mode ─────────────────────────────────────
+    const [urlSearchParams] = useSearchParams();
 
-    // ── Read URL params ──────────────────────────────────────────────────────
-    const urlUserId   = searchParams.get("user_id")   || "";
-    const urlFY       = searchParams.get("fy_year")   || "";
-    const urlFromDate = searchParams.get("from_date") || "";
-    const urlToDate   = searchParams.get("to_date")   || "";
-    const urlName  = searchParams.get("name")  || "";
-    const urlEmail = searchParams.get("email") || "";
-    const urlPhone = searchParams.get("phone") || "";
+    const resolvedParams = modalMode
+        ? new URLSearchParams(modalParams)
+        : urlSearchParams;
 
-    console.log("URL Params:", { urlUserId, urlFY, urlFromDate, urlToDate });
-    console.log("Full URL search:", window.location.search);
+    const urlUserId   = resolvedParams.get("user_id")   || "";
+    const urlFY       = resolvedParams.get("fy_year")   || "";
+    const urlFromDate = resolvedParams.get("from_date") || "";
+    const urlToDate   = resolvedParams.get("to_date")   || "";
+    const urlName     = resolvedParams.get("name")      || "";
+    const urlEmail    = resolvedParams.get("email")     || "";
+    const urlPhone    = resolvedParams.get("phone")     || "";
 
     // ── State ────────────────────────────────────────────────────────────────
     const [userProfile, setUserProfile] = useState(
         urlName ? { username: urlName, email: urlEmail, phone_no: urlPhone } : null
     );
-    const [rows, setRows]             = useState([]);
-    const [loading, setLoading]       = useState(true);
-    const [error, setError]           = useState(null);
+    const [rows, setRows]                 = useState([]);
+    const [loading, setLoading]           = useState(true);
+    const [error, setError]               = useState(null);
     const [isPdfLoading, setIsPdfLoading] = useState(false);
-    const [fyOptions, setFyOptions]   = useState([]);
+    const [fyOptions, setFyOptions]       = useState([]);
 
     const TODAY = new Date().toISOString().split("T")[0];
 
-    const [selectedFY,   setSelectedFY]   = useState(urlFY);
-    const [fromDate,     setFromDate]     = useState(urlFromDate);
-    const [toDate,       setToDate]       = useState(urlToDate);
-    const [appliedFrom,  setAppliedFrom]  = useState(urlFromDate);
-    const [appliedTo,    setAppliedTo]    = useState(urlToDate);
-    const [dateError,    setDateError]    = useState("");
+    const [selectedFY,  setSelectedFY]  = useState(urlFY);
+    const [fromDate,    setFromDate]    = useState(urlFromDate);
+    const [toDate,      setToDate]      = useState(urlToDate);
+    const [appliedFrom, setAppliedFrom] = useState(urlFromDate);
+    const [appliedTo,   setAppliedTo]   = useState(urlToDate);
+    const [dateError,   setDateError]   = useState("");
 
     const { fyStart, fyEnd } = getFYDateRange(selectedFY);
     const calendarMax = fyEnd && fyEnd < TODAY ? fyEnd : TODAY;
@@ -61,33 +71,32 @@ const UserDetailReport = () => {
         currentPage, setCurrentPage,
         totalItems, paginatedData, indexOfFirst,
     } = useSearchFilter(rows, {
-        keys: ["project_name", "intervention_name", "remarks", "financial_year"],
+        keys: ["project_name", "intervention_name", "financial_year"],
         itemsPerPage: 100,
     });
 
     // ── Fetch data from API ──────────────────────────────────────────────────
     const fetchData = async (from, to, fy, options = {}) => {
-        console.log("fetchData called:", { from, to, fy, urlUserId });
         if (!urlUserId) {
-            console.warn("urlUserId is empty — check URL params or navigation");
             setLoading(false);
             setError("No user selected. Please go back and click a user.");
             return;
         }
-        
+
         if (!fy || fy === "all") {
             if (!options.initFYOptions) {
-                console.warn("fy_year missing, skipping fetch");
                 setLoading(false);
                 return;
             }
         }
+
         setLoading(true);
         setError(null);
+
         try {
             const params = new URLSearchParams();
             params.set("user_id", urlUserId);
-      
+
             if (fy && fy !== "all") {
                 params.set("fy_year", fy);
             } else if (selectedFY && selectedFY !== "all") {
@@ -105,7 +114,6 @@ const UserDetailReport = () => {
             if (!res.ok) throw new Error("Failed to fetch data");
 
             const json = await res.json();
-            console.log("UserDetailReport API response:", JSON.stringify(json, null, 2));
 
             const isSuccess =
                 json.success === true ||
@@ -113,17 +121,13 @@ const UserDetailReport = () => {
                 json.status === "success";
 
             if (isSuccess) {
-                const raw = json.data ?? [];
-
-
+                const raw      = json.data ?? [];
                 const dataRows = Array.isArray(raw) ? raw : [];
 
                 setRows(dataRows);
                 setCurrentPage(1);
 
-                const userObj = Array.isArray(json.user)
-                    ? json.user[0]
-                    : json.user ?? null;
+                const userObj = Array.isArray(json.user) ? json.user[0] : json.user ?? null;
 
                 if (userObj) {
                     setUserProfile(userObj);
@@ -134,18 +138,12 @@ const UserDetailReport = () => {
                         email:          r.requested_by_email || "—",
                         reporting_head: r.manager_name       || "—",
                     });
-
-
-                    
                 }
 
-                const fyList = (json.availableFYList ?? []).map(
-                    (item) => item.fy_year
-                );
+                const fyList = (json.availableFYList ?? []).map((item) => item.fy_year);
 
                 if (options.initFYOptions && fyList.length > 0) {
                     setFyOptions(fyList);
-
                     if (!fy && fyList.length > 0) {
                         setSelectedFY(fyList[0]);
                         fetchData(from, to, fyList[0]);
@@ -160,8 +158,18 @@ const UserDetailReport = () => {
         }
     };
 
-    // ── Init ─────────────────────────────────────────────────────────────────
+    // ── Init — re-runs whenever the user changes (modal opens for a new user) ─
     useEffect(() => {
+        // Reset state when user changes
+        setUserProfile(urlName ? { username: urlName, email: urlEmail, phone_no: urlPhone } : null);
+        setRows([]);
+        setSelectedFY(urlFY);
+        setFromDate(urlFromDate);
+        setToDate(urlToDate);
+        setAppliedFrom(urlFromDate);
+        setAppliedTo(urlToDate);
+        setDateError("");
+
         fetchData(urlFromDate, urlToDate, urlFY, { initFYOptions: true });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [urlUserId]);
@@ -169,7 +177,8 @@ const UserDetailReport = () => {
     // ── Handlers ─────────────────────────────────────────────────────────────
     const handleFYChange = (fy) => {
         setSelectedFY(fy);
-        setFromDate(""); setToDate(""); setAppliedFrom(""); setAppliedTo(""); setDateError("");
+        setAppliedFrom(""); setAppliedTo(""); setDateError("");
+        // dates persist — do NOT clear fromDate/toDate
         fetchData("", "", fy);
     };
 
@@ -185,16 +194,18 @@ const UserDetailReport = () => {
     };
 
     const validateAndSetFrom = (val) => {
-        if (!val) { setFromDate(""); setDateError(""); return; }
-        if (toDate && val > toDate) { setDateError("From date cannot be after To date."); setFromDate(val); return; }
-        setFromDate(val); setDateError("");
+        setFromDate(val);
+        if (!val) { setDateError(""); return; }
+        if (toDate && val > toDate) { setDateError("From date cannot be after To date."); return; }
+        setDateError("");
     };
 
     const validateAndSetTo = (val) => {
-        if (!val) { setToDate(""); setDateError(""); return; }
-        if (val > calendarMax) { setDateError("To date cannot be a future date."); setToDate(val); return; }
-        if (fromDate && val < fromDate) { setDateError("To date cannot be before From date."); setToDate(val); return; }
-        setToDate(val); setDateError("");
+        setToDate(val);
+        if (!val) { setDateError(""); return; }
+        if (val > calendarMax) { setDateError("To date cannot be a future date."); return; }
+        if (fromDate && val < fromDate) { setDateError("To date cannot be before From date."); return; }
+        setDateError("");
     };
 
     const isFilterDisabled = (!fromDate && !toDate) || !!dateError;
@@ -214,7 +225,7 @@ const UserDetailReport = () => {
         setIsPdfLoading(true);
         try {
             const user = userProfile || {};
-            const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+            const doc  = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
             const pageWidth = doc.internal.pageSize.getWidth();
             let cursorY = 14;
 
@@ -233,12 +244,11 @@ const UserDetailReport = () => {
             doc.text("Employee Information", 14, cursorY);
             cursorY += 5;
 
-     
             const userFields = [
-                ["Name",           user.username       || user.Name        || user.name       || "N/A"],
-                ["Email",          user.email          || user.user_email                     || "N/A"],
-                ["Phone",          user.phone_no       || user.user_phone  || user.phone      || "N/A"],
-                ["Reporting Head", user.reporting_head                                        || "N/A"],
+                ["Name",           user.username       || user.Name       || user.name    || "N/A"],
+                ["Email",          user.email          || user.user_email                 || "N/A"],
+                ["Phone",          user.phone_no       || user.user_phone || user.phone   || "N/A"],
+                ["Reporting Head", user.reporting_head                                    || "N/A"],
             ];
 
             doc.setFontSize(9);
@@ -280,7 +290,7 @@ const UserDetailReport = () => {
             const tableHead = [[
                 "S No", "Project", "Intervention",
                 "Request Amt (₹)", "Request Date",
-                "Approved Amt (₹)", "Paid Amt (₹)", "Paid Date", "Remarks",
+                "Approved Amt (₹)", "Paid Amt (₹)", "Paid Date",
             ]];
 
             const tableBody = rows.map((row, index) => [
@@ -292,7 +302,7 @@ const UserDetailReport = () => {
                 formatAmount(row.final_approved_amount),
                 formatAmount(row.paid_amount),
                 formatDate(row.payment_date),
-                row.remarks           || "—",
+               
             ]);
 
             autoTable(doc, {
@@ -340,28 +350,25 @@ const UserDetailReport = () => {
 
     // ── Export ────────────────────────────────────────────────────────────────
     const exportColumns = [
-        { label: "Project",          key: "project_name"           },
-        { label: "Intervention",     key: "intervention_name"      },
-        { label: "Request Amount",   key: "amount"                 },
-        { label: "Request Date",     key: "requested_date"         },
-        { label: "Approved Amount",  key: "final_approved_amount"  },
-        { label: "Paid Amount",      key: "paid_amount"            },
-        { label: "Paid Date",        key: "payment_date"           },
-        { label: "Remarks",          key: "remarks"                },
+        { label: "Project",         key: "project_name"          },
+        { label: "Intervention",    key: "intervention_name"     },
+        { label: "Request Amount",  key: "amount"                },
+        { label: "Request Date",    key: "requested_date"        },
+        { label: "Approved Amount", key: "final_approved_amount" },
+        { label: "Paid Amount",     key: "paid_amount"           },
+        { label: "Paid Date",       key: "payment_date"          },
     ];
 
     const exportData = rows.map((row) => ({
-        project_name:           row.project_name           || "N/A",
-        intervention_name:      row.intervention_name      || "N/A",
-        amount:                 row.amount                 ?? 0,
-        requested_date:         formatDate(row.requested_date),
-        final_approved_amount:  row.final_approved_amount  ?? 0,
-        paid_amount:            row.paid_amount            ?? 0,
-        payment_date:           formatDate(row.payment_date),
-        remarks:                row.remarks                || "—",
+        project_name:          row.project_name          || "N/A",
+        intervention_name:     row.intervention_name     || "N/A",
+        amount:                row.amount                ?? 0,
+        requested_date:        formatDate(row.requested_date),
+        final_approved_amount: row.final_approved_amount ?? 0,
+        paid_amount:           row.paid_amount           ?? 0,
+        payment_date:          formatDate(row.payment_date),
     }));
 
-    // ── Derive display values ─────────────────────────────────────────────────
     const displayName   = userProfile?.username || "—";
     const displayStatus = userProfile?.status   || "Active";
 
@@ -369,7 +376,10 @@ const UserDetailReport = () => {
 
     return (
         <>
-            <PageTitle activeMenu="User Detail Report" motherMenu="Reports" />
+            {/* PageTitle only shown when used as a standalone page, not inside modal */}
+            {!modalMode && (
+                <PageTitle activeMenu="User Detail Report" motherMenu="Reports" />
+            )}
 
             {/* ── User Profile Card ── */}
             <Col lg={12} className="mb-4">
@@ -378,22 +388,14 @@ const UserDetailReport = () => {
                         {loading && !userProfile ? (
                             <div className="text-center py-3">Loading user info...</div>
                         ) : !loading && !userProfile ? (
-                            <div className="text-center py-3 text-muted">
-                                No user data found.
-                            </div>
+                            <div className="text-center py-3 text-muted">No user data found.</div>
                         ) : (
                             <>
                                 <div className="d-flex align-items-center gap-3 mb-3">
                                     <h5 className="mb-0 fw-bold">{displayName}</h5>
-
-                                    <span
-                                        className={`badge ${
-                                            displayStatus === "Active" ? "bg-success" : "bg-secondary"
-                                        }`}
-                                    >
+                                    <span className={`badge ${displayStatus === "Active" ? "bg-success" : "bg-secondary"}`}>
                                         {displayStatus}
                                     </span>
-
                                     <div className="ms-auto text-end">
                                         <Button
                                             variant="outline-primary"
@@ -447,8 +449,8 @@ const UserDetailReport = () => {
                                 <option value="all">All Years</option>
                             </select>
 
+                            {/* No key prop — dates persist across interactions */}
                             <input
-                                key={`from-${selectedFY}`}
                                 type="date"
                                 className="form-control"
                                 style={{ width: "150px" }}
@@ -459,7 +461,6 @@ const UserDetailReport = () => {
                             />
                             <span>to</span>
                             <input
-                                key={`to-${selectedFY}`}
                                 type="date"
                                 className="form-control"
                                 style={{ width: "150px" }}
@@ -517,7 +518,6 @@ const UserDetailReport = () => {
                                             <th>Approved Amt (₹)</th>
                                             <th>Paid Amt (₹)</th>
                                             <th>Paid Date</th>
-                                            <th>Remarks</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -532,14 +532,11 @@ const UserDetailReport = () => {
                                                     <td className="fw-bold">{formatAmount(row.final_approved_amount)}</td>
                                                     <td className="fw-bold text-success">{formatAmount(row.paid_amount)}</td>
                                                     <td>{formatDate(row.payment_date)}</td>
-                                                    <td className="text-muted small">{row.remarks || "—"}</td>
                                                 </tr>
                                             ))
                                         ) : (
                                             <tr>
-                                                <td colSpan={9} className="text-center">
-                                                    No Data Found
-                                                </td>
+                                                <td colSpan={9} className="text-center">No Data Found</td>
                                             </tr>
                                         )}
                                     </tbody>
