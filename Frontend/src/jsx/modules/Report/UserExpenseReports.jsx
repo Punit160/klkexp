@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Col, Card, Table, Button } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 import PageTitle from "../../layouts/PageTitle";
 import TableExportActions from "../../components/Common/TableExportActions";
 import Pagination from "../../components/Common/Pagination";
@@ -19,6 +20,8 @@ const getFYDateRange = (fy) => {
 // ───────────────────────────────────────────────────────────────────────────────
 
 const UserExpenseReports = () => {
+  const navigate = useNavigate();
+
   const [rows, setRows]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
@@ -168,6 +171,23 @@ const UserExpenseReports = () => {
   const formatAmount = (val) =>
     val !== undefined && val !== null ? Number(val).toLocaleString("en-IN") : "0";
 
+  // ─── Navigate to detail page ───────────────────────────────────────────────
+  const handleRowClick = (row) => {
+    const params = new URLSearchParams();
+    params.set("user_id", row.id);  // use numeric id, not EMP string
+    const fyToSend = selectedFY && selectedFY !== "0" && selectedFY !== "all"
+      ? selectedFY
+      : fyOptions[0] || "";
+    if (fyToSend) params.set("fy_year", fyToSend);
+    if (appliedFrom) params.set("from_date", appliedFrom);
+    if (appliedTo)   params.set("to_date", appliedTo);
+    // pass basic info so detail page can show profile instantly
+    if (row.Name)       params.set("name",  row.Name);
+    if (row.user_email) params.set("email", row.user_email);
+    if (row.user_phone) params.set("phone", row.user_phone);
+    navigate(`/User-Detail-Reports?${params.toString()}`);
+  };
+
   const exportColumns = [
     { label: "Name",             key: "Name" },
     { label: "Email",            key: "user_email" },
@@ -272,7 +292,7 @@ const UserExpenseReports = () => {
               <div className="text-center text-danger py-4">{error}</div>
             ) : (
               <>
-                <Table responsive bordered className="text-nowrap">
+                <Table responsive className="text-nowrap">
                   <thead>
                     <tr>
                       <th>Sno</th>
@@ -286,9 +306,19 @@ const UserExpenseReports = () => {
                   <tbody>
                     {paginatedData.length > 0 ? (
                       paginatedData.map((row, index) => (
-                        <tr key={row.user_id ?? index}>
+                        <tr
+                          key={row.user_id ?? index}
+                          onClick={() => handleRowClick(row)}
+                          style={{ cursor: "pointer" }}
+                          className="table-row-hover"
+                          title={`View details for ${row.Name}`}
+                        >
                           <td>{indexOfFirst + index + 1}</td>
-                          <td>{row.Name || "N/A"}</td>
+                          <td>
+                            <span className=" fw-semibold">
+                              {row.Name || "N/A"}
+                            </span>
+                          </td>
                           <td>{row.user_email || "N/A"}</td>
                           <td>{row.user_phone || "N/A"}</td>
                           <td className="fw-bold">{formatAmount(row.approvedAmount)}</td>
