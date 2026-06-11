@@ -56,6 +56,14 @@ import PaidExpense from "../modules/Report/PaidExpense";
 
 
 
+import AdvancePayList from "../modules/Advancepayment/AdvancePayList";
+import AdvancePayForm from "../modules/Advancepayment/AdvancePayForm";
+import AdvancePaymentDashboard from "../modules/Advancepayment/AdvancePaymentDashboard";
+import UserDetailReport from "../modules/Report/UserDetailReport";
+import UserExpenseReports from "../modules/Report/UserExpenseReports";
+
+
+
 
 const ProtectedRoute = ({ children }) => {
     const token = localStorage.getItem("token");
@@ -133,7 +141,13 @@ const Markup = () => {
         { path: '/account/pending-payments', element: <AccountPendingPayments /> },
 
         { path: '/Intervention-Reports', element: <InterventionReports /> },
+
+
+        { path: '/AdvancePaymentDashboard', element: <AdvancePaymentDashboard /> },
+
         { path: '/Paid-Expense', element: <PaidExpense /> },
+        { path: '/User-Expense-Reports', element: <UserExpenseReports /> },
+        { path: '/User-Detail-Reports', element: <UserDetailReport /> },
 
      ];
 

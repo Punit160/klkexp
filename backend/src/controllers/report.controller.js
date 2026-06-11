@@ -1,6 +1,19 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 const prisma = new PrismaClient();
 
+
+
+const serializeBigInt = (data) =>
+    JSON.parse(
+        JSON.stringify(data, (_, value) =>
+            typeof value === "bigint"
+                ? value.toString()
+                : value
+        )
+    );
+
+
+
 const getCurrentFYYear = () => {
     const now = new Date();
     const month = now.getMonth() + 1;
@@ -9,6 +22,7 @@ const getCurrentFYYear = () => {
     return `${fyStartYear}-${fyStartYear + 1}`;
 };
 const isValidFYYear = (fy) => /^\d{4}-\d{4}$/.test(fy);
+
 export const InterventionReport = async (req, res) => {
     try {
         const company_id = req.user.company_id;
@@ -37,8 +51,8 @@ export const InterventionReport = async (req, res) => {
         const userFragment = filterUserId ? Prisma.sql`AND ep.requested_by = ${filterUserId}` : Prisma.empty;
         const projectFragment = filterProjectId ? Prisma.sql`AND ep.project_name = ${filterProjectId}` : Prisma.empty;
         const interventionFragment = filterInterventionId ? Prisma.sql`AND ep.intervention = ${filterInterventionId}` : Prisma.empty;
-        const fromFragment = fromDate ? Prisma.sql`AND ep.created_at >= ${fromDate}` : Prisma.empty;
-        const toFragment = toDate ? Prisma.sql`AND ep.created_at <= ${toDate}` : Prisma.empty;
+        const fromFragment = fromDate ? Prisma.sql`AND ept.payment_date >= ${fromDate}` : Prisma.empty;
+        const toFragment = toDate ? Prisma.sql`AND ept.payment_date <= ${toDate}` : Prisma.empty;
 
         // ─── Step 1: Get all Interventions for this company ───
         // (These become your dynamic columns)
@@ -81,8 +95,15 @@ export const InterventionReport = async (req, res) => {
             FROM ExpensePayment ep
             LEFT JOIN User u         ON u.id  = ep.requested_by
             LEFT JOIN Intervention i ON i.id  = ep.intervention
+              JOIN (
+      SELECT expense_id, MAX(payment_date) as payment_date
+      FROM ExpensePaymentTransaction
+      GROUP BY expense_id
+  ) ept ON ept.expense_id = ep.id
             WHERE ep.company_id = ${company_id}
             ${fyFragment}
+            ${fromFragment}
+            ${toFragment}
             GROUP BY u.id, u.username, u.email, i.id, i.name
             ORDER BY u.username ASC, i.id ASC
         `;
@@ -132,6 +153,13 @@ export const InterventionReport = async (req, res) => {
             grandTotal += user.row_total;
         }
 
+        const availableFYList = await prisma.$queryRaw`
+            SELECT DISTINCT financial_year AS fy_year
+            FROM ExpensePayment ep
+            WHERE ep.company_id   = ${company_id}
+            ORDER BY financial_year DESC
+        `;
+
         // ─── Serialize & Respond ──────────────────────────
         const responseData = ({
             activeFilters: {
@@ -146,6 +174,7 @@ export const InterventionReport = async (req, res) => {
             rows: [...userMap.values()],          // → table rows (pivoted)
             columnTotals,                         // → footer totals per intervention
             grandTotal,                           // → bottom-right total
+            availableFYList,                      // → list of available financial years
         });
 
         return res.status(200).json({ success: true, data: responseData });
@@ -228,7 +257,211 @@ export const PaidExpenseReport = async (req, res) => {
 
   ORDER BY ept.payment_date DESC, ep.id DESC
 `;
-        return res.status(200).json({ success: true, data: paidExpenses });
+        const availableFYList = await prisma.$queryRaw`
+            SELECT DISTINCT financial_year AS fy_year
+            FROM ExpensePayment ep
+            WHERE ep.company_id   = ${company_id}
+            ORDER BY financial_year DESC
+        `;
+        return res.status(200).json({ success: true, data: paidExpenses, availableFYList });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Paid Expense Report fetch failed",
+            error: error.message,
+        });
+    }
+};
+
+
+export const UserwiseExpenseReport = async (req, res) => {
+    try {
+        const company_id = req.user.company_id;
+        const user_id = req.user.id;
+        const rawFY = req.query.fy_year;
+        let fyYear;
+        if (!rawFY || rawFY === "current") {
+            fyYear = getCurrentFYYear();
+        } else if (rawFY === "all" || rawFY === "0") {
+            fyYear = null;
+        } else if (isValidFYYear(rawFY)) {
+            fyYear = rawFY;
+        } else {
+            fyYear = getCurrentFYYear();
+        }
+        const filterUserId = req.query.user_id ? parseInt(req.query.user_id) : null;
+        const filterProjectId = req.query.project_id ? String(req.query.project_id).trim() : null;
+        const filterInterventionId = req.query.intervention_id ? parseInt(req.query.intervention_id) : null;
+        const fromDate = req.query.from_date ? new Date(req.query.from_date) : null;
+        const toDate = req.query.to_date ? new Date(req.query.to_date) : null;
+
+        // ─── SQL Fragments ────────────────────────────────
+        const fyFragment = fyYear ? Prisma.sql`AND ep.financial_year = ${fyYear}` : Prisma.empty;
+        const userFragment = filterUserId ? Prisma.sql`AND ep.requested_by = ${filterUserId}` : Prisma.empty;
+        const projectFragment = filterProjectId ? Prisma.sql`AND ep.project_name = ${filterProjectId}` : Prisma.empty;
+        const interventionFragment = filterInterventionId ? Prisma.sql`AND ep.intervention = ${filterInterventionId}` : Prisma.empty;
+        const fromFragment = fromDate ? Prisma.sql`AND ept.payment_date >= ${fromDate}` : Prisma.empty;
+        const toFragment = toDate ? Prisma.sql`AND ept.payment_date <= ${toDate}` : Prisma.empty;
+
+        const userWiseSummary = await prisma.$queryRaw`
+    SELECT
+        u.id                AS id,
+        u.user_id            AS user_id,
+        u.username          AS Name,
+        u.email             AS user_email,
+        u.phone_no          AS user_phone,
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.approval_status = 1  
+                THEN ep.final_approved_amount 
+                ELSE 0 
+            END
+        ), 0) AS approvedAmount,
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.payment_status != 0 
+                THEN ep.paid_amount 
+                ELSE 0 
+            END
+        ), 0) AS totalPaid,
+        COALESCE(SUM(
+            CASE 
+                WHEN ep.approval_status = 1 
+                THEN ep.final_approved_amount - COALESCE(ep.paid_amount, 0)
+                ELSE 0 
+            END
+        ), 0) AS pendingAmount
+
+    FROM ExpensePayment ep
+    LEFT JOIN User u ON u.id = ep.requested_by
+    JOIN (
+      SELECT expense_id, MAX(payment_date) as payment_date
+      FROM ExpensePaymentTransaction
+      GROUP BY expense_id
+  ) ept ON ept.expense_id = ep.id
+    WHERE ep.company_id = ${company_id}
+    ${fyFragment}
+    ${fromFragment}
+    ${toFragment}
+    GROUP BY u.id, u.username, u.email, u.phone_no
+    ORDER BY u.username ASC
+`;
+        const availableFYList = await prisma.$queryRaw`
+            SELECT DISTINCT financial_year AS fy_year
+            FROM ExpensePayment ep
+            WHERE ep.company_id   = ${company_id}
+            ORDER BY financial_year DESC
+        `;
+        const responseData = serializeBigInt({
+            activeFilters: {
+                fy: fyYear ?? "all",
+                user_id: filterUserId ?? "all",
+                project_id: filterProjectId ?? "all",
+                intervention_id: filterInterventionId ?? "all",
+                from_date: fromDate ?? null,
+                to_date: toDate ?? null,
+            },
+            rows: userWiseSummary,
+            availableFYList,
+        });
+        return res.status(200).json({ success: true, data: responseData });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Paid Expense Report fetch failed",
+            error: error.message,
+        });
+    }
+};
+
+
+export const UserwisePaidSummary = async (req, res) => {
+    try {
+        const company_id = req.user.company_id;
+        const user_id = req.query.user_id;
+        const rawFY = req.query.fy_year;
+
+        if (!user_id || !rawFY) {
+            return res.status(400).json({
+                success: false,
+                message: "user_id and fy_year are required"
+            });
+        }
+        let fyYear;
+        if (!rawFY || rawFY === "current") {
+            fyYear = getCurrentFYYear();
+        } else if (rawFY === "all" || rawFY === "0") {
+            fyYear = null;
+        } else if (isValidFYYear(rawFY)) {
+            fyYear = rawFY;
+        } else {
+            fyYear = getCurrentFYYear();
+        }
+        const filterUserId = req.query.user_id ? parseInt(req.query.user_id) : null;
+        const filterProjectId = req.query.project_id ? String(req.query.project_id).trim() : null;
+        const filterInterventionId = req.query.intervention_id ? parseInt(req.query.intervention_id) : null;
+
+        // Date range filter
+        const fromDate = req.query.from_date ? new Date(req.query.from_date) : null;
+        const toDate = req.query.to_date ? new Date(req.query.to_date) : null;
+
+        // ─── SQL Fragments ────────────────────────────────
+        const fyFragment = fyYear ? Prisma.sql`AND ep.financial_year = ${fyYear}` : Prisma.empty;
+        const userFragment = filterUserId ? Prisma.sql`AND ep.requested_by = ${filterUserId}` : Prisma.empty;
+        const projectFragment = filterProjectId ? Prisma.sql`AND ep.project_name = ${filterProjectId}` : Prisma.empty;
+        const interventionFragment = filterInterventionId ? Prisma.sql`AND ep.intervention = ${filterInterventionId}` : Prisma.empty;
+        const fromFragment = fromDate ? Prisma.sql`AND ept.payment_date >= ${fromDate}` : Prisma.empty;
+        const toFragment = toDate ? Prisma.sql`AND ept.payment_date <= ${toDate}` : Prisma.empty;
+        const user = await prisma.$queryRaw`
+    SELECT 
+        id,
+        user_id,
+        username,
+                    email,
+                    phone_no,
+        reporting_head
+    FROM User
+    WHERE id = ${user_id}
+`;
+
+        const paidExpenses = await prisma.$queryRaw`
+  SELECT 
+    ep.*, 
+    req.username AS requested_by_name, 
+    req.email AS requested_by_email,
+    mgr.username AS manager_name, 
+    i.name AS intervention_name, 
+    p.name AS project_name, 
+    ept.payment_date
+  FROM ExpensePayment ep
+  JOIN User req ON req.id = ep.requested_by
+  JOIN User mgr ON mgr.id = ep.manager_id
+  JOIN Intervention i ON i.id = ep.intervention
+  JOIN Project p ON p.id = ep.project_name
+  JOIN (
+      SELECT expense_id, MAX(payment_date) as payment_date
+      FROM ExpensePaymentTransaction
+      GROUP BY expense_id
+  ) ept ON ept.expense_id = ep.id
+  WHERE ep.company_id = ${company_id}
+    AND ep.payment_status != 0
+    ${fyFragment}
+    ${userFragment}
+    ${projectFragment}
+    ${interventionFragment}
+    ${fromFragment}
+    ${toFragment}
+  ORDER BY ept.payment_date DESC, ep.id DESC
+`;
+        const availableFYList = await prisma.$queryRaw`
+            SELECT DISTINCT financial_year AS fy_year
+            FROM ExpensePayment ep
+            WHERE ep.company_id   = ${company_id}
+            ORDER BY financial_year DESC
+        `;
+        return res.status(200).json({ success: true, data: paidExpenses, availableFYList, user: user });
 
     } catch (error) {
         return res.status(500).json({

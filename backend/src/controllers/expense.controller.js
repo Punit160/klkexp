@@ -817,7 +817,7 @@ export const getAccountsExpenses = async (req, res) => {
             }),
             prisma.user.findMany({
                 where: { company_id },
-                select: { id: true, username: true },
+                select: { id: true, username: true, email: true },
             }),
         ]);
 
@@ -865,6 +865,7 @@ export const getAccountsExpenses = async (req, res) => {
             // ✅ USERS
             raised_by: userMap[Number(exp.requested_by)] || "N/A",
             manager_name: userMap[Number(exp.manager_id)] || "N/A",
+            raised_by_email: users.find(u => u.id === Number(exp.requested_by))?.email || "N/A", 
 
             // ✅ STATUS
             manager_status: getStatusText(exp.approval_status),

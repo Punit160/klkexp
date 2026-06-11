@@ -83,13 +83,25 @@ export const MenuList = [
   },
 
   {
+    title: 'Advance Payment',
+    classsChange: 'mm-collapse',
+    iconStyle: <i className=" flaticon-project" />,
+    permission: "",
+    content: [
+      { title: 'Advance Payment Dashboard', to: '/AdvancePaymentDashboard', permission: "advance_payment" },
+  
+    ],
+  },
+
+  {
     title: 'Reports',
     classsChange: 'mm-collapse',
     iconStyle: <i className=" flaticon-project" />,
     permission: "view_reports",
     content: [
-      { title: 'Intervention Reports', to: '/Intervention-Reports' },
-      { title: 'Paid Expenses', to: '/Paid-Expense'}
+      { title: 'Intervention Reports', to: '/Intervention-Reports', permission: "intervention_report" },
+      { title: 'Paid Expenses', to: '/Paid-Expense', permission: "paid_expense_report" },
+      { title: 'User Expense Reports', to: '/User-Expense-Reports', permission: "user_expense_report" },
     ],
   },
 
