@@ -16,7 +16,7 @@ import roleRoutes from "./src/routes/role.routes.js"
 import permissionRoutes from "./src/routes/permission.routes.js"
 import reportRoutes from "./src/routes/report.routes.js"
 import paymentRoutes from "./src/routes/payment.routes.js"
-import tallyExpenseRoutes from "./tally/routes/tally.expense.route.js"
+import AccountExpenseRoutes from "./src/accounts/routes/account.expense.route.js"
 
 
 
@@ -81,7 +81,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/payment", paymentRoutes);
 
 //Tally 
-app.use("/api/tally/expenses", tallyExpenseRoutes);
+app.use("/api/accounts/expenses", AccountExpenseRoutes);
 
 
 

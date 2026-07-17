@@ -1,33 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 const prisma = new PrismaClient();
-
-
-
-const serializeBigInt = (data) =>
-    JSON.parse(
-        JSON.stringify(data, (_, value) =>
-            typeof value === "bigint"
-                ? value.toString()
-                : value
-        )
-    );
-
-
-
-const getCurrentFYYear = () => {
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
-    const fyStartYear = month >= 4 ? year : year - 1;
-    return `${fyStartYear}-${fyStartYear + 1}`;
-};
-const isValidFYYear = (fy) => /^\d{4}-\d{4}$/.test(fy);
-
-
-
-
-
-
 export const PaidExpenseUsers = async (req, res) => {
     try {
         const company_id = req.user.company_id;
