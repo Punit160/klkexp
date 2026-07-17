@@ -112,6 +112,8 @@ model ExpensePayment {
   // ✅ Payment
   paid_amount              Float     @default(0)
   payment_status           Int       @default(0)
+  voucher_status           Int       @default(0)
+  voucher_id               Int?   
 
   remarks                  String?
   document                 String?
@@ -166,7 +168,6 @@ model Permission {
   name        String    @unique   // e.g. "create_expense"
   label       String              // UI label
   module      String              // e.g. "Expense", "Accounts"
-
   roles       RolePermission[]
   created_by               String?
   created_at  DateTime  @default(now())
@@ -226,4 +227,40 @@ model WalletHistory {
   wallet       Wallet   @relation(fields: [wallet_id], references: [id])
 }
 
+model ExpenseVoucher {
+  id           Int      @id @default(autoincrement())
+  company_id    String @db.VarChar(50)
+  user_id       Int
+  voucher_no   String?  @db.VarChar(50)
+  voucher_date DateTime? @db.Date
+  narration    String?  @db.VarChar(255)
 
+  debit_total  Decimal @default(0) @db.Decimal(15,2)
+  credit_total Decimal @default(0) @db.Decimal(15,2)
+  difference   Decimal @default(0) @db.Decimal(15,2)
+
+  status       String   @default("draft") @db.VarChar(20)
+  status_date  DateTime? @db.Date
+
+  created_by   Int?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  lines ExpenseVoucherLine[]
+
+  @@map("expense_vouchers")
+}
+
+model ExpenseVoucherLine {
+  id          Int      @id @default(autoincrement())
+  voucher_id  Int
+  ledger_name String   @db.VarChar(100)
+  entry_type  String   @db.VarChar(10)
+  amount      Decimal  @db.Decimal(15,2)
+  row_order   Int      @default(1)
+  created_at  DateTime @default(now())
+
+  voucher ExpenseVoucher @relation(fields: [voucher_id], references: [id], onDelete: Cascade)
+
+  @@map("expense_voucher_lines")
+}
