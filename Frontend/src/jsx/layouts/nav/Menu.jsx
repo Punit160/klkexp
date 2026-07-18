@@ -140,6 +140,16 @@ export const MenuList = [
   content: [
 
     {
+      title: 'Company Details',
+      to: '/tally/Company-Details',
+      // permission: "view_sales_invoice"
+    },
+    {
+      title: 'Sales Invoice',
+      to: '/tally/Purchase-Details',
+      // permission: "view_sales_invoice"
+    },
+    {
       title: 'Sales Invoice',
       to: '/tally/Sales-Invoice',
       // permission: "view_sales_invoice"
