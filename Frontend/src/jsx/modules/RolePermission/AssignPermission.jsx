@@ -58,14 +58,14 @@ const AssignPermission = () => {
   const handleSubmit = async () => {
     try {
       await assignPermissions({
-        role_id: id,
-        permission_ids: selected,
+        role_id: Number(id),
+        permission_ids: selected.map((pid) => Number(pid)),
       });
 
       alert("Permissions updated ✅");
     } catch (error) {
       console.error(error);
-      alert("Error updating permissions");
+      alert(error.response?.data?.message || "Error updating permissions");
     }
   };
 

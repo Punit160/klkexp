@@ -46,7 +46,7 @@ const PermissionForm = () => {
       navigate("/permission/list");
     } catch (error) {
       console.error(error);
-      alert("Error creating permission");
+      alert(error.response?.data?.message || "Error creating permission");
     }
   };
 

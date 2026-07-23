@@ -163,13 +163,15 @@ model Role {
 model Permission {
   id          Int       @id @default(autoincrement())
   company_id               String
-  name        String    @unique   // e.g. "create_expense"
+  name        String              // e.g. "create_expense"
   label       String              // UI label
   module      String              // e.g. "Expense", "Accounts"
 
   roles       RolePermission[]
   created_by               String?
   created_at  DateTime  @default(now())
+
+  @@unique([company_id, name])
 }
 
 model RolePermission {

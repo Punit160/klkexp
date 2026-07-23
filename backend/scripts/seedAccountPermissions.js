@@ -17,8 +17,8 @@ async function main() {
   let skipped = 0;
 
   for (const perm of ACCOUNT_PERMISSIONS) {
-    const existing = await prisma.permission.findUnique({
-      where: { name: perm.name },
+    const existing = await prisma.permission.findFirst({
+      where: { name: perm.name, company_id: companyId },
     });
 
     if (existing) {
