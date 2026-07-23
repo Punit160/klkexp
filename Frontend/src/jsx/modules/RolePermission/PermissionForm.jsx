@@ -65,7 +65,7 @@ const PermissionForm = () => {
                   type="text"
                   className={`form-control ${errors.name ? "is-invalid" : ""}`}
                   name="name"
-                  placeholder="create_expense"
+                  placeholder="view_purchase_invoice"
                   onChange={handleChange}
                 />
               </div>
@@ -76,7 +76,7 @@ const PermissionForm = () => {
                   type="text"
                   className={`form-control ${errors.label ? "is-invalid" : ""}`}
                   name="label"
-                  placeholder="Create Expense"
+                  placeholder="View Purchase Invoice"
                   onChange={handleChange}
                 />
               </div>
@@ -87,7 +87,7 @@ const PermissionForm = () => {
                   type="text"
                   className={`form-control ${errors.module ? "is-invalid" : ""}`}
                   name="module"
-                  placeholder="Expense"
+                  placeholder="Purchase Invoice"
                   onChange={handleChange}
                 />
               </div>
