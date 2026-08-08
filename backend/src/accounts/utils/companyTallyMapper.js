@@ -26,10 +26,12 @@ export const mapCompanyDetailToTally = (company) => {
 /** Normalize incoming Tally/API payload into CompanyDetail field names. */
 export const mapTallyToCompanyDetail = (payload = {}) => {
   const addLine1 = payload.AddLine1 ?? payload.add_line1 ?? payload.address ?? "";
+  const name = payload.CompanyName ?? payload.LedgerName ?? payload.name ?? "";
+  const ledgerName = payload.LedgerName ?? payload.ledger_name ?? payload.CompanyName ?? payload.name ?? "";
 
   return {
-    name: payload.CompanyName ?? payload.name ?? "",
-    ledger_name: payload.LedgerName ?? payload.ledger_name ?? "",
+    name,
+    ledger_name: ledgerName,
     code: payload.LedgerCode ?? payload.code ?? "",
     ledger_group: payload.LedgerGroup ?? payload.ledger_group ?? "",
     add_line1: addLine1,

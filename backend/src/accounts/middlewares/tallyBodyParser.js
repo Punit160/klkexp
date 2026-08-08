@@ -82,6 +82,25 @@ function exampleForPath(path = "") {
           LedgerPIN: "110001",
           LedState: "Delhi",
         },
+        {
+          company_id: "KLKURJA",
+          CompanyName: "XYZ Company",
+          LedgerName: "Vendor 1",
+          LedgerCode: "Vend 001",
+          AddLine1: "drfgewfef",
+          LedgerPIN: "110011",
+          LedState: "Delhi",
+        },
+      ],
+      orSendAsArray: [
+        {
+          CompanyName: "ABC Company",
+          LedgerCode: "Cust 001",
+        },
+        {
+          CompanyName: "XYZ Company",
+          LedgerCode: "Vend 001",
+        },
       ],
     };
   }
@@ -124,13 +143,13 @@ function describeJsonParseError(error, raw = "") {
   if (!raw.trim()) {
     return "Request body is empty. Send JSON with Content-Type: application/json.";
   }
-  return "Send valid JSON as application/json with { \"data\": [ {...} ] }.";
+  return 'Send valid JSON as application/json with { "data": [ {...} ] } or a top-level array [ {...}, {...} ].';
 }
 
 export function tallyJsonParseErrorResponse(req, parseError, raw = "") {
   const docLabel = tallyDocLabelFromPath(req.path);
   return {
-    message: `Invalid JSON body. POST ${docLabel}s as application/json with { "data": [ {...} ] }.`,
+    message: `Invalid JSON body. POST ${docLabel}s as application/json with { "data": [ {...} ] } or [ {...}, {...} ].`,
     error: parseError?.message || "Invalid JSON",
     hint: describeJsonParseError(parseError, raw),
     example: exampleForPath(req.path),

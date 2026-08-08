@@ -948,7 +948,11 @@ POST /api/tally/companies?company_id={company_id}
 Content-Type: application/json
 \`\`\`
 
-**Tally batch format (recommended):**
+**Accepted body shapes (all equivalent for multiple records):**
+
+1. **Wrapped batch (recommended):** \`{ "data": [ {...}, {...} ] }\`
+2. **Raw JSON array:** \`[ {...}, {...} ]\` — send the array as the entire POST body
+3. **Single object:** one company without \`data\` wrapper
 
 \`\`\`json
 {
@@ -970,12 +974,32 @@ Content-Type: application/json
       "EmailID": "abc@gmail.com",
       "PanNumber": "AAAAA1111A",
       "GSTNumber": "07AAAAA1111A1Z1"
+    },
+    {
+      "company_id": "KLKURJA",
+      "CompanyName": "XYZ Company",
+      "LedgerName": "Vendor 1",
+      "LedgerCode": "Vend 001",
+      "LedgerGroup": "Sundry Creditors",
+      "AddLine1": "drfgewfef",
+      "AddLine2": "dfge4gwefd",
+      "AddLine3": "sdrfgwefwefwe",
+      "LedgerPIN": "110011",
+      "LedState": "Delhi",
+      "LedCountry": "India",
+      "ContactPerson": "XYZ",
+      "ContactNumber": "45654454556",
+      "EmailID": "xyz@gmail.com",
+      "PanNumber": "AAAAA1111A",
+      "GSTNumber": "07AAAAA1111A1Z1"
     }
   ]
 }
 \`\`\`
 
-**Single record format** (same fields, without \`data\` wrapper) is also supported.
+**Raw array equivalent:** the same two objects inside \`data\` can be sent as a top-level JSON array \`[ {...}, {...} ]\`.
+
+**Minimum Tally import:** only \`CompanyName\` or \`LedgerName\` is required. Missing \`LedgerCode\`, \`AddLine1\`, \`LedState\`, and \`LedgerPIN\` are filled with safe defaults (\`code\` from name, address/state \`-\`, PIN \`0\`).
 
 **Field mapping:** CompanyName → name, LedgerName → ledger_name, LedgerCode → code, LedgerGroup → ledger_group, AddLine1–3 → address lines, LedgerPIN → zipcode, LedState → state, LedCountry → country, ContactPerson → contact_person, ContactNumber → contact_number, EmailID → email, PanNumber → pan, GSTNumber → gst.
 

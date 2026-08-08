@@ -10,7 +10,7 @@ import {
 } from "../utils/companyTallyMapper.js";
 import {
   extractTallyCompanyRecords,
-  isTallyCompanyBatchRequest,
+  shouldUseTallyBatchResponse,
   describeTallyCompanyBodyIssue,
 } from "../utils/tallyPayloadUtils.js";
 
@@ -39,6 +39,72 @@ const prepareRequestBody = (rawBody) => {
   return merged;
 };
 
+const parseZipcode = (value) => {
+  if (value == null || value === "") return null;
+  const digits = String(value).replace(/\D/g, "");
+  if (!digits) return null;
+  const parsed = Number(digits);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const slugCompanyCode = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9-_]/g, "")
+    .slice(0, 40);
+
+const applyTallyCompanyDefaults = (input) => {
+  const name = input.name?.trim() || input.ledger_name?.trim() || "";
+  const ledger_name = input.ledger_name?.trim() || name;
+  const code =
+    input.code?.trim() ||
+    slugCompanyCode(ledger_name) ||
+    slugCompanyCode(name) ||
+    `TALLY-${Date.now()}`;
+
+  return {
+    ...input,
+    name,
+    ledger_name,
+    code,
+    short_name: input.short_name?.trim() || code.slice(0, 10) || name.slice(0, 10),
+    address: input.address?.trim() || input.add_line1?.trim() || "-",
+    add_line1: input.add_line1?.trim() || input.address?.trim() || "-",
+    state: input.state?.trim() || "-",
+    city: input.city?.trim() || "",
+    zipcode: input.zipcode != null ? input.zipcode : 0,
+  };
+};
+
+const getMissingCompanyFields = (input, { fromTally }) => {
+  const missing = [];
+
+  if (!input.name?.trim() && !input.ledger_name?.trim()) {
+    missing.push("CompanyName or LedgerName");
+  }
+
+  if (!fromTally) {
+    if (!input.short_name?.trim()) missing.push("short_name");
+    if (!input.address?.trim()) missing.push("address (AddLine1)");
+    if (!input.state?.trim()) missing.push("state (LedState)");
+    if (input.zipcode == null) missing.push("zipcode (LedgerPIN)");
+    if (!input.code?.trim()) missing.push("code (LedgerCode)");
+  }
+
+  return missing;
+};
+
+const assertCompanyInput = (input, { fromTally }) => {
+  const missing = getMissingCompanyFields(input, { fromTally });
+  if (!missing.length) return;
+
+  const err = new Error(`Required fields are missing: ${missing.join(", ")}.`);
+  err.status = 400;
+  err.missingFields = missing;
+  throw err;
+};
+
 const normalizeCompanyInput = (body) => {
   const addLine1 = body.add_line1?.trim() || body.address?.trim() || "";
   const name = body.name?.trim() || "";
@@ -60,7 +126,7 @@ const normalizeCompanyInput = (body) => {
     city: body.city?.trim() || "",
     state: body.state?.trim() || "",
     country: body.country?.trim() || "India",
-    zipcode: body.zipcode != null && body.zipcode !== "" ? Number(body.zipcode) : null,
+    zipcode: parseZipcode(body.zipcode),
     contact_person: body.contact_person?.trim() || null,
     contact_number: body.contact_number?.trim() || null,
     ledger_group: body.ledger_group?.trim() || null,
@@ -105,26 +171,61 @@ async function sendToTally(record) {
 const canMutateRecord = (existing, req) =>
   existing.approval_status === "PENDING" || resolveDataStatus(req) === DATA_STATUS_TALLY;
 
+const TALLY_COMPANY_BODY_EXAMPLE = [
+  {
+    company_id: "KLKURJA",
+    CompanyName: "ABC Company",
+    LedgerName: "Customer 1",
+    LedgerCode: "Cust 001",
+    LedgerGroup: "Sundry Debtors",
+    AddLine1: "wfdwqwd",
+    AddLine2: "dgwfwqfd",
+    AddLine3: "",
+    LedgerPIN: "110001",
+    LedState: "Delhi",
+    LedCountry: "India",
+    ContactPerson: "ABC",
+    ContactNumber: "9999999999",
+    EmailID: "abc@gmail.com",
+    PanNumber: "AAAAA1111A",
+    GSTNumber: "07AAAAA1111A1Z1",
+  },
+  {
+    company_id: "KLKURJA",
+    CompanyName: "XYZ Company",
+    LedgerName: "Vendor 1",
+    LedgerCode: "Vend 001",
+    LedgerGroup: "Sundry Creditors",
+    AddLine1: "drfgewfef",
+    AddLine2: "dfge4gwefd",
+    AddLine3: "sdrfgwefwefwe",
+    LedgerPIN: "110011",
+    LedState: "Delhi",
+    LedCountry: "India",
+    ContactPerson: "XYZ",
+    ContactNumber: "45654454556",
+    EmailID: "xyz@gmail.com",
+    PanNumber: "AAAAA1111A",
+    GSTNumber: "07AAAAA1111A1Z1",
+  },
+];
+
 async function createCompanyRecord(req, rawBody) {
   const company_id = req.user?.company_id;
   const user_id = req.user?.id;
   const fromTally = resolveDataStatus(req) === DATA_STATUS_TALLY;
-  const { bank_accounts, ...rest } = rawBody || {};
+  const {
+    bank_accounts,
+    company_id: _recordCompanyId,
+    user_id: _recordUserId,
+    ...rest
+  } = rawBody || {};
   const preparedBody = prepareRequestBody(rest);
-  const input = normalizeCompanyInput(preparedBody);
-
-  if (
-    !input.name ||
-    !input.short_name ||
-    !input.address ||
-    !input.state ||
-    input.zipcode == null ||
-    !input.code
-  ) {
-    const err = new Error("Required fields are missing.");
-    err.status = 400;
-    throw err;
+  let input = normalizeCompanyInput(preparedBody);
+  if (fromTally) {
+    input = applyTallyCompanyDefaults(input);
   }
+  assertCompanyInput(input, { fromTally });
 
   const company = await prisma.companyDetail.create({
     data: {
@@ -161,38 +262,19 @@ export const createCompany = async (req, res) => {
     }
 
     const records = extractTallyCompanyRecords(req.body);
-    const isBatch = isTallyCompanyBatchRequest(req.body);
+    const useBatchResponse = shouldUseTallyBatchResponse(req.body, records);
 
     if (!records.length) {
       return res.status(400).json({
         success: false,
         message: "No company records found in request body",
         hint: describeTallyCompanyBodyIssue(req.body),
-        example: {
-          data: [
-            {
-              company_id: "KLKURJA",
-              CompanyName: "ABC Company",
-              LedgerName: "Customer 1",
-              LedgerCode: "Cust 001",
-              LedgerGroup: "Sundry Debtors",
-              AddLine1: "wfdwqwd",
-              AddLine2: "dgwfwqfd",
-              LedgerPIN: "110001",
-              LedState: "Delhi",
-              LedCountry: "India",
-              ContactPerson: "ABC",
-              ContactNumber: "9999999999",
-              EmailID: "abc@gmail.com",
-              PanNumber: "AAAAA1111A",
-              GSTNumber: "07AAAAA1111A1Z1",
-            },
-          ],
-        },
+        example: { data: TALLY_COMPANY_BODY_EXAMPLE },
+        exampleArray: TALLY_COMPANY_BODY_EXAMPLE,
       });
     }
 
-    if (isBatch || records.length > 1) {
+    if (useBatchResponse) {
       const created = [];
       const errors = [];
 
@@ -205,6 +287,7 @@ export const createCompany = async (req, res) => {
           errors.push({
             CompanyName: companyRef,
             message: error.message,
+            ...(error.missingFields && { missingFields: error.missingFields }),
           });
         }
       }

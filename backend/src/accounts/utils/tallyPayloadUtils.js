@@ -198,10 +198,17 @@ export const extractTallyExpenseRecords = extractTallyPaymentRecords;
 
 export function isTallyBatchRequest(body) {
   if (!body || typeof body !== "object") return false;
-  if (Array.isArray(body)) return body.length > 1;
+  if (Array.isArray(body)) return body.length > 0;
   if (Array.isArray(body.data)) return body.data.length > 0;
   if (body.data && typeof body.data === "object") return true;
   return false;
+}
+
+/** Use array-style batch response when body is wrapped or sent as a JSON array. */
+export function shouldUseTallyBatchResponse(body, records = []) {
+  if (!records.length) return false;
+  if (records.length > 1) return true;
+  return isTallyBatchRequest(body);
 }
 
 export const isTallyPurchaseBatchRequest = isTallyBatchRequest;
@@ -240,7 +247,7 @@ export function describeTallyBodyIssue(body, docType = "purchase") {
           : docType === "payment"
             ? '{ "data": [ { "VoucherNo": "...", "VoucherDate": "...", "Narration": "...", "DebitLedgers": [], "CreditLedgers": [] } ] }'
             : docType === "company"
-              ? '{ "data": [ { "CompanyName": "...", "LedgerName": "...", "LedgerCode": "...", "AddLine1": "..." } ] }'
+              ? '{ "data": [ { "CompanyName": "...", "LedgerCode": "..." } ] } or [ { "CompanyName": "..." }, { "CompanyName": "..." } ]'
               : docType === "delivery challan"
                 ? '{ "data": [ { "Challanno": "...", "Challandate": "...", "CustomerName": "...", "challanitems": [] } ] }'
                 : docType === "expense"
