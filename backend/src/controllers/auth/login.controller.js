@@ -34,6 +34,11 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid Credentials" });
     }
 
+
+    if (user.status != 1) {
+      return res.status(400).json({ message: "you don't have access !!" });
+    }
+
     // 🔑 Generate JWT
     const token = jwt.sign(
       {

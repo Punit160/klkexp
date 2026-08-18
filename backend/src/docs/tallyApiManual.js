@@ -725,14 +725,14 @@ GET /api/tally/purchases/{id}?company_id={company_id}
 ### 12.3 POST — Create
 
 \`\`\`http
-POST /api/tally/purchases?company_id={company_id}
+POST /api/tally/purchases
 \`\`\`
 
 Tally should POST purchases in this JSON shape. You may send **one record** or a **batch** wrapped in \`data[]\`.
 
-**Required per record:** \`PurchaseNo\`, \`PurchaseDate\`, \`VendorName\`, \`PurchaseItems[]\`, \`company_id\`
+**Required:** \`company_id\` (in each record **or** query \`?company_id=\` **or** top-level body), plus \`PurchaseNo\`, \`PurchaseDate\`, \`VendorName\`, \`PurchaseItems[]\`
 
-**Optional:** \`irn\` (auto-generated as \`TALLY-{company_id}-{PurchaseNo}\` if omitted), \`PONo\`, \`Vendorgstin\`, \`GstDetails[]\`, \`PurchaseAmount\`
+**Optional:** \`irn\` / \`ack_no\` (auto-generated if omitted), \`PONo\`, \`Vendorgstin\`, \`GstDetails[]\`, \`PurchaseAmount\`
 
 \`\`\`json
 {

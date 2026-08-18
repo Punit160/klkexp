@@ -371,11 +371,17 @@ export function normalizePurchasePayload(body = {}, items = [], gstDetails = [],
     strVal(mapped.irn) ||
     (companyId && invoiceNo ? `TALLY-${companyId}-${invoiceNo}` : "");
 
+  // Live DB may still treat ack_no as NOT NULL — never send null/empty.
+  const ackNo =
+    strVal(mapped.ack_no) ||
+    (companyId && invoiceNo ? `TALLY-ACK-${companyId}-${invoiceNo}` : "") ||
+    (irn ? `ACK-${irn}` : "NA");
+
   return {
     body: {
       ...mapped,
       irn,
-      ack_no: strVal(mapped.ack_no),
+      ack_no: ackNo,
       ack_date: ackDate,
       invoice_no: invoiceNo,
       invoice_date: invoiceDate,
@@ -513,11 +519,16 @@ export function normalizeSalesPayload(body = {}, items = [], gstDetails = [], co
     strVal(mapped.irn) ||
     (companyId && invoiceNo ? `TALLY-${companyId}-${invoiceNo}` : null);
 
+  const ackNo =
+    strVal(mapped.ack_no) ||
+    (companyId && invoiceNo ? `TALLY-ACK-${companyId}-${invoiceNo}` : "") ||
+    (irn ? `ACK-${irn}` : null);
+
   return {
     body: {
       ...mapped,
       irn,
-      ack_no: strVal(mapped.ack_no) || null,
+      ack_no: ackNo,
       ack_date: ackDate,
       invoice_no: invoiceNo,
       invoice_date: invoiceDate,

@@ -95,7 +95,10 @@ const buildPurchaseData = (body) => {
   return {
     invoice_type: invoice_type || null,
     irn,
-    ack_no: ack_no || null,
+    // Production schema may require ack_no — never persist null.
+    ack_no:
+      (ack_no != null && String(ack_no).trim() !== "" && String(ack_no).trim()) ||
+      (irn ? `ACK-${irn}` : "NA"),
     ack_date: ack_date || null,
     invoice_no,
     invoice_date,
@@ -160,7 +163,10 @@ const buildPurchaseData = (body) => {
 async function createPurchaseRecord(req, rawRecord) {
   const company_id = req.user?.company_id;
   const user_id = req.user?.id;
-  const fromTally = resolveDataStatus(req) === DATA_STATUS_TALLY;
+  // tally routes set req.tally_company_id; treat that as Tally even if data_status was missed
+  const fromTally =
+    resolveDataStatus(req) === DATA_STATUS_TALLY || Boolean(req.tally_company_id);
+  const dataStatus = fromTally ? DATA_STATUS_TALLY : resolveDataStatus(req);
 
   const { items, gst_details, PurchaseItems, GstDetails, ...rest } = rawRecord || {};
 
@@ -196,7 +202,7 @@ async function createPurchaseRecord(req, rawRecord) {
       ...buildPurchaseData(payload),
       company_id,
       user_id,
-      data_status: resolveDataStatus(req),
+      data_status: dataStatus,
       ...(fromTally && {
         approval_status: "APPROVED",
         approval_date: new Date(),
@@ -230,11 +236,21 @@ export const createPurchase = async (req, res) => {
         example: {
           data: [
             {
+              company_id: "KLKURJA",
               PurchaseNo: "Pur0991",
               PurchaseDate: "02/Jul/2026",
+              PONo: "PO908",
               VendorName: "XYZ Pvt Ltd",
               PurchaseAmount: 120000,
-              PurchaseItems: [{ itemname: "Item A", quantity: 1, rate: 100, amount: 100 }],
+              Vendorgstin: "",
+              PurchaseItems: [
+                { itemname: "Item A", quantity: 1, rate: 15844, amount: 15844 },
+                { itemname: "Item B", quantity: 4, rate: 12000, amount: 48000 },
+              ],
+              GstDetails: [
+                { LedgerName: "CGST", amount: 5822 },
+                { LedgerName: "SGST", amount: 5822 },
+              ],
             },
           ],
         },

@@ -6,7 +6,9 @@ export function resolveTallyCompanyId(req) {
   let dataCompanyId = null;
 
   if (body && typeof body === "object") {
-    if (Array.isArray(body.data) && body.data[0]?.company_id) {
+    if (Array.isArray(body) && body[0]?.company_id) {
+      dataCompanyId = body[0].company_id;
+    } else if (Array.isArray(body.data) && body.data[0]?.company_id) {
       dataCompanyId = body.data[0].company_id;
     } else if (body.data?.company_id) {
       dataCompanyId = body.data.company_id;

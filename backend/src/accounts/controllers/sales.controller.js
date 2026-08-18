@@ -46,7 +46,9 @@ const buildSalesData = (body) => {
   return {
     invoice_type: invoice_type || null,
     irn: irn || null,
-    ack_no: ack_no || null,
+    ack_no:
+      (ack_no != null && String(ack_no).trim() !== "" && String(ack_no).trim()) ||
+      (irn ? `ACK-${irn}` : "NA"),
     ack_date: ack_date || null,
     invoice_no,
     invoice_date,
