@@ -164,6 +164,94 @@ function mapPayment(row) {
   };
 }
 
+/** Staff ExpensePayment → Tally voucher shape (fully paid only). */
+function mapStaffExpensePayment(row, { interventionName = "", projectName = "" } = {}) {
+  const amount = Number(row.paid_amount || row.final_approved_amount || 0);
+  const debitLedger =
+    interventionName ||
+    (row.intervention != null ? String(row.intervention) : "") ||
+    "Expenses";
+
+  const creditByMode = new Map();
+  for (const tx of row.transactions || []) {
+    const mode = String(tx.payment_mode || "Cash").trim() || "Cash";
+    creditByMode.set(mode, (creditByMode.get(mode) || 0) + (Number(tx.payment_amount) || 0));
+  }
+
+  let CreditLedgers = [...creditByMode.entries()].map(([LedgerName, Amount]) => ({
+    LedgerName,
+    Amount,
+  }));
+
+  if (!CreditLedgers.length && amount > 0) {
+    CreditLedgers = [{ LedgerName: "Cash", Amount: amount }];
+  }
+
+  const lastPaymentDate = (row.transactions || [])
+    .map((t) => t.payment_date)
+    .filter(Boolean)
+    .sort((a, b) => new Date(b) - new Date(a))[0];
+
+  const narrationParts = [
+    row.remarks,
+    projectName ? `Project: ${projectName}` : null,
+    debitLedger !== "Expenses" ? `Intervention: ${debitLedger}` : null,
+  ].filter(Boolean);
+
+  return {
+    id: row.id,
+    company_id: row.company_id || "",
+    ...mapTallyMeta(row),
+    VoucherNo: String(row.id).padStart(4, "0"),
+    VoucherDate: formatDate(lastPaymentDate || row.manager_approved_at || row.requested_date),
+    Narration: narrationParts.join(" | ") || `Expense payment #${row.id}`,
+    DebitLedgers: amount > 0 ? [{ LedgerName: debitLedger, Amount: amount }] : [],
+    CreditLedgers,
+  };
+}
+
+function getStaffExpenseTallyWhere(req) {
+  return {
+    company_id: req.tally_company_id,
+    approval_status: 1,
+    payment_status: 2,
+    tally_push_status: "PUSHED",
+    data_status: DATA_STATUS_APP,
+  };
+}
+
+async function resolveInterventionNames(rows) {
+  const ids = [
+    ...new Set(
+      rows
+        .map((r) => Number(r.intervention))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    ),
+  ];
+  if (!ids.length) return {};
+  const interventions = await prisma.intervention.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true },
+  });
+  return Object.fromEntries(interventions.map((i) => [i.id, i.name]));
+}
+
+async function resolveProjectNames(rows) {
+  const ids = [
+    ...new Set(
+      rows
+        .map((r) => Number(r.project_name))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    ),
+  ];
+  if (!ids.length) return {};
+  const projects = await prisma.project.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true },
+  });
+  return Object.fromEntries(projects.map((p) => [p.id, p.name]));
+}
+
 function mapPurchase(row) {
   return {
     id: row.id,
@@ -395,6 +483,107 @@ export async function getPaymentForTally(req, res) {
 }
 
 // ---------------------------------------------------------------------------
+// Staff Expense Payments — GET /api/tally/expense-payments
+// Fully paid (payment_status=2) + pushed queue. Separate from JV /expenses.
+// ---------------------------------------------------------------------------
+export async function getStaffExpensePaymentsForTally(req, res) {
+  try {
+    const where = getStaffExpenseTallyWhere(req);
+
+    const rows = await prisma.expensePayment.findMany({
+      where,
+      include: { transactions: { orderBy: { payment_date: "asc" } } },
+      orderBy: { id: "desc" },
+    });
+
+    const nameMap = await resolveInterventionNames(rows);
+    const projectMap = await resolveProjectNames(rows);
+    const data = rows.map((row) =>
+      mapStaffExpensePayment(row, {
+        interventionName: nameMap[Number(row.intervention)] || "",
+        projectName: projectMap[Number(row.project_name)] || "",
+      })
+    );
+
+    if (!data.length) {
+      return res.json({
+        data,
+        hint: "No fully paid staff expenses in Tally export queue. Pay expense fully → Push to Tally from Paid Payments.",
+      });
+    }
+    return res.json({ data });
+  } catch (error) {
+    console.error("Tally staff expense payments:", error);
+    return res.status(500).json({ message: "Failed to fetch expense payments" });
+  }
+}
+
+export async function getStaffExpensePaymentForTally(req, res) {
+  try {
+    const where = getStaffExpenseTallyWhere(req);
+
+    const row = await prisma.expensePayment.findFirst({
+      where: { id: Number(req.params.id), ...where },
+      include: { transactions: { orderBy: { payment_date: "asc" } } },
+    });
+    if (!row) {
+      return res.status(404).json({ message: "Expense payment not found in Tally export queue" });
+    }
+
+    const nameMap = await resolveInterventionNames([row]);
+    const projectMap = await resolveProjectNames([row]);
+    return res.json({
+      data: [
+        mapStaffExpensePayment(row, {
+          interventionName: nameMap[Number(row.intervention)] || "",
+          projectName: projectMap[Number(row.project_name)] || "",
+        }),
+      ],
+    });
+  } catch (error) {
+    console.error("Tally staff expense payment:", error);
+    return res.status(500).json({ message: "Failed to fetch expense payment" });
+  }
+}
+
+export async function markStaffExpensePaymentPushed(req, res) {
+  try {
+    const company_id = req.tally_company_id;
+
+    const row = await prisma.expensePayment.findFirst({
+      where: {
+        id: Number(req.params.id),
+        company_id,
+        approval_status: 1,
+        payment_status: 2,
+        tally_push_status: "PUSHED",
+        data_status: DATA_STATUS_APP,
+      },
+    });
+
+    if (!row) {
+      return res.status(404).json({
+        message:
+          "Expense payment not found or not in Tally export queue (must be fully paid, pushed)",
+      });
+    }
+
+    const updated = await prisma.expensePayment.update({
+      where: { id: Number(req.params.id) },
+      data: { tally_push_status: "NOT_PUSHED" },
+    });
+
+    return res.json({
+      message: "Expense payment synced to Tally — removed from export queue",
+      data: { id: updated.id, tally_push_status: updated.tally_push_status },
+    });
+  } catch (error) {
+    console.error("Tally mark staff expense pushed:", error);
+    return res.status(500).json({ message: "Failed to mark expense payment as pushed" });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Purchase — GET /api/tally/purchases
 // ---------------------------------------------------------------------------
 export async function getPurchasesForTally(req, res) {
@@ -547,3 +736,4 @@ export const markPaymentPushed = createMarkPushedHandler("paymentVoucher", "Paym
 export const markPurchasePushed = createMarkPushedHandler("purchase", "Purchase invoice");
 export const markSalesPushed = createMarkPushedHandler("sales", "Sales invoice");
 export const markCompanyPushed = createMarkPushedHandler("companyDetail", "Company");
+

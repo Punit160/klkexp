@@ -681,3 +681,52 @@ export const retryCompanyTallyPush = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const importCompanies = async (req, res) => {
+  try {
+    const company_id = req.user?.company_id;
+    const user_id = req.user?.id;
+    const { companies } = req.body;
+
+    if (!company_id || !user_id) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    if (!Array.isArray(companies) || companies.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No companies to import.",
+      });
+    }
+
+    const results = { created: 0, failed: 0, errors: [] };
+
+    for (let index = 0; index < companies.length; index += 1) {
+      const row = companies[index];
+      const rowNum = index + 2;
+      const label = row?.name || row?.code || `Row ${rowNum}`;
+
+      try {
+        await createCompanyRecord(req, row);
+        results.created += 1;
+      } catch (error) {
+        results.failed += 1;
+        results.errors.push({
+          row: rowNum,
+          CompanyName: label,
+          message: error.message,
+          ...(error.missingFields && { missingFields: error.missingFields }),
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `${results.created} company(s) imported, ${results.failed} failed.`,
+      data: results,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -137,11 +137,17 @@ model ExpensePayment {
   document                 String?
   created_by               String?
 
+  // Tally sync — only fully paid (payment_status=2) expenses can be pushed
+  tally_push_status        TallyPushStatus @default(NOT_PUSHED)
+  data_status              Int             @default(1) // 1 = app, 2 = Tally API
+
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 
   transactions             ExpensePaymentTransaction[]
 
+  @@index([tally_push_status])
+  @@index([payment_status])
   @@map("ExpensePayment")
 }
 

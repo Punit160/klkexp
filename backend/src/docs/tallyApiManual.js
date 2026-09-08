@@ -22,6 +22,7 @@ export const TALLY_API_MANUAL = `# KLK Expense — Tally Integration API Manual
 9. [Delivery Challan APIs](#9-delivery-challan-apis)
 10. [Expense (Journal Voucher) APIs](#10-expense-journal-voucher-apis)
 11. [Payment Voucher APIs](#11-payment-voucher-apis)
+11b. [Staff Expense Payments APIs](#11b-staff-expense-payments-apis)
 12. [Purchase Invoice APIs](#12-purchase-invoice-apis)
 13. [Sales Invoice APIs](#13-sales-invoice-apis)
 14. [Company Master APIs](#14-company-master-apis)
@@ -689,6 +690,81 @@ Content-Type: application/json
 
 ---
 
+## 11b. Staff Expense Payments APIs
+
+**Database table:** \`ExpensePayment\` + \`ExpensePaymentTransaction\`  
+**Not the same as** \`/api/tally/expenses\` (that is Journal Voucher).
+
+Staff expenses are exported to Tally **only when fully paid** (\`payment_status=2\`) and after Accounts clicks **Push to Tally**.
+
+### Workflow
+
+1. Employee raises expense → Manager approves → Accounts pays until \`payment_status=2\` (Fully Paid).
+2. On **Paid Payments** screen, Accounts clicks **Push to Tally** → \`tally_push_status=PUSHED\`.
+3. Tally connector calls **GET** \`/api/tally/expense-payments?company_id=...\`.
+4. After posting in Tally, connector calls **PATCH** \`/:id/pushed\`.
+
+### 11b.1 GET — List
+
+\`\`\`http
+GET /api/tally/expense-payments?company_id={company_id}
+\`\`\`
+
+**Queue filter:** \`approval_status=1\`, \`payment_status=2\`, \`tally_push_status=PUSHED\`, \`data_status=1\`, matching \`company_id\`.
+
+**Response shape:**
+
+\`\`\`json
+{
+  "data": [
+    {
+      "id": 12,
+      "company_id": "KLKURJA",
+      "DataSource": "Software",
+      "TallyPushStatus": "PUSHED",
+      "VoucherNo": "0012",
+      "VoucherDate": "02/Jul/2026",
+      "Narration": "xeaxfrsadd | Project: Demo | Intervention: Travelling Expenses",
+      "DebitLedgers": [
+        { "LedgerName": "Travelling Expenses", "Amount": 13000 }
+      ],
+      "CreditLedgers": [
+        { "LedgerName": "Cash", "Amount": 8000 },
+        { "LedgerName": "UPI", "Amount": 5000 }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+**Field mapping:**
+
+| Tally field | Source |
+|-------------|--------|
+| \`VoucherNo\` | Zero-padded expense id (e.g. \`0012\`) |
+| \`VoucherDate\` | Latest payment date (fallback: manager approval / requested date) |
+| \`Narration\` | Expense remarks + project + intervention |
+| \`DebitLedgers\` | One line: intervention name as ledger, amount = \`paid_amount\` |
+| \`CreditLedgers\` | One line per payment mode (Cash / Bank / UPI), amounts from payment transactions |
+
+### 11b.2 GET — Single
+
+\`\`\`http
+GET /api/tally/expense-payments/{id}?company_id={company_id}
+\`\`\`
+
+### 11b.3 PATCH — Mark synced
+
+\`\`\`http
+PATCH /api/tally/expense-payments/{id}/pushed?company_id={company_id}
+\`\`\`
+
+Sets \`tally_push_status=NOT_PUSHED\` (removes from GET queue).
+
+**App push (JWT):** \`PATCH /api/expense/{id}/tally-push\` — requires fully paid.
+
+---
+
 ## 12. Purchase Invoice APIs
 
 **Database table:** \`Purchase\` + items + gst_details
@@ -1049,6 +1125,7 @@ Content-Type: application/json
 | Delivery Challan | /delivery-challans | /delivery-challans/:id | /delivery-challans | /delivery-challans/:id | /delivery-challans/:id | /delivery-challans/:id/pushed |
 | Expense (JV) | /expenses | /expenses/:id | /expenses | /expenses/:id | /expenses/:id | /expenses/:id/pushed |
 | Payment | /payments | /payments/:id | /payments | /payments/:id | /payments/:id | /payments/:id/pushed |
+| Staff Expense Payments | /expense-payments | /expense-payments/:id | — | — | — | /expense-payments/:id/pushed |
 | Purchase | /purchases | /purchases/:id | /purchases | /purchases/:id | /purchases/:id | /purchases/:id/pushed |
 | Sales | /sales | /sales/:id | /sales | /sales/:id | /sales/:id | /sales/:id/pushed |
 | Company Master | /companies | /companies/:id | /companies | /companies/:id | /companies/:id | /companies/:id/pushed |

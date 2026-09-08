@@ -860,7 +860,8 @@ export const getAccountsExpenses = async (req, res) => {
                final_approved_amount: exp.final_approved_amount,
             manager_approved_date: formatDate(exp.manager_approved_at),
             paid_amount: exp.paid_amount || 0,              
-            payment_status: exp.payment_status || 0,   
+            payment_status: exp.payment_status || 0,
+            tally_push_status: exp.tally_push_status || "NOT_PUSHED",
 
             // ✅ USERS
             raised_by: userMap[Number(exp.requested_by)] || "N/A",
@@ -1457,5 +1458,83 @@ export const paymentReceipt = async (req, res) => {
 
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+};
+/** Push fully paid staff expense into Tally export queue. */
+export const pushExpenseToTally = async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const company_id = req.user?.company_id;
+
+        const expense = await prisma.expensePayment.findFirst({
+            where: { id, company_id },
+        });
+
+        if (!expense) {
+            return res.status(404).json({ message: "Expense not found" });
+        }
+
+        if (expense.approval_status !== 1) {
+            return res.status(400).json({ message: "Only manager-approved expenses can be pushed to Tally" });
+        }
+
+        if (expense.payment_status !== 2) {
+            return res.status(400).json({ message: "Only fully paid expenses can be pushed to Tally" });
+        }
+
+        if (expense.tally_push_status === "PUSHED") {
+            return res.status(400).json({ message: "Expense has already been pushed to Tally" });
+        }
+
+        const updated = await prisma.expensePayment.update({
+            where: { id },
+            data: { tally_push_status: "PUSHED" },
+        });
+
+        return res.json({
+            message: "Expense pushed to Tally successfully",
+            data: updated,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: error.message });
+    }
+};
+
+export const retryExpenseTallyPush = async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const company_id = req.user?.company_id;
+
+        const expense = await prisma.expensePayment.findFirst({
+            where: { id, company_id },
+        });
+
+        if (!expense) {
+            return res.status(404).json({ message: "Expense not found" });
+        }
+
+        if (expense.payment_status !== 2) {
+            return res.status(400).json({ message: "Only fully paid expenses can be pushed to Tally" });
+        }
+
+        if (expense.tally_push_status !== "FAILED") {
+            return res.status(400).json({
+                message: `Retry is only allowed for FAILED pushes. Current status: ${expense.tally_push_status}`,
+            });
+        }
+
+        const updated = await prisma.expensePayment.update({
+            where: { id },
+            data: { tally_push_status: "PUSHED" },
+        });
+
+        return res.json({
+            message: "Expense Tally push retry successful",
+            data: updated,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: error.message });
     }
 };

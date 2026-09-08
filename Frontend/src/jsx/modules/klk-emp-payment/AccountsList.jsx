@@ -10,6 +10,7 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
 
   const [data, setData] = useState([]);
   const [history, setHistory] = useState([]);
+  const [actionId, setActionId] = useState(null);
 
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -108,7 +109,43 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
     { label: "Paid (₹)", key: "paid_amount" },
     { label: "Balance Amount (₹)", key: "balance_amount" },
     { label: "Payment Status", key: "payment_status" },
+    { label: "Tally", key: "tally_push_status" },
   ];
+
+  const handleTallyPush = async (item, isRetry = false) => {
+    const msg = isRetry
+      ? "Retry pushing this expense to Tally?"
+      : "Push this fully paid expense to Tally?";
+    if (!window.confirm(msg)) return;
+    try {
+      setActionId(item.id);
+      const path = isRetry
+        ? `expense/${item.id}/tally-push/retry`
+        : `expense/${item.id}/tally-push`;
+      await axios.patch(
+        `${import.meta.env.VITE_BACKEND_API_URL}${path}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      alert(isRetry ? "Tally push retry successful" : "Pushed to Tally successfully");
+      fetchAccountsData();
+    } catch (error) {
+      alert(error.response?.data?.message || error.message || "Tally push failed");
+      fetchAccountsData();
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const getTallyBadge = (status) => {
+    if (status === "PUSHED") return <Badge bg="success">Pushed</Badge>;
+    if (status === "FAILED") return <Badge bg="danger">Failed</Badge>;
+    return <Badge bg="secondary">Not Pushed</Badge>;
+  };
 
   /* ---------------- HANDLERS ---------------- */
   const handleAccount = (item) => {
@@ -230,6 +267,8 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
                   <th>Status</th>
                   <th>History</th>
                   <th>Receipt</th>
+                  {status === 2 && <th>Tally</th>}
+                  {status === 2 && <th>Push</th>}
                   {status === 0 && <th>Action</th>}
                 </tr>
               </thead>
@@ -293,6 +332,36 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
                           </Button>
                         </td>
 
+                        {/* Tally — only on Paid page */}
+                        {status === 2 && (
+                          <td>{getTallyBadge(item.tally_push_status)}</td>
+                        )}
+                        {status === 2 && (
+                          <td>
+                            {item.tally_push_status === "PUSHED" ? (
+                              <span className="text-muted small">In queue</span>
+                            ) : item.tally_push_status === "FAILED" ? (
+                              <Button
+                                size="sm"
+                                variant="warning"
+                                disabled={actionId === item.id}
+                                onClick={() => handleTallyPush(item, true)}
+                              >
+                                Retry
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                disabled={actionId === item.id}
+                                onClick={() => handleTallyPush(item, false)}
+                              >
+                                Push to Tally
+                              </Button>
+                            )}
+                          </td>
+                        )}
+
                         {/* PAY — only on Pending page */}
                         {status === 0 && (
                           <td>
@@ -311,7 +380,7 @@ const PaymentListBase = ({ status, pageTitle, cardTitle }) => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={status === 0 ? "13" : "12"} className="text-center">
+                    <td colSpan={status === 2 ? "16" : status === 0 ? "14" : "13"} className="text-center">
                       No Data Found
                     </td>
                   </tr>

@@ -97,6 +97,17 @@ export const createCompany = async (payload) => {
   return data;
 };
 
+export const importCompanies = async (companies) => {
+  const res = await fetch(`${BASE_URL}companydetail/import`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ companies }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to import companies");
+  return data;
+};
+
 export const updateCompany = async (id, payload) => {
   const res = await fetch(`${BASE_URL}companydetail/update/${id}`, {
     method: "PUT",

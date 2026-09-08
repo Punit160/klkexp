@@ -6,6 +6,7 @@ import TableExportActions from "../../../components/Common/TableExportActions";
 import Pagination from "../../../components/Common/Pagination";
 import { useSearchFilter, SearchInput } from "../../../components/Common/useSearchFilter";
 import CompanyDetailForm from "./CompanyDetailForm";
+import CompanyExcelImport from "./CompanyExcelImport";
 import DocumentAttachments from "../vouchers/shared/DocumentAttachments";
 import SourceBadge from "../SourceBadge";
 import { ATTACHMENT_DOCUMENT_TYPES } from "../documentAttachmentApi";
@@ -39,6 +40,7 @@ const CompanyDetail = () => {
   const [view, setView] = useState("list");
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState(null);
+  const [showImport, setShowImport] = useState(false);
   const attachmentRef = useRef(null);
 
   const fetchCompanies = useCallback(async () => {
@@ -302,6 +304,14 @@ const CompanyDetail = () => {
                       />
 
                       <button
+                        type="button"
+                        className="btn btn-outline-success text-nowrap flex-shrink-0 d-flex align-items-center gap-2"
+                        onClick={() => setShowImport(true)}
+                      >
+                        <i className="fa fa-file-excel"></i> Import Excel
+                      </button>
+
+                      <button
                         className="btn btn-primary text-nowrap flex-shrink-0 d-flex align-items-center gap-2"
                         onClick={openAddForm}
                       >
@@ -478,6 +488,12 @@ const CompanyDetail = () => {
           </Col>
         </Row>
       )}
+
+      <CompanyExcelImport
+        show={showImport}
+        onHide={() => setShowImport(false)}
+        onImported={fetchCompanies}
+      />
     </>
   );
 };

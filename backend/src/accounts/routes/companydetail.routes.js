@@ -12,6 +12,7 @@ import {
   rejectCompany,
   pushCompanyToTally,
   retryCompanyTallyPush,
+  importCompanies,
 } from "../controllers/companydetail.controller.js";
 import { scanCompanyDocument } from "../controllers/documentScan.controller.js";
 
@@ -19,6 +20,7 @@ const router = express.Router();
 
 router.post("/scan-document", checkPermission("create_company_master"), upload.single("bill"), scanCompanyDocument);
 router.post("/create", checkPermission("create_company_master"), createCompany);
+router.post("/import", checkPermission("create_company_master"), importCompanies);
 router.get("/all", checkPermission("view_company_master"), getCompanies);
 router.get("/:id/tally", checkPermission("view_company_master"), getCompanyTallyFormat);
 router.get("/:id", checkPermission("view_company_master"), getCompanyById);

@@ -27,6 +27,9 @@ import {
   getCompaniesForTally,
   getCompanyForTally,
   markCompanyPushed,
+  getStaffExpensePaymentsForTally,
+  getStaffExpensePaymentForTally,
+  markStaffExpensePaymentPushed,
 } from "../controllers/tally.controller.js";
 import {
   createCompany,
@@ -113,6 +116,11 @@ router.post("/payments", tallyContext, createPaymentVoucher);
 router.put("/payments/:id", tallyContext, updatePaymentVoucher);
 router.delete("/payments/:id", tallyContext, deletePaymentVoucher);
 router.patch("/payments/:id/pushed", markPaymentPushed);
+
+// Staff Expense Payments (fully paid ExpensePayment — not Journal Voucher)
+router.get("/expense-payments", getStaffExpensePaymentsForTally);
+router.get("/expense-payments/:id", getStaffExpensePaymentForTally);
+router.patch("/expense-payments/:id/pushed", markStaffExpensePaymentPushed);
 
 // Purchase
 router.get("/purchases", getPurchasesForTally);
