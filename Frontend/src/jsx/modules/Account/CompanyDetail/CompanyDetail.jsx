@@ -6,6 +6,7 @@ import TableExportActions from "../../../components/Common/TableExportActions";
 import Pagination from "../../../components/Common/Pagination";
 import { useSearchFilter, SearchInput } from "../../../components/Common/useSearchFilter";
 import CompanyDetailForm from "./CompanyDetailForm";
+import CompanyDetailView from "./CompanyDetailView";
 import CompanyExcelImport from "./CompanyExcelImport";
 import DocumentAttachments from "../vouchers/shared/DocumentAttachments";
 import SourceBadge from "../SourceBadge";
@@ -13,6 +14,7 @@ import { ATTACHMENT_DOCUMENT_TYPES } from "../documentAttachmentApi";
 import {
   getAllCompanies,
   getCompanyById,
+  mapCompanyToList,
   deleteCompany,
   approveCompany,
   pushCompanyToTally,
@@ -40,6 +42,7 @@ const CompanyDetail = () => {
   const [view, setView] = useState("list");
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState(null);
+  const [detailData, setDetailData] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const attachmentRef = useRef(null);
 
@@ -127,6 +130,22 @@ const CompanyDetail = () => {
     }
   };
 
+  const openView = async (id) => {
+    try {
+      setLoading(true);
+      const company = await getCompanyById(id);
+      setDetailData({
+        ...mapCompanyToList(company),
+        record_status: company.status,
+      });
+      setView("detail");
+    } catch (error) {
+      toast.error(error.message || "Failed to load company");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const openAddForm = () => {
     setEditId(null);
     setFormData(null);
@@ -179,6 +198,7 @@ const CompanyDetail = () => {
     setView("list");
     setEditId(null);
     setFormData(null);
+    setDetailData(null);
   };
 
   const handleSaved = async (savedId) => {
@@ -357,9 +377,15 @@ const CompanyDetail = () => {
                               <tr key={item.id}>
                                 <td className="text-muted">{indexOfFirst + index + 1}</td>
                                 <td>
-                                  <div className="fw-semibold">{item.name}</div>
+                                  <button
+                                    type="button"
+                                    className="btn btn-link p-0 text-start text-decoration-none"
+                                    onClick={() => openView(item.id)}
+                                  >
+                                    <div className="fw-semibold">{item.name}</div>
+                                  </button>
                                   {item.ledger_name && item.ledger_name !== item.name && (
-                                    <small className="text-muted">{item.ledger_name}</small>
+                                    <small className="text-muted d-block">{item.ledger_name}</small>
                                   )}
                                 </td>
                                 <td>{item.code}</td>
@@ -384,6 +410,13 @@ const CompanyDetail = () => {
                                   </Badge>
                                 </td>
                                 <td className="text-end">
+                                  <button
+                                    className="btn btn-info shadow btn-xs sharp me-1"
+                                    onClick={() => openView(item.id)}
+                                    title="View"
+                                  >
+                                    <i className="fa fa-eye"></i>
+                                  </button>
                                   {isDraft && (
                                     <button
                                       className="btn btn-success shadow btn-xs sharp me-1"
@@ -456,6 +489,14 @@ const CompanyDetail = () => {
             </Col>
           </Row>
         </>
+      )}
+
+      {view === "detail" && detailData && (
+        <Row>
+          <Col lg={12}>
+            <CompanyDetailView data={detailData} onBack={closeForm} />
+          </Col>
+        </Row>
       )}
 
       {view === "form" && (
