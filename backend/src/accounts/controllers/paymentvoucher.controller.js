@@ -7,6 +7,7 @@ import {
 import { DATA_STATUS_TALLY, resolveDataStatus } from "../constants/dataStatus.js";
 import {
   normalizePaymentPayload,
+  normalizePaymentAllocations,
   extractTallyPaymentRecords,
   isTallyPaymentBatchRequest,
   describeTallyPaymentBodyIssue,
@@ -66,13 +67,16 @@ async function createPaymentVoucherRecord(req, rawRecord) {
   const user_id = req.user?.id;
   const fromTally = resolveDataStatus(req) === DATA_STATUS_TALLY;
 
-  const { entries, DebitLedgers, CreditLedgers, allocations, ...rest } = rawRecord || {};
+  const { entries, DebitLedgers, CreditLedgers, allocations, Allocations, ...rest } = rawRecord || {};
 
   const normalized = normalizePaymentPayload(
     rest,
     DebitLedgers ?? [],
     CreditLedgers ?? [],
     entries ?? []
+  );
+  const allocationRows = normalizePaymentAllocations(
+    Array.isArray(allocations) ? allocations : Allocations
   );
   const payload = normalized.body;
 
@@ -94,10 +98,28 @@ async function createPaymentVoucherRecord(req, rawRecord) {
   const existing = await prisma.paymentVoucher.findUnique({
     where: { voucher_no: payload.voucher_no },
   });
-  if (existing) {
+  if (existing && (!fromTally || existing.company_id !== company_id)) {
     const err = new Error("A payment voucher with this number already exists");
     err.status = 409;
     throw err;
+  }
+
+  if (existing && fromTally) {
+    await prisma.paymentVoucherEntry.deleteMany({ where: { payment_voucher_id: existing.id } });
+    await prisma.paymentVoucherAllocation.deleteMany({ where: { payment_voucher_id: existing.id } });
+    return prisma.paymentVoucher.update({
+      where: { id: existing.id },
+      data: {
+        ...buildPaymentVoucherData(payload, entryResult.totalDebit, entryResult.totalCredit),
+        approval_status: "APPROVED",
+        tally_push_status: "PUSHED",
+        entries: { create: normalized.entries.map(mapEntry) },
+        ...(allocationRows.length > 0 && {
+          allocations: { create: allocationRows },
+        }),
+      },
+      include: paymentInclude,
+    });
   }
 
   return prisma.paymentVoucher.create({
@@ -112,20 +134,9 @@ async function createPaymentVoucherRecord(req, rawRecord) {
         tally_push_status: "PUSHED",
       }),
       entries: { create: normalized.entries.map(mapEntry) },
-      ...(Array.isArray(allocations) &&
-        allocations.length > 0 && {
-          allocations: {
-            create: allocations.map((row) => ({
-              document_type: row.document_type,
-              document_id: Number(row.document_id),
-              document_no: row.document_no || null,
-              document_amount: row.document_amount,
-              paid_amount: row.paid_amount,
-              allocation_type: row.allocation_type || "PARTIAL",
-              remarks: row.remarks || null,
-            })),
-          },
-        }),
+      ...(allocationRows.length > 0 && {
+        allocations: { create: allocationRows },
+      }),
     },
     include: paymentInclude,
   });

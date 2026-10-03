@@ -190,11 +190,49 @@ async function createPurchaseRecord(req, rawRecord) {
     throw new Error("At least one item is required in items / PurchaseItems");
   }
 
-  const existing = await prisma.purchase.findUnique({ where: { irn: payload.irn } });
-  if (existing) {
+  const existingByNo = payload.invoice_no
+    ? await prisma.purchase.findFirst({
+        where: { company_id, invoice_no: payload.invoice_no },
+      })
+    : null;
+  const existingByIrn = payload.irn
+    ? await prisma.purchase.findUnique({ where: { irn: payload.irn } })
+    : null;
+  const existing = existingByNo || (existingByIrn?.company_id === company_id ? existingByIrn : null);
+
+  if (!fromTally && (existingByNo || existingByIrn)) {
     const err = new Error("A purchase with this IRN already exists");
     err.status = 409;
     throw err;
+  }
+
+  if (!existing && existingByIrn && existingByIrn.company_id !== company_id) {
+    const err = new Error("A purchase with this IRN already exists");
+    err.status = 409;
+    throw err;
+  }
+
+  if (existing && fromTally) {
+    const purchaseData = buildPurchaseData(payload);
+    if (purchaseData.irn && purchaseData.irn !== existing.irn) {
+      const clash = await prisma.purchase.findUnique({ where: { irn: purchaseData.irn } });
+      if (clash && clash.id !== existing.id) purchaseData.irn = existing.irn;
+    }
+    await prisma.purchaseItem.deleteMany({ where: { purchase_id: existing.id } });
+    await prisma.purchaseGstDetail.deleteMany({ where: { purchase_id: existing.id } });
+    return prisma.purchase.update({
+      where: { id: existing.id },
+      data: {
+        ...purchaseData,
+        approval_status: "APPROVED",
+        tally_push_status: "PUSHED",
+        items: { create: normalized.items.map(mapItem) },
+        ...(normalized.gst_details.length > 0 && {
+          gst_details: { create: normalized.gst_details.map(mapGstDetail) },
+        }),
+      },
+      include: purchaseInclude,
+    });
   }
 
   return prisma.purchase.create({

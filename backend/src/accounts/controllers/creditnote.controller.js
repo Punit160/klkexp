@@ -6,6 +6,8 @@ import {
   extractTallyCreditNoteRecords,
   isTallyCreditNoteBatchRequest,
   describeTallyCreditNoteBodyIssue,
+  looksLikeTallyPaymentVoucher,
+  wrongTallyEndpointResponse,
 } from "../utils/tallyPayloadUtils.js";
 
 const prisma = new PrismaClient();
@@ -94,19 +96,74 @@ async function createCreditNoteRecord(req, rawRecord) {
   const existing = await prisma.creditNote.findUnique({
     where: { credit_note_no: payload.credit_note_no },
   });
-  if (existing) {
-    const err = new Error("A credit note with this number already exists");
-    err.status = 409;
-    throw err;
-  }
+  const existingIrn = payload.irn
+    ? await prisma.creditNote.findUnique({ where: { irn: payload.irn } })
+    : null;
 
-  if (payload.irn) {
-    const existingIrn = await prisma.creditNote.findUnique({ where: { irn: payload.irn } });
-    if (existingIrn) {
-      const err = new Error("A credit note with this IRN already exists");
+  if ((existing || existingIrn) && (!fromTally || existing?.company_id !== company_id)) {
+    if (!fromTally || (existing && existing.company_id !== company_id) || (existingIrn && existingIrn.company_id !== company_id && existingIrn.id !== existing?.id)) {
+      const err = new Error(
+        existing && existing.company_id !== company_id
+          ? "A credit note with this number already exists"
+          : existing
+            ? "A credit note with this number already exists"
+            : "A credit note with this IRN already exists"
+      );
       err.status = 409;
       throw err;
     }
+  }
+
+  const sameCompany =
+    (existing && existing.company_id === company_id && existing) ||
+    (existingIrn && existingIrn.company_id === company_id && existingIrn) ||
+    null;
+
+  if (sameCompany && fromTally) {
+    const noteData = buildCreditNoteData(payload);
+    if (noteData.irn && noteData.irn !== sameCompany.irn) {
+      const clash = await prisma.creditNote.findUnique({ where: { irn: noteData.irn } });
+      if (clash && clash.id !== sameCompany.id) noteData.irn = sameCompany.irn;
+    }
+    if (noteData.credit_note_no !== sameCompany.credit_note_no) {
+      noteData.credit_note_no = sameCompany.credit_note_no;
+    }
+    await prisma.creditNoteItem.deleteMany({ where: { credit_note_id: sameCompany.id } });
+    if (Array.isArray(tax_breakup)) {
+      await prisma.creditNoteTaxBreakup.deleteMany({ where: { credit_note_id: sameCompany.id } });
+    }
+    return prisma.creditNote.update({
+      where: { id: sameCompany.id },
+      data: {
+        ...noteData,
+        approval_status: "APPROVED",
+        tally_push_status: "PUSHED",
+        items: { create: normalized.items.map(mapVoucherItem) },
+        ...(Array.isArray(tax_breakup) &&
+          tax_breakup.length > 0 && {
+            tax_breakup: {
+              create: tax_breakup.map((row) => ({
+                hsn_sac: row.hsn_sac,
+                taxable_value: row.taxable_value,
+                cgst_rate: row.cgst_rate ?? 0,
+                cgst_amount: row.cgst_amount ?? 0,
+                sgst_rate: row.sgst_rate ?? 0,
+                sgst_amount: row.sgst_amount ?? 0,
+                igst_rate: row.igst_rate ?? 0,
+                igst_amount: row.igst_amount ?? 0,
+                total_tax_amount: row.total_tax_amount ?? 0,
+              })),
+            },
+          }),
+      },
+      include,
+    });
+  }
+
+  if (existingIrn && !sameCompany) {
+    const err = new Error("A credit note with this IRN already exists");
+    err.status = 409;
+    throw err;
   }
 
   return prisma.creditNote.create({
@@ -149,6 +206,23 @@ export const createCreditNote = async (req, res) => {
 
     if (!company_id || !user_id) {
       return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (looksLikeTallyPaymentVoucher(req.body)) {
+      return res.status(400).json(
+        wrongTallyEndpointResponse("/api/tally/payments?company_id={company_id}", {
+          data: [
+            {
+              company_id: "KLKURJA",
+              VoucherNo: "0089",
+              VoucherDate: "02/Jul/2026",
+              Narration: "paid to XYZ and ABC",
+              DebitLedgers: [{ LedgerName: "XYZ Imprest A/c", Amount: 13000 }],
+              CreditLedgers: [{ LedgerName: "HDFC Bank", Amount: 13000 }],
+            },
+          ],
+        })
+      );
     }
 
     const records = extractTallyCreditNoteRecords(req.body);
@@ -220,12 +294,30 @@ export const createCreditNote = async (req, res) => {
   }
 };
 
+function normalizeCreditNoteUpdate(req) {
+  const raw = req.body || {};
+  const { items, BillItems, GstDetails, gst_details, tax_breakup, ...rest } = raw;
+  const sourceItems = items ?? BillItems;
+  const normalized = normalizeCreditNotePayload(
+    rest,
+    sourceItems ?? [],
+    gst_details ?? GstDetails ?? [],
+    req.user?.company_id
+  );
+  return {
+    ...normalized.body,
+    ...(Array.isArray(sourceItems) ? { items: normalized.items } : {}),
+    ...(Array.isArray(tax_breakup) ? { tax_breakup } : {}),
+  };
+}
+
 const handlers = createVoucherHandlers({
   modelName: "creditNote",
   docNoField: "credit_note_no",
   docLabel: "Credit note",
   include,
   buildData: buildCreditNoteData,
+  normalizeRecord: normalizeCreditNoteUpdate,
   beforeCreate: async (rest, prismaClient) => {
     if (!rest.irn) return null;
     const existing = await prismaClient.creditNote.findUnique({ where: { irn: rest.irn } });

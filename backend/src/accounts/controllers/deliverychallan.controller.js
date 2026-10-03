@@ -86,10 +86,24 @@ async function createDeliveryChallanRecord(req, rawRecord) {
   const existing = await prisma.deliveryChallan.findUnique({
     where: { challan_no: payload.challan_no },
   });
-  if (existing) {
+  if (existing && (!fromTally || existing.company_id !== company_id)) {
     const err = new Error("A delivery challan with this number already exists");
     err.status = 409;
     throw err;
+  }
+
+  if (existing && fromTally) {
+    await prisma.deliveryChallanItem.deleteMany({ where: { delivery_challan_id: existing.id } });
+    return prisma.deliveryChallan.update({
+      where: { id: existing.id },
+      data: {
+        ...buildDeliveryChallanData(payload),
+        approval_status: "APPROVED",
+        tally_push_status: "PUSHED",
+        items: { create: normalized.items.map(mapVoucherItem) },
+      },
+      include,
+    });
   }
 
   return prisma.deliveryChallan.create({
@@ -184,12 +198,29 @@ export const createDeliveryChallan = async (req, res) => {
   }
 };
 
+function normalizeDeliveryChallanUpdate(req) {
+  const raw = req.body || {};
+  const { items, challanitems, Challanitems, GstDetails, gst_details, ...rest } = raw;
+  const sourceItems = items ?? challanitems ?? Challanitems;
+  const normalized = normalizeDeliveryChallanPayload(
+    rest,
+    sourceItems ?? [],
+    gst_details ?? GstDetails ?? [],
+    req.user?.company_id
+  );
+  return {
+    ...normalized.body,
+    ...(Array.isArray(sourceItems) ? { items: normalized.items } : {}),
+  };
+}
+
 const handlers = createVoucherHandlers({
   modelName: "deliveryChallan",
   docNoField: "challan_no",
   docLabel: "Delivery challan",
   include,
   buildData: buildDeliveryChallanData,
+  normalizeRecord: normalizeDeliveryChallanUpdate,
 });
 
 export const {

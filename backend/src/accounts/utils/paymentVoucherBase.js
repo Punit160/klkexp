@@ -1,5 +1,9 @@
 import { PrismaClient } from "@prisma/client";
-import { resolveDataStatus } from "../constants/dataStatus.js";
+import { DATA_STATUS_TALLY, resolveDataStatus } from "../constants/dataStatus.js";
+import {
+  normalizePaymentAllocations,
+  normalizePaymentPayload,
+} from "./tallyPayloadUtils.js";
 import { getDocumentAmount, getDocumentNo } from "./paymentLinkUtils.js";
 import {
   ATTACHMENT_DOCUMENT_TYPES,
@@ -167,20 +171,38 @@ export function createPaymentVoucherHandlers({ buildData }) {
     try {
       const { id } = req.params;
       const company_id = req.user?.company_id;
-      const { entries, allocations, ...rest } = req.body;
+      const { entries, allocations, Allocations, DebitLedgers, CreditLedgers, ...rest } = req.body || {};
+      const ledgersPresent = Array.isArray(DebitLedgers) || Array.isArray(CreditLedgers);
+      const normalized = normalizePaymentPayload(
+        rest,
+        DebitLedgers ?? [],
+        CreditLedgers ?? [],
+        ledgersPresent ? [] : entries ?? []
+      );
+      const allocationInput = Array.isArray(allocations) ? allocations : Allocations;
+      const normalizedAllocations = Array.isArray(allocationInput)
+        ? normalizePaymentAllocations(allocationInput)
+        : undefined;
 
       const existing = await prisma.paymentVoucher.findFirst({
         where: { id: Number(id), company_id },
       });
       if (!existing) return res.status(404).json({ message: "Payment voucher not found" });
-      if (existing.approval_status !== "PENDING") {
+      if (
+        existing.approval_status !== "PENDING" &&
+        resolveDataStatus(req) !== DATA_STATUS_TALLY
+      ) {
         return res.status(400).json({ message: `Payment voucher cannot be updated once it is ${existing.approval_status}` });
       }
 
-      const entryResult = validateEntries(entries);
+      const entryResult = validateEntries(normalized.entries);
       if (entryResult?.status) return res.status(entryResult.status).json({ message: entryResult.message });
 
-      const allocError = validateAllocations(allocations, entryResult.totalDebit, rest.payment_type);
+      const allocError = validateAllocations(
+        normalizedAllocations,
+        entryResult.totalDebit,
+        normalized.body.payment_type
+      );
       if (allocError) return res.status(allocError.status).json({ message: allocError.message });
 
       await prisma.paymentVoucherEntry.deleteMany({ where: { payment_voucher_id: Number(id) } });
@@ -189,11 +211,11 @@ export function createPaymentVoucherHandlers({ buildData }) {
       const updated = await prisma.paymentVoucher.update({
         where: { id: Number(id) },
         data: {
-          ...buildData(rest, entryResult.totalDebit, entryResult.totalCredit),
-          entries: { create: entries.map(mapEntry) },
-          ...(Array.isArray(allocations) &&
-            allocations.length > 0 && {
-              allocations: { create: allocations.map(mapAllocation) },
+          ...buildData(normalized.body, entryResult.totalDebit, entryResult.totalCredit),
+          entries: { create: normalized.entries.map(mapEntry) },
+          ...(Array.isArray(normalizedAllocations) &&
+            normalizedAllocations.length > 0 && {
+              allocations: { create: normalizedAllocations.map(mapAllocation) },
             }),
         },
         include,

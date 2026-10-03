@@ -20,13 +20,58 @@ export function strVal(value, fallback = "") {
 
 export function numVal(value, fallback = 0) {
   if (value === undefined || value === null || value === "") return fallback;
-  const n = Number(value);
-  return Number.isNaN(n) ? fallback : n;
+  if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
+  const cleaned = String(value).replace(/,/g, "").replace(/[^\d.-]/g, "");
+  if (!cleaned || cleaned === "-" || cleaned === "." || cleaned === "-.") return fallback;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 export function nullifyOptional(value) {
-  if (value === undefined || value === "") return null;
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
   return value;
+}
+
+/** First present value as text. Dates are left as Date objects. Numbers become strings. */
+export function firstText(...values) {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) continue;
+      return value;
+    }
+    const text = String(value).trim();
+    if (text === "") continue;
+    return text;
+  }
+  return undefined;
+}
+
+/** First numeric value, keeping 0. Blank strings are skipped. */
+export function firstNum(...values) {
+  for (const value of values) {
+    if (value === undefined || value === null || value === "") continue;
+    return value;
+  }
+  return undefined;
+}
+
+/** Purchase/sales store branch and IFSC in one column: "Branch / IFSC". */
+export function joinBankBranchIfsc(branch, ifsc) {
+  const joined = [strVal(branch), strVal(ifsc)].filter(Boolean).join(" / ");
+  return joined || undefined;
+}
+
+export function splitBankIfscBranch(value) {
+  if (!value) return { BankBranch: "", BankIfsc: "" };
+  const parts = String(value).split(" / ");
+  if (parts.length >= 2) {
+    return { BankBranch: parts[0], BankIfsc: parts.slice(1).join(" / ") };
+  }
+  return { BankBranch: "", BankIfsc: String(value) };
 }
 
 export function stateCodeFromGstin(gstin) {
@@ -175,6 +220,47 @@ export function extractTallyPaymentRecords(body) {
   ]);
 }
 
+/** True when payload is a Payment/Expense voucher (ledgers), not a debit/credit/purchase note. */
+export function looksLikeTallyPaymentVoucher(body) {
+  const records = extractTallyBatchRecords(body, [
+    "VoucherNo",
+    "voucher_no",
+    "DebitLedgers",
+    "CreditLedgers",
+  ]);
+  if (!records.length) return false;
+
+  return records.every((row) => {
+    const hasLedgers =
+      (Array.isArray(row.DebitLedgers) && row.DebitLedgers.length > 0) ||
+      (Array.isArray(row.CreditLedgers) && row.CreditLedgers.length > 0) ||
+      (Array.isArray(row.entries) && row.entries.length > 0);
+    const hasVoucherNo = !!(row.VoucherNo || row.voucher_no);
+    const looksLikeDebitNote = !!(
+      row.DebitNoteNo ||
+      row.debit_note_no ||
+      row.PurchaseItems ||
+      row.VendorName
+    );
+    const looksLikeCreditNote = !!(
+      row.CreditNoteNo ||
+      row.credit_note_no ||
+      row.BillItems ||
+      row.CustomerName
+    );
+    const looksLikePurchase = !!(row.PurchaseNo && row.PurchaseItems);
+    return hasLedgers && hasVoucherNo && !looksLikeDebitNote && !looksLikeCreditNote && !looksLikePurchase;
+  });
+}
+
+export function wrongTallyEndpointResponse(expectedPath, example) {
+  return {
+    message: `Wrong Tally endpoint. This payload looks like a Payment / Expense voucher (VoucherNo + DebitLedgers / CreditLedgers).`,
+    hint: `POST it to ${expectedPath} instead.`,
+    example,
+  };
+}
+
 export function extractTallyCompanyRecords(body) {
   return extractTallyBatchRecords(body, [
     "CompanyName",
@@ -291,15 +377,72 @@ export const describeTallyExpenseBodyIssue = (body) =>
 export function mapTallyPurchaseAliases(body = {}) {
   return {
     ...body,
-    invoice_no: body.invoice_no ?? body.PurchaseNo,
-    invoice_date: body.invoice_date ?? body.PurchaseDate,
-    seller_name: body.seller_name ?? body.VendorName,
-    seller_gstin: body.seller_gstin ?? body.Vendorgstin,
-    buyer_name: body.buyer_name ?? body.CustomerName ?? body.BuyerName,
-    buyer_gstin: body.buyer_gstin ?? body.customergstin,
-    total_amount: body.total_amount ?? body.PurchaseAmount,
-    taxable_value: body.taxable_value ?? body.TaxableValue,
-    buyers_order_no: body.buyers_order_no ?? body.PONo,
+    invoice_type: firstText(body.invoice_type, body.InvoiceType),
+    irn: firstText(body.irn, body.IRN),
+    ack_no: firstText(body.ack_no, body.AckNo),
+    ack_date: firstText(body.ack_date, body.AckDate),
+    invoice_no: firstText(body.invoice_no, body.PurchaseNo),
+    invoice_date: firstText(body.invoice_date, body.PurchaseDate),
+    eway_bill_no: firstText(body.eway_bill_no, body.EWayBillNo),
+    delivery_note: firstText(body.delivery_note, body.DeliveryNote),
+    delivery_note_date: firstText(body.delivery_note_date, body.DeliveryNoteDate),
+    mode_of_payment: firstText(body.mode_of_payment, body.ModeTermsOfPayment),
+    reference_no: firstText(body.reference_no, body.ReferenceNoDate),
+    reference_date: firstText(body.reference_date, body.PODate),
+    buyers_order_no: firstText(body.buyers_order_no, body.PONo),
+    other_references: firstText(body.other_references, body.OtherReferences),
+    dispatch_doc_no: firstText(body.dispatch_doc_no, body.DispatchDocNo),
+    dispatched_through: firstText(body.dispatched_through, body.DispatchedThrough),
+    destination: firstText(body.destination, body.Destination),
+    bill_of_lading_no: firstText(body.bill_of_lading_no, body.BillOfLadingNo),
+    motor_vehicle_no: firstText(body.motor_vehicle_no, body.MotorVehicleNo),
+    terms_of_delivery: firstText(body.terms_of_delivery, body.TermsOfDelivery),
+    seller_name: firstText(body.seller_name, body.VendorName),
+    seller_address: firstText(body.seller_address, body.VendorAddress),
+    seller_gstin: firstText(body.seller_gstin, body.Vendorgstin),
+    seller_state: firstText(body.seller_state, body.VendorState),
+    seller_state_code: firstText(body.seller_state_code, body.VendorStateCode),
+    seller_cin: firstText(body.seller_cin, body.VendorCIN),
+    seller_email: firstText(body.seller_email, body.VendorEmail),
+    buyer_name: firstText(body.buyer_name, body.BuyerName, body.CustomerName),
+    buyer_address: firstText(body.buyer_address, body.BuyerAddress),
+    buyer_gstin: firstText(body.buyer_gstin, body.BuyerGstin, body.customergstin),
+    buyer_state: firstText(body.buyer_state, body.BuyerState),
+    buyer_state_code: firstText(body.buyer_state_code, body.BuyerStateCode),
+    buyer_pan: firstText(body.buyer_pan, body.BuyerPAN),
+    buyer_email: firstText(body.buyer_email, body.BuyerEmail),
+    consignee_name: firstText(body.consignee_name, body.ConsigneeName),
+    consignee_address: firstText(body.consignee_address, body.ConsigneeAddress),
+    consignee_gstin: firstText(body.consignee_gstin, body.ConsigneeGstin),
+    consignee_state: firstText(body.consignee_state, body.ConsigneeState),
+    consignee_state_code: firstText(body.consignee_state_code, body.ConsigneeStateCode),
+    consignee_email: firstText(body.consignee_email, body.ConsigneeEmail),
+    total_amount: firstNum(body.total_amount, body.PurchaseAmount),
+    taxable_value: firstNum(body.taxable_value, body.TaxableValue),
+    total_quantity: firstNum(body.total_quantity, body.TotalQuantity),
+    total_tax_amount: firstNum(body.total_tax_amount, body.TotalTaxAmount),
+    igst_rate: firstNum(body.igst_rate, body.IGSTRate),
+    igst_amount: firstNum(body.igst_amount, body.IGSTAmount),
+    amount_in_words: firstText(body.amount_in_words, body.AmountInWords),
+    tax_amount_in_words: firstText(body.tax_amount_in_words, body.TaxAmountInWords),
+    bank_name: firstText(body.bank_name, body.BankName),
+    bank_account_no: firstText(body.bank_account_no, body.BankAccountNo),
+    bank_ifsc_branch: firstText(
+      body.bank_ifsc_branch,
+      joinBankBranchIfsc(body.BankBranch, body.BankIfsc)
+    ),
+    declaration: firstText(body.declaration, body.Declaration),
+    authorised_signatory_name: firstText(body.authorised_signatory_name, body.AuthorisedSignatoryName),
+    authorised_signatory_designation: firstText(
+      body.authorised_signatory_designation,
+      body.AuthorisedSignatoryDesignation
+    ),
+    issuing_signatory_name: firstText(body.issuing_signatory_name, body.IssuingSignatoryName),
+    issuing_signatory_designation: firstText(
+      body.issuing_signatory_designation,
+      body.IssuingSignatoryDesignation
+    ),
+    jurisdiction: firstText(body.jurisdiction, body.Jurisdiction),
   };
 }
 
@@ -446,13 +589,76 @@ export function normalizePurchasePayload(body = {}, items = [], gstDetails = [],
 export function mapTallySalesAliases(body = {}) {
   return {
     ...body,
-    invoice_no: body.invoice_no ?? body.InvoiceNo,
-    invoice_date: body.invoice_date ?? body.InvoiceDate,
-    delivery_note: body.delivery_note ?? body.Challanno ?? body.challanno,
-    buyer_name: body.buyer_name ?? body.CustomerName,
-    buyer_gstin: body.buyer_gstin ?? body.customergstin,
-    total_amount: body.total_amount ?? body.BillAmount,
-    taxable_value: body.taxable_value ?? body.TaxableValue,
+    invoice_type: firstText(body.invoice_type, body.InvoiceType),
+    irn: firstText(body.irn, body.IRN),
+    ack_no: firstText(body.ack_no, body.AckNo),
+    ack_date: firstText(body.ack_date, body.AckDate),
+    invoice_no: firstText(body.invoice_no, body.InvoiceNo),
+    invoice_date: firstText(body.invoice_date, body.InvoiceDate),
+    eway_bill_no: firstText(body.eway_bill_no, body.EWayBillNo),
+    delivery_note: firstText(body.delivery_note, body.DeliveryNote, body.Challanno, body.challanno),
+    delivery_note_date: firstText(body.delivery_note_date, body.DeliveryNoteDate),
+    mode_of_payment: firstText(body.mode_of_payment, body.ModeTermsOfPayment),
+    reference_no: firstText(body.reference_no, body.ReferenceNoDate),
+    reference_date: firstText(body.reference_date, body.BuyersOrderDate),
+    buyers_order_no: firstText(body.buyers_order_no, body.BuyersOrderNo),
+    other_references: firstText(body.other_references, body.OtherReferences),
+    dispatch_doc_no: firstText(body.dispatch_doc_no, body.DispatchDocNo),
+    dispatched_through: firstText(body.dispatched_through, body.DispatchedThrough),
+    destination: firstText(body.destination, body.Destination),
+    bill_of_lading_no: firstText(body.bill_of_lading_no, body.BillOfLadingNo),
+    motor_vehicle_no: firstText(body.motor_vehicle_no, body.MotorVehicleNo),
+    terms_of_delivery: firstText(body.terms_of_delivery, body.TermsOfDelivery),
+    seller_name: firstText(body.seller_name, body.SellerName),
+    seller_address: firstText(body.seller_address, body.SellerAddress),
+    seller_gstin: firstText(body.seller_gstin, body.SellerGstin),
+    seller_state: firstText(body.seller_state, body.SellerState),
+    seller_state_code: firstText(body.seller_state_code, body.SellerStateCode),
+    seller_cin: firstText(body.seller_cin, body.SellerCIN),
+    seller_email: firstText(body.seller_email, body.SellerEmail),
+    buyer_name: firstText(body.buyer_name, body.CustomerName),
+    buyer_address: firstText(body.buyer_address, body.BuyerAddress),
+    buyer_gstin: firstText(body.buyer_gstin, body.customergstin, body.BuyerGstin),
+    buyer_state: firstText(body.buyer_state, body.BuyerState),
+    buyer_state_code: firstText(body.buyer_state_code, body.BuyerStateCode),
+    buyer_pan: firstText(body.buyer_pan, body.BuyerPAN),
+    buyer_email: firstText(body.buyer_email, body.BuyerEmail),
+    consignee_name: firstText(body.consignee_name, body.ConsigneeName),
+    consignee_address: firstText(body.consignee_address, body.ConsigneeAddress),
+    consignee_gstin: firstText(body.consignee_gstin, body.ConsigneeGstin),
+    consignee_state: firstText(body.consignee_state, body.ConsigneeState),
+    consignee_state_code: firstText(body.consignee_state_code, body.ConsigneeStateCode),
+    consignee_email: firstText(body.consignee_email, body.ConsigneeEmail),
+    total_amount: firstNum(body.total_amount, body.BillAmount),
+    taxable_value: firstNum(body.taxable_value, body.TaxableValue),
+    total_quantity: firstNum(body.total_quantity, body.TotalQuantity),
+    total_tax_amount: firstNum(body.total_tax_amount, body.TotalTaxAmount),
+    cgst_rate: firstNum(body.cgst_rate, body.CGSTRate),
+    cgst_amount: firstNum(body.cgst_amount, body.CGSTAmount),
+    sgst_rate: firstNum(body.sgst_rate, body.SGSTRate),
+    sgst_amount: firstNum(body.sgst_amount, body.SGSTAmount),
+    igst_rate: firstNum(body.igst_rate, body.IGSTRate),
+    igst_amount: firstNum(body.igst_amount, body.IGSTAmount),
+    amount_in_words: firstText(body.amount_in_words, body.AmountInWords),
+    tax_amount_in_words: firstText(body.tax_amount_in_words, body.TaxAmountInWords),
+    bank_name: firstText(body.bank_name, body.BankName),
+    bank_account_no: firstText(body.bank_account_no, body.BankAccountNo),
+    bank_ifsc_branch: firstText(
+      body.bank_ifsc_branch,
+      joinBankBranchIfsc(body.BankBranch, body.BankIfsc)
+    ),
+    declaration: firstText(body.declaration, body.Declaration),
+    authorised_signatory_name: firstText(body.authorised_signatory_name, body.AuthorisedSignatoryName),
+    authorised_signatory_designation: firstText(
+      body.authorised_signatory_designation,
+      body.AuthorisedSignatoryDesignation
+    ),
+    issuing_signatory_name: firstText(body.issuing_signatory_name, body.IssuingSignatoryName),
+    issuing_signatory_designation: firstText(
+      body.issuing_signatory_designation,
+      body.IssuingSignatoryDesignation
+    ),
+    jurisdiction: firstText(body.jurisdiction, body.Jurisdiction),
   };
 }
 
@@ -462,9 +668,14 @@ export function normalizeSalesItems(items = []) {
 
 export function splitSalesGstAmounts(gstDetails = []) {
   const rows = normalizePurchaseGstDetails(gstDetails);
+  const rowFor = (name) => rows.find((r) => strVal(r.ledger_name).toUpperCase() === name);
   const amountFor = (name) => {
-    const row = rows.find((r) => strVal(r.ledger_name).toUpperCase() === name);
+    const row = rowFor(name);
     return row ? numVal(row.amount) : 0;
+  };
+  const rateFor = (name) => {
+    const row = rowFor(name);
+    return row ? numVal(row.rate) : 0;
   };
 
   const cgst_amount = amountFor("CGST");
@@ -472,7 +683,20 @@ export function splitSalesGstAmounts(gstDetails = []) {
   const igst_amount = amountFor("IGST");
   const total_tax_amount = rows.reduce((sum, row) => sum + numVal(row.amount), 0);
 
-  return { cgst_amount, sgst_amount, igst_amount, total_tax_amount };
+  return {
+    cgst_amount,
+    sgst_amount,
+    igst_amount,
+    cgst_rate: rateFor("CGST"),
+    sgst_rate: rateFor("SGST"),
+    igst_rate: rateFor("IGST"),
+    total_tax_amount,
+  };
+}
+
+function numOrSplit(value, splitValue) {
+  if (value != null && value !== "") return numVal(value);
+  return numVal(splitValue);
 }
 
 /** Fill missing sales header fields before Prisma create/update. */
@@ -555,12 +779,12 @@ export function normalizeSalesPayload(body = {}, items = [], gstDetails = [], co
       consignee_email: nullifyOptional(mapped.consignee_email),
       total_quantity: totalQuantity,
       taxable_value: taxableValue,
-      igst_rate: numVal(mapped.igst_rate),
-      igst_amount: mapped.igst_amount != null ? numVal(mapped.igst_amount) : gstSplit.igst_amount,
-      cgst_rate: numVal(mapped.cgst_rate),
-      cgst_amount: mapped.cgst_amount != null ? numVal(mapped.cgst_amount) : gstSplit.cgst_amount,
-      sgst_rate: numVal(mapped.sgst_rate),
-      sgst_amount: mapped.sgst_amount != null ? numVal(mapped.sgst_amount) : gstSplit.sgst_amount,
+      igst_rate: numOrSplit(mapped.igst_rate, gstSplit.igst_rate),
+      igst_amount: numOrSplit(mapped.igst_amount, gstSplit.igst_amount),
+      cgst_rate: numOrSplit(mapped.cgst_rate, gstSplit.cgst_rate),
+      cgst_amount: numOrSplit(mapped.cgst_amount, gstSplit.cgst_amount),
+      sgst_rate: numOrSplit(mapped.sgst_rate, gstSplit.sgst_rate),
+      sgst_amount: numOrSplit(mapped.sgst_amount, gstSplit.sgst_amount),
       total_tax_amount: totalTaxAmount,
       total_amount: totalAmount,
       eway_bill_no: nullifyOptional(mapped.eway_bill_no),
@@ -596,14 +820,59 @@ export function normalizeSalesPayload(body = {}, items = [], gstDetails = [], co
 export function mapTallyCreditNoteAliases(body = {}) {
   return {
     ...body,
-    credit_note_no: body.credit_note_no ?? body.CreditNoteNo,
-    credit_note_date: body.credit_note_date ?? body.CreditNoteDate,
-    original_invoice_no: body.original_invoice_no ?? body.InvoiceNo,
-    original_invoice_date: body.original_invoice_date ?? body.InvoiceDate,
-    buyer_name: body.buyer_name ?? body.CustomerName,
-    buyer_gstin: body.buyer_gstin ?? body.customergstin,
-    total_amount: body.total_amount ?? body.BillAmount,
-    taxable_value: body.taxable_value ?? body.TaxableValue,
+    invoice_type: firstText(body.invoice_type, body.InvoiceType),
+    irn: firstText(body.irn, body.IRN),
+    ack_no: firstText(body.ack_no, body.AckNo),
+    ack_date: firstText(body.ack_date, body.AckDate),
+    credit_note_no: firstText(body.credit_note_no, body.CreditNoteNo),
+    credit_note_date: firstText(body.credit_note_date, body.CreditNoteDate),
+    eway_bill_no: firstText(body.eway_bill_no, body.EWayBillNo),
+    original_invoice_no: firstText(body.original_invoice_no, body.InvoiceNo),
+    original_invoice_date: firstText(body.original_invoice_date, body.InvoiceDate),
+    buyers_order_no: firstText(body.buyers_order_no, body.BuyersOrderNo),
+    other_references: firstText(body.other_references, body.OtherReferences),
+    dispatch_doc_no: firstText(body.dispatch_doc_no, body.DispatchDocNo),
+    dispatched_through: firstText(body.dispatched_through, body.DispatchedThrough),
+    destination: firstText(body.destination, body.Destination),
+    terms_of_delivery: firstText(body.terms_of_delivery, body.TermsOfDelivery),
+    seller_name: firstText(body.seller_name, body.SellerName),
+    seller_address: firstText(body.seller_address, body.SellerAddress),
+    seller_gstin: firstText(body.seller_gstin, body.SellerGstin),
+    seller_state: firstText(body.seller_state, body.SellerState),
+    seller_state_code: firstText(body.seller_state_code, body.SellerStateCode),
+    seller_cin: firstText(body.seller_cin, body.SellerCIN),
+    seller_email: firstText(body.seller_email, body.SellerEmail),
+    seller_pan: firstText(body.seller_pan, body.SellerPAN),
+    consignee_name: firstText(body.consignee_name, body.ConsigneeName),
+    consignee_address: firstText(body.consignee_address, body.ConsigneeAddress),
+    consignee_gstin: firstText(body.consignee_gstin, body.ConsigneeGstin),
+    consignee_state: firstText(body.consignee_state, body.ConsigneeState),
+    consignee_state_code: firstText(body.consignee_state_code, body.ConsigneeStateCode),
+    consignee_email: firstText(body.consignee_email, body.ConsigneeEmail),
+    buyer_name: firstText(body.buyer_name, body.CustomerName),
+    buyer_address: firstText(body.buyer_address, body.BuyerAddress),
+    buyer_gstin: firstText(body.buyer_gstin, body.customergstin, body.BuyerGstin),
+    buyer_state: firstText(body.buyer_state, body.BuyerState),
+    buyer_state_code: firstText(body.buyer_state_code, body.BuyerStateCode),
+    buyer_pan: firstText(body.buyer_pan, body.BuyerPAN),
+    buyer_email: firstText(body.buyer_email, body.BuyerEmail),
+    total_amount: firstNum(body.total_amount, body.BillAmount),
+    taxable_value: firstNum(body.taxable_value, body.TaxableValue),
+    total_quantity: firstNum(body.total_quantity, body.TotalQuantity),
+    total_tax_amount: firstNum(body.total_tax_amount, body.TotalTaxAmount),
+    cgst_rate: firstNum(body.cgst_rate, body.CGSTRate),
+    cgst_amount: firstNum(body.cgst_amount, body.CGSTAmount),
+    sgst_rate: firstNum(body.sgst_rate, body.SGSTRate),
+    sgst_amount: firstNum(body.sgst_amount, body.SGSTAmount),
+    igst_rate: firstNum(body.igst_rate, body.IGSTRate),
+    igst_amount: firstNum(body.igst_amount, body.IGSTAmount),
+    amount_in_words: firstText(body.amount_in_words, body.AmountInWords),
+    tax_amount_in_words: firstText(body.tax_amount_in_words, body.TaxAmountInWords),
+    authorised_signatory_name: firstText(body.authorised_signatory_name, body.AuthorisedSignatoryName),
+    authorised_signatory_designation: firstText(
+      body.authorised_signatory_designation,
+      body.AuthorisedSignatoryDesignation
+    ),
   };
 }
 
@@ -692,12 +961,12 @@ export function normalizeCreditNotePayload(body = {}, items = [], gstDetails = [
       buyer_email: nullifyOptional(mapped.buyer_email),
       total_quantity: totalQuantity,
       taxable_value: taxableValue,
-      igst_rate: numVal(mapped.igst_rate),
-      igst_amount: mapped.igst_amount != null ? numVal(mapped.igst_amount) : gstSplit.igst_amount,
-      cgst_rate: numVal(mapped.cgst_rate),
-      cgst_amount: mapped.cgst_amount != null ? numVal(mapped.cgst_amount) : gstSplit.cgst_amount,
-      sgst_rate: numVal(mapped.sgst_rate),
-      sgst_amount: mapped.sgst_amount != null ? numVal(mapped.sgst_amount) : gstSplit.sgst_amount,
+      igst_rate: numOrSplit(mapped.igst_rate, gstSplit.igst_rate),
+      igst_amount: numOrSplit(mapped.igst_amount, gstSplit.igst_amount),
+      cgst_rate: numOrSplit(mapped.cgst_rate, gstSplit.cgst_rate),
+      cgst_amount: numOrSplit(mapped.cgst_amount, gstSplit.cgst_amount),
+      sgst_rate: numOrSplit(mapped.sgst_rate, gstSplit.sgst_rate),
+      sgst_amount: numOrSplit(mapped.sgst_amount, gstSplit.sgst_amount),
       total_tax_amount: totalTaxAmount,
       total_amount: totalAmount,
       authorised_signatory_name: nullifyOptional(mapped.authorised_signatory_name),
@@ -710,16 +979,48 @@ export function normalizeCreditNotePayload(body = {}, items = [], gstDetails = [
 export function mapTallyDebitNoteAliases(body = {}) {
   return {
     ...body,
-    debit_note_no: body.debit_note_no ?? body.DebitNoteNo,
-    debit_note_date: body.debit_note_date ?? body.DebitNoteDate,
-    original_invoice_no: body.original_invoice_no ?? body.PurchaseNo,
-    original_invoice_date: body.original_invoice_date ?? body.PurchaseDate,
-    seller_name: body.seller_name ?? body.VendorName,
-    seller_gstin: body.seller_gstin ?? body.Vendorgstin,
-    buyer_name: body.buyer_name ?? body.CustomerName ?? body.BuyerName,
-    buyer_gstin: body.buyer_gstin ?? body.customergstin,
-    total_amount: body.total_amount ?? body.DebitNoteAmount,
-    taxable_value: body.taxable_value ?? body.TaxableValue,
+    debit_note_no: firstText(body.debit_note_no, body.DebitNoteNo),
+    debit_note_date: firstText(body.debit_note_date, body.DebitNoteDate),
+    original_invoice_no: firstText(body.original_invoice_no, body.PurchaseNo),
+    original_invoice_date: firstText(body.original_invoice_date, body.PurchaseDate),
+    other_references: firstText(body.other_references, body.OtherReferences),
+    seller_name: firstText(body.seller_name, body.VendorName),
+    seller_address: firstText(body.seller_address, body.VendorAddress),
+    seller_gstin: firstText(body.seller_gstin, body.Vendorgstin),
+    seller_state: firstText(body.seller_state, body.VendorState),
+    seller_state_code: firstText(body.seller_state_code, body.VendorStateCode),
+    seller_cin: firstText(body.seller_cin, body.VendorCIN),
+    seller_email: firstText(body.seller_email, body.VendorEmail),
+    seller_pan: firstText(body.seller_pan, body.VendorPAN),
+    consignee_name: firstText(body.consignee_name, body.ConsigneeName),
+    consignee_address: firstText(body.consignee_address, body.ConsigneeAddress),
+    consignee_gstin: firstText(body.consignee_gstin, body.ConsigneeGstin),
+    consignee_state: firstText(body.consignee_state, body.ConsigneeState),
+    consignee_state_code: firstText(body.consignee_state_code, body.ConsigneeStateCode),
+    consignee_email: firstText(body.consignee_email, body.ConsigneeEmail),
+    buyer_name: firstText(body.buyer_name, body.BuyerName, body.CustomerName),
+    buyer_address: firstText(body.buyer_address, body.BuyerAddress),
+    buyer_gstin: firstText(body.buyer_gstin, body.BuyerGstin, body.customergstin),
+    buyer_state: firstText(body.buyer_state, body.BuyerState),
+    buyer_state_code: firstText(body.buyer_state_code, body.BuyerStateCode),
+    buyer_pan: firstText(body.buyer_pan, body.BuyerPAN),
+    buyer_email: firstText(body.buyer_email, body.BuyerEmail),
+    total_amount: firstNum(body.total_amount, body.DebitNoteAmount),
+    taxable_value: firstNum(body.taxable_value, body.TaxableValue),
+    total_quantity: firstNum(body.total_quantity, body.TotalQuantity),
+    total_tax_amount: firstNum(body.total_tax_amount, body.TotalTaxAmount),
+    cgst_rate: firstNum(body.cgst_rate, body.CGSTRate),
+    cgst_amount: firstNum(body.cgst_amount, body.CGSTAmount),
+    sgst_rate: firstNum(body.sgst_rate, body.SGSTRate),
+    sgst_amount: firstNum(body.sgst_amount, body.SGSTAmount),
+    igst_rate: firstNum(body.igst_rate, body.IGSTRate),
+    igst_amount: firstNum(body.igst_amount, body.IGSTAmount),
+    amount_in_words: firstText(body.amount_in_words, body.AmountInWords),
+    authorised_signatory_name: firstText(body.authorised_signatory_name, body.AuthorisedSignatoryName),
+    authorised_signatory_designation: firstText(
+      body.authorised_signatory_designation,
+      body.AuthorisedSignatoryDesignation
+    ),
   };
 }
 
@@ -793,12 +1094,12 @@ export function normalizeDebitNotePayload(body = {}, items = [], gstDetails = []
       buyer_email: nullifyOptional(mapped.buyer_email),
       total_quantity: totalQuantity,
       taxable_value: taxableValue,
-      igst_rate: numVal(mapped.igst_rate),
-      igst_amount: mapped.igst_amount != null ? numVal(mapped.igst_amount) : gstSplit.igst_amount,
-      cgst_rate: numVal(mapped.cgst_rate),
-      cgst_amount: mapped.cgst_amount != null ? numVal(mapped.cgst_amount) : gstSplit.cgst_amount,
-      sgst_rate: numVal(mapped.sgst_rate),
-      sgst_amount: mapped.sgst_amount != null ? numVal(mapped.sgst_amount) : gstSplit.sgst_amount,
+      igst_rate: numOrSplit(mapped.igst_rate, gstSplit.igst_rate),
+      igst_amount: numOrSplit(mapped.igst_amount, gstSplit.igst_amount),
+      cgst_rate: numOrSplit(mapped.cgst_rate, gstSplit.cgst_rate),
+      cgst_amount: numOrSplit(mapped.cgst_amount, gstSplit.cgst_amount),
+      sgst_rate: numOrSplit(mapped.sgst_rate, gstSplit.sgst_rate),
+      sgst_amount: numOrSplit(mapped.sgst_amount, gstSplit.sgst_amount),
       total_tax_amount: totalTaxAmount,
       total_amount: totalAmount,
       amount_in_words: nullifyOptional(mapped.amount_in_words),
@@ -812,10 +1113,66 @@ export function normalizeDebitNotePayload(body = {}, items = [], gstDetails = []
 export function mapTallyLedgerVoucherAliases(body = {}) {
   return {
     ...body,
-    voucher_no: body.voucher_no ?? body.VoucherNo,
-    voucher_date: body.voucher_date ?? body.VoucherDate,
-    narration: body.narration ?? body.Narration,
+    voucher_no: firstText(body.voucher_no, body.VoucherNo),
+    voucher_date: firstText(body.voucher_date, body.VoucherDate),
+    voucher_type: firstText(body.voucher_type, body.VoucherType),
+    narration: firstText(body.narration, body.Narration),
+    payment_type: firstText(body.payment_type, body.PaymentType),
+    payment_mode: firstText(body.payment_mode, body.PaymentMode),
+    on_account_of: firstText(body.on_account_of, body.OnAccountOf),
+    from_company_name: firstText(body.from_company_name, body.FromCompanyName),
+    from_company_address: firstText(body.from_company_address, body.FromCompanyAddress),
+    from_company_gstin: firstText(body.from_company_gstin, body.FromCompanyGstin),
+    payee_type: firstText(body.payee_type, body.PayeeType),
+    party_name: firstText(body.party_name, body.PartyName),
+    party_gstin: firstText(body.party_gstin, body.PartyGstin),
+    party_address: firstText(body.party_address, body.PartyAddress),
+    linked_document_type: firstText(body.linked_document_type, body.LinkedDocumentType),
+    linked_document_no: firstText(body.linked_document_no, body.LinkedDocumentNo),
+    linked_document_id: firstNum(body.linked_document_id, body.LinkedDocumentId),
+    linked_document_amount: firstNum(body.linked_document_amount, body.LinkedDocumentAmount),
+    bank_name: firstText(body.bank_name, body.BankName),
+    bank_account_no: firstText(body.bank_account_no, body.BankAccountNo),
+    bank_ifsc: firstText(body.bank_ifsc, body.BankIfsc),
+    reference_no: firstText(body.reference_no, body.ReferenceNo),
+    cheque_no: firstText(body.cheque_no, body.ChequeNo),
+    cheque_date: firstText(body.cheque_date, body.ChequeDate),
+    company_name: firstText(body.company_name, body.CompanyName),
+    company_address: firstText(body.company_address, body.CompanyAddress),
+    company_state: firstText(body.company_state, body.CompanyState),
+    company_state_code: firstText(body.company_state_code, body.CompanyStateCode),
+    company_cin: firstText(body.company_cin, body.CompanyCIN),
+    company_email: firstText(body.company_email, body.CompanyEmail),
+    payee_name: firstText(body.payee_name, body.PayeeName),
+    payee_address: firstText(body.payee_address, body.PayeeAddress),
+    payee_state: firstText(body.payee_state, body.PayeeState),
+    payee_state_code: firstText(body.payee_state_code, body.PayeeStateCode),
+    payee_gstin: firstText(body.payee_gstin, body.PayeeGstin),
+    payee_email: firstText(body.payee_email, body.PayeeEmail),
+    payee_designation: firstText(body.payee_designation, body.PayeeDesignation),
+    authorised_signatory_name: firstText(body.authorised_signatory_name, body.AuthorisedSignatoryName),
+    authorised_signatory_designation: firstText(
+      body.authorised_signatory_designation,
+      body.AuthorisedSignatoryDesignation
+    ),
   };
+}
+
+export function normalizePaymentAllocations(rows = []) {
+  if (!Array.isArray(rows)) return [];
+
+  return rows
+    .filter((row) => row && typeof row === "object")
+    .map((row) => ({
+      document_type: strVal(firstText(row.document_type, row.documentType), "PURCHASE"),
+      document_id: numVal(firstNum(row.document_id, row.documentId)),
+      document_no: nullifyOptional(firstText(row.document_no, row.documentNo)),
+      document_amount: numVal(firstNum(row.document_amount, row.documentAmount)),
+      paid_amount: numVal(firstNum(row.paid_amount, row.paidAmount)),
+      allocation_type: strVal(firstText(row.allocation_type, row.allocationType), "PARTIAL"),
+      remarks: nullifyOptional(row.remarks),
+    }))
+    .filter((row) => row.document_id > 0);
 }
 
 export function normalizeTallyLedgerEntries(debitLedgers = [], creditLedgers = []) {
@@ -901,12 +1258,52 @@ export function normalizePaymentPayload(
 export function mapTallyDeliveryChallanAliases(body = {}) {
   return {
     ...body,
-    challan_no: body.challan_no ?? body.Challanno ?? body.challanno,
-    challan_date: body.challan_date ?? body.Challandate ?? body.challandate,
-    buyer_name: body.buyer_name ?? body.CustomerName,
-    buyer_gstin: body.buyer_gstin ?? body.customergstin,
-    total_amount: body.total_amount ?? body.Challanamount ?? body.challanamount,
-    taxable_value: body.taxable_value ?? body.TaxableValue,
+    challan_no: firstText(body.challan_no, body.Challanno, body.challanno),
+    challan_date: firstText(body.challan_date, body.Challandate, body.challandate),
+    reference_no: firstText(body.reference_no, body.ReferenceNo),
+    reference_date: firstText(body.reference_date, body.ReferenceDate),
+    invoice_no: firstText(body.invoice_no, body.InvoiceNo),
+    invoice_date: firstText(body.invoice_date, body.InvoiceDate),
+    buyers_order_no: firstText(body.buyers_order_no, body.BuyersOrderNo),
+    buyers_order_date: firstText(body.buyers_order_date, body.BuyersOrderDate),
+    dispatch_doc_no: firstText(body.dispatch_doc_no, body.DispatchDocNo),
+    dispatched_through: firstText(body.dispatched_through, body.DispatchedThrough),
+    destination: firstText(body.destination, body.Destination),
+    motor_vehicle_no: firstText(body.motor_vehicle_no, body.MotorVehicleNo),
+    bill_of_lading_no: firstText(body.bill_of_lading_no, body.BillOfLadingNo),
+    terms_of_delivery: firstText(body.terms_of_delivery, body.TermsOfDelivery),
+    policy_no: firstText(body.policy_no, body.PolicyNo),
+    place_of_supply: firstText(body.place_of_supply, body.PlaceOfSupply),
+    seller_name: firstText(body.seller_name, body.SellerName),
+    seller_address: firstText(body.seller_address, body.SellerAddress),
+    seller_gstin: firstText(body.seller_gstin, body.SellerGstin),
+    seller_state: firstText(body.seller_state, body.SellerState),
+    seller_state_code: firstText(body.seller_state_code, body.SellerStateCode),
+    seller_email: firstText(body.seller_email, body.SellerEmail),
+    seller_cin: firstText(body.seller_cin, body.SellerCIN),
+    seller_pan: firstText(body.seller_pan, body.SellerPAN),
+    buyer_name: firstText(body.buyer_name, body.CustomerName),
+    buyer_address: firstText(body.buyer_address, body.BuyerAddress),
+    buyer_gstin: firstText(body.buyer_gstin, body.customergstin, body.BuyerGstin),
+    buyer_state: firstText(body.buyer_state, body.BuyerState),
+    buyer_state_code: firstText(body.buyer_state_code, body.BuyerStateCode),
+    buyer_email: firstText(body.buyer_email, body.BuyerEmail),
+    total_amount: firstNum(body.total_amount, body.Challanamount, body.challanamount),
+    taxable_value: firstNum(body.taxable_value, body.TaxableValue),
+    total_quantity: firstNum(body.total_quantity, body.TotalQuantity),
+    total_tax_amount: firstNum(body.total_tax_amount, body.TotalTaxAmount),
+    cgst_rate: firstNum(body.cgst_rate, body.CGSTRate),
+    cgst_amount: firstNum(body.cgst_amount, body.CGSTAmount),
+    sgst_rate: firstNum(body.sgst_rate, body.SGSTRate),
+    sgst_amount: firstNum(body.sgst_amount, body.SGSTAmount),
+    igst_rate: firstNum(body.igst_rate, body.IGSTRate),
+    igst_amount: firstNum(body.igst_amount, body.IGSTAmount),
+    amount_in_words: firstText(body.amount_in_words, body.AmountInWords),
+    authorised_signatory_name: firstText(body.authorised_signatory_name, body.AuthorisedSignatoryName),
+    authorised_signatory_designation: firstText(
+      body.authorised_signatory_designation,
+      body.AuthorisedSignatoryDesignation
+    ),
   };
 }
 
@@ -989,12 +1386,12 @@ export function normalizeDeliveryChallanPayload(
       buyer_email: nullifyOptional(mapped.buyer_email),
       total_quantity: totalQuantity,
       taxable_value: taxableValue,
-      igst_rate: numVal(mapped.igst_rate),
-      igst_amount: mapped.igst_amount != null ? numVal(mapped.igst_amount) : gstSplit.igst_amount,
-      cgst_rate: numVal(mapped.cgst_rate),
-      cgst_amount: mapped.cgst_amount != null ? numVal(mapped.cgst_amount) : gstSplit.cgst_amount,
-      sgst_rate: numVal(mapped.sgst_rate),
-      sgst_amount: mapped.sgst_amount != null ? numVal(mapped.sgst_amount) : gstSplit.sgst_amount,
+      igst_rate: numOrSplit(mapped.igst_rate, gstSplit.igst_rate),
+      igst_amount: numOrSplit(mapped.igst_amount, gstSplit.igst_amount),
+      cgst_rate: numOrSplit(mapped.cgst_rate, gstSplit.cgst_rate),
+      cgst_amount: numOrSplit(mapped.cgst_amount, gstSplit.cgst_amount),
+      sgst_rate: numOrSplit(mapped.sgst_rate, gstSplit.sgst_rate),
+      sgst_amount: numOrSplit(mapped.sgst_amount, gstSplit.sgst_amount),
       total_tax_amount: totalTaxAmount,
       total_amount: totalAmount,
       amount_in_words: nullifyOptional(mapped.amount_in_words),
@@ -1020,23 +1417,25 @@ export function normalizeJournalVoucherPayload(
     body: {
       voucher_no: mapped.voucher_no,
       voucher_date: mapped.voucher_date,
-      voucher_type: strVal(body.voucher_type, "Journal Voucher"),
-      company_name: strVal(body.company_name, companyId || "Company"),
-      company_address: strVal(body.company_address),
-      company_state: strVal(body.company_state),
-      company_state_code: strVal(body.company_state_code),
-      company_cin: nullifyOptional(body.company_cin),
-      company_email: nullifyOptional(body.company_email),
-      payee_type: strVal(body.payee_type, "COMPANY"),
-      payee_name: nullifyOptional(body.payee_name ?? ledgerPayload.entries.find((e) => e.entry_type === "Dr")?.particulars),
-      payee_address: nullifyOptional(body.payee_address),
-      payee_state: nullifyOptional(body.payee_state),
-      payee_state_code: nullifyOptional(body.payee_state_code),
-      payee_gstin: nullifyOptional(body.payee_gstin),
-      payee_email: nullifyOptional(body.payee_email),
-      payee_designation: nullifyOptional(body.payee_designation),
+      voucher_type: strVal(mapped.voucher_type, "Journal Voucher"),
+      company_name: strVal(mapped.company_name, companyId || "Company"),
+      company_address: strVal(mapped.company_address),
+      company_state: strVal(mapped.company_state),
+      company_state_code: strVal(mapped.company_state_code),
+      company_cin: nullifyOptional(mapped.company_cin),
+      company_email: nullifyOptional(mapped.company_email),
+      payee_type: strVal(mapped.payee_type, "COMPANY"),
+      payee_name: nullifyOptional(
+        mapped.payee_name ?? ledgerPayload.entries.find((e) => e.entry_type === "Dr")?.particulars
+      ),
+      payee_address: nullifyOptional(mapped.payee_address),
+      payee_state: nullifyOptional(mapped.payee_state),
+      payee_state_code: nullifyOptional(mapped.payee_state_code),
+      payee_gstin: nullifyOptional(mapped.payee_gstin),
+      payee_email: nullifyOptional(mapped.payee_email),
+      payee_designation: nullifyOptional(mapped.payee_designation),
       narration: mapped.narration,
-      on_account_of: nullifyOptional(body.on_account_of),
+      on_account_of: nullifyOptional(mapped.on_account_of),
       total_debit: ledgerPayload.totalDebit,
       total_credit: ledgerPayload.totalCredit,
       authorised_signatory_name: nullifyOptional(mapped.authorised_signatory_name),

@@ -6,6 +6,7 @@ import {
 } from "../utils/attachmentUtils.js";
 import {
   mapCompanyDetailToTally,
+  mapTallyBankAccounts,
   mapTallyToCompanyDetail,
 } from "../utils/companyTallyMapper.js";
 import {
@@ -105,42 +106,50 @@ const assertCompanyInput = (input, { fromTally }) => {
   throw err;
 };
 
+const asText = (value) => {
+  if (value === undefined || value === null) return "";
+  return String(value).trim();
+};
+
+const optionalText = (value) => asText(value) || null;
+
 const normalizeCompanyInput = (body) => {
-  const addLine1 = body.add_line1?.trim() || body.address?.trim() || "";
-  const name = body.name?.trim() || "";
+  const addLine1 = asText(body.add_line1) || asText(body.address);
+  const name = asText(body.name);
+  const statusNum = Number(body.status);
 
   return {
     name,
-    ledger_name: body.ledger_name?.trim() || name,
-    short_name: body.short_name?.trim() || "",
-    gst: body.gst?.trim() || null,
-    pan: body.pan?.trim() || null,
-    tan: body.tan?.trim() || null,
-    cin: body.cin?.trim() || null,
-    email: body.email?.trim() || null,
-    state_code: body.state_code?.trim() || null,
+    ledger_name: asText(body.ledger_name) || name,
+    short_name: asText(body.short_name),
+    gst: optionalText(body.gst),
+    pan: optionalText(body.pan),
+    tan: optionalText(body.tan),
+    cin: optionalText(body.cin),
+    email: optionalText(body.email),
+    state_code: optionalText(body.state_code),
     address: addLine1,
     add_line1: addLine1 || null,
-    add_line2: body.add_line2?.trim() || null,
-    add_line3: body.add_line3?.trim() || null,
-    city: body.city?.trim() || "",
-    state: body.state?.trim() || "",
-    country: body.country?.trim() || "India",
+    add_line2: optionalText(body.add_line2),
+    add_line3: optionalText(body.add_line3),
+    city: asText(body.city),
+    state: asText(body.state),
+    country: asText(body.country) || "India",
     zipcode: parseZipcode(body.zipcode),
-    contact_person: body.contact_person?.trim() || null,
-    contact_number: body.contact_number?.trim() || null,
-    ledger_group: body.ledger_group?.trim() || null,
-    code: body.code?.trim() || "",
-    status: body.status != null ? Number(body.status) : 1,
+    contact_person: optionalText(body.contact_person),
+    contact_number: optionalText(body.contact_number),
+    ledger_group: optionalText(body.ledger_group),
+    code: asText(body.code),
+    status: Number.isFinite(statusNum) ? statusNum : 1,
   };
 };
 
 const mapBankAccountInput = (bank) => ({
-  bank_name: bank.bank_name || "",
-  ac_no: bank.ac_no || "",
-  branch_name: bank.branch_name || "",
-  ifsc_code: bank.ifsc_code || "",
-  is_primary: !!bank.is_primary,
+  bank_name: asText(bank.bank_name),
+  ac_no: asText(bank.ac_no),
+  branch_name: asText(bank.branch_name),
+  ifsc_code: asText(bank.ifsc_code),
+  is_primary: bank.is_primary === true || bank.is_primary === 1 || bank.is_primary === "1" || bank.is_primary === "true",
 });
 
 const syncBankAccounts = async (companyDetailId, bank_accounts) => {
@@ -216,16 +225,48 @@ async function createCompanyRecord(req, rawBody) {
   const fromTally = resolveDataStatus(req) === DATA_STATUS_TALLY;
   const {
     bank_accounts,
+    BankAccounts,
     company_id: _recordCompanyId,
     user_id: _recordUserId,
     ...rest
   } = rawBody || {};
   const preparedBody = prepareRequestBody(rest);
+  const banks = Array.isArray(bank_accounts) ? bank_accounts : mapTallyBankAccounts(BankAccounts);
   let input = normalizeCompanyInput(preparedBody);
   if (fromTally) {
     input = applyTallyCompanyDefaults(input);
   }
   assertCompanyInput(input, { fromTally });
+
+  if (fromTally && (input.code || input.name)) {
+    const existing = input.code
+      ? await prisma.companyDetail.findFirst({
+          where: { company_id, code: input.code },
+        })
+      : await prisma.companyDetail.findFirst({
+          where: { company_id, name: input.name },
+        });
+
+    if (existing) {
+      await prisma.companyDetail.update({
+        where: { id: existing.id },
+        data: {
+          ...input,
+          approval_status: "APPROVED",
+          tally_push_status: "PUSHED",
+        },
+      });
+      await syncBankAccounts(existing.id, banks);
+      const withBanks = await prisma.companyDetail.findUnique({
+        where: { id: existing.id },
+        include: companyInclude,
+      });
+      return {
+        ...withBanks,
+        tally: mapCompanyDetailToTally(withBanks),
+      };
+    }
+  }
 
   const company = await prisma.companyDetail.create({
     data: {
@@ -239,7 +280,7 @@ async function createCompanyRecord(req, rawBody) {
     },
   });
 
-  await syncBankAccounts(company.id, bank_accounts);
+  await syncBankAccounts(company.id, banks);
 
   const withBanks = await prisma.companyDetail.findUnique({
     where: { id: company.id },
@@ -400,8 +441,9 @@ export const updateCompany = async (req, res) => {
   try {
     const company_id = req.user?.company_id;
     const { id } = req.params;
-    const { bank_accounts, ...rawBody } = req.body;
+    const { bank_accounts, BankAccounts, ...rawBody } = req.body;
     const preparedBody = prepareRequestBody(rawBody);
+    const banks = Array.isArray(bank_accounts) ? bank_accounts : mapTallyBankAccounts(BankAccounts);
 
     const company = await prisma.companyDetail.findFirst({
       where: { id: Number(id), company_id },
@@ -453,8 +495,8 @@ export const updateCompany = async (req, res) => {
       data: updateData,
     });
 
-    if (Array.isArray(bank_accounts)) {
-      await syncBankAccounts(Number(id), bank_accounts);
+    if (Array.isArray(banks)) {
+      await syncBankAccounts(Number(id), banks);
     }
 
     const updatedCompany = await prisma.companyDetail.findUnique({

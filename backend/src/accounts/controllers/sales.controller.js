@@ -137,22 +137,57 @@ async function createSalesRecord(req, rawRecord) {
     throw new Error("At least one item is required in items / BillItems");
   }
 
-  const existingInvoice = await prisma.sales.findFirst({
-    where: { invoice_no: payload.invoice_no, company_id },
+  const existingInvoice = await prisma.sales.findUnique({
+    where: { invoice_no: payload.invoice_no },
   });
-  if (existingInvoice) {
+  const existingIrn = payload.irn
+    ? await prisma.sales.findUnique({ where: { irn: payload.irn } })
+    : null;
+  const existing =
+    (existingInvoice?.company_id === company_id && existingInvoice) ||
+    (existingIrn?.company_id === company_id && existingIrn) ||
+    null;
+
+  if ((existingInvoice || existingIrn) && !fromTally) {
+    const err = new Error(
+      existingInvoice
+        ? "A sales invoice with this number already exists"
+        : "A sales invoice with this IRN already exists"
+    );
+    err.status = 409;
+    throw err;
+  }
+
+  if (
+    (existingInvoice && existingInvoice.company_id !== company_id) ||
+    (existingIrn && existingIrn.company_id !== company_id)
+  ) {
     const err = new Error("A sales invoice with this number already exists");
     err.status = 409;
     throw err;
   }
 
-  if (payload.irn) {
-    const existingIrn = await prisma.sales.findUnique({ where: { irn: payload.irn } });
-    if (existingIrn) {
-      const err = new Error("A sales invoice with this IRN already exists");
-      err.status = 409;
-      throw err;
+  if (existing && fromTally) {
+    const salesData = buildSalesData(payload);
+    if (salesData.irn && salesData.irn !== existing.irn) {
+      const clash = await prisma.sales.findUnique({ where: { irn: salesData.irn } });
+      if (clash && clash.id !== existing.id) salesData.irn = existing.irn;
     }
+    if (salesData.invoice_no !== existing.invoice_no) {
+      const clash = await prisma.sales.findUnique({ where: { invoice_no: salesData.invoice_no } });
+      if (clash && clash.id !== existing.id) salesData.invoice_no = existing.invoice_no;
+    }
+    await prisma.salesItem.deleteMany({ where: { sales_id: existing.id } });
+    return prisma.sales.update({
+      where: { id: existing.id },
+      data: {
+        ...salesData,
+        approval_status: "APPROVED",
+        tally_push_status: "PUSHED",
+        items: { create: normalized.items.map(mapItem) },
+      },
+      include: salesInclude,
+    });
   }
 
   return prisma.sales.create({

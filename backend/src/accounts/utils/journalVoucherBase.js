@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-import { resolveDataStatus } from "../constants/dataStatus.js";
+import { DATA_STATUS_TALLY, resolveDataStatus } from "../constants/dataStatus.js";
+import { normalizeJournalVoucherPayload } from "./tallyPayloadUtils.js";
 import {
   ATTACHMENT_DOCUMENT_TYPES,
   deleteAttachmentsForDocument,
@@ -151,7 +152,16 @@ export function createJournalVoucherHandlers({ buildData }) {
     try {
       const { id } = req.params;
       const company_id = req.user?.company_id;
-      const { entries, ...rest } = req.body;
+      const { entries, DebitLedgers, CreditLedgers, ...rest } = req.body || {};
+      const ledgersPresent = Array.isArray(DebitLedgers) || Array.isArray(CreditLedgers);
+      const normalized = normalizeJournalVoucherPayload(
+        rest,
+        DebitLedgers ?? [],
+        CreditLedgers ?? [],
+        ledgersPresent ? [] : entries ?? [],
+        company_id
+      );
+      const nextEntries = ledgersPresent || Array.isArray(entries) ? normalized.entries : undefined;
 
       const existing = await prisma.journalVoucher.findFirst({
         where: { id: Number(id), company_id },
@@ -161,14 +171,17 @@ export function createJournalVoucherHandlers({ buildData }) {
         return res.status(404).json({ message: "Journal voucher not found" });
       }
 
-      if (existing.approval_status !== "PENDING") {
+      if (
+        existing.approval_status !== "PENDING" &&
+        resolveDataStatus(req) !== DATA_STATUS_TALLY
+      ) {
         return res.status(400).json({
           message: `Journal voucher cannot be updated once it is ${existing.approval_status}`,
         });
       }
 
-      if (Array.isArray(entries)) {
-        const entryError = validateEntries(entries);
+      if (Array.isArray(nextEntries)) {
+        const entryError = validateEntries(nextEntries);
         if (entryError) return res.status(entryError.status).json({ message: entryError.message });
         await prisma.journalVoucherEntry.deleteMany({ where: { journal_voucher_id: Number(id) } });
       }
@@ -176,9 +189,15 @@ export function createJournalVoucherHandlers({ buildData }) {
       const updated = await prisma.journalVoucher.update({
         where: { id: Number(id) },
         data: {
-          ...buildData(rest),
-          ...(Array.isArray(entries) && {
-            entries: { create: entries.map(mapEntry) },
+          ...buildData({
+            ...normalized.body,
+            ...(!Array.isArray(nextEntries) && {
+              total_debit: existing.total_debit,
+              total_credit: existing.total_credit,
+            }),
+          }),
+          ...(Array.isArray(nextEntries) && {
+            entries: { create: nextEntries.map(mapEntry) },
           }),
         },
         include,

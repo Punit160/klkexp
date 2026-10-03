@@ -6,6 +6,8 @@ import {
   extractTallyDebitNoteRecords,
   isTallyDebitNoteBatchRequest,
   describeTallyDebitNoteBodyIssue,
+  looksLikeTallyPaymentVoucher,
+  wrongTallyEndpointResponse,
 } from "../utils/tallyPayloadUtils.js";
 
 const prisma = new PrismaClient();
@@ -83,10 +85,24 @@ async function createDebitNoteRecord(req, rawRecord) {
   const existing = await prisma.debitNote.findUnique({
     where: { debit_note_no: payload.debit_note_no },
   });
-  if (existing) {
+  if (existing && (!fromTally || existing.company_id !== company_id)) {
     const err = new Error("A debit note with this number already exists");
     err.status = 409;
     throw err;
+  }
+
+  if (existing && fromTally) {
+    await prisma.debitNoteItem.deleteMany({ where: { debit_note_id: existing.id } });
+    return prisma.debitNote.update({
+      where: { id: existing.id },
+      data: {
+        ...buildDebitNoteData(payload),
+        approval_status: "APPROVED",
+        tally_push_status: "PUSHED",
+        items: { create: normalized.items.map(mapVoucherItem) },
+      },
+      include,
+    });
   }
 
   return prisma.debitNote.create({
@@ -113,6 +129,23 @@ export const createDebitNote = async (req, res) => {
 
     if (!company_id || !user_id) {
       return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (looksLikeTallyPaymentVoucher(req.body)) {
+      return res.status(400).json(
+        wrongTallyEndpointResponse("/api/tally/payments?company_id={company_id}", {
+          data: [
+            {
+              company_id: "KLKURJA",
+              VoucherNo: "0089",
+              VoucherDate: "02/Jul/2026",
+              Narration: "paid to XYZ and ABC",
+              DebitLedgers: [{ LedgerName: "XYZ Imprest A/c", Amount: 13000 }],
+              CreditLedgers: [{ LedgerName: "HDFC Bank", Amount: 13000 }],
+            },
+          ],
+        })
+      );
     }
 
     const records = extractTallyDebitNoteRecords(req.body);
@@ -184,12 +217,29 @@ export const createDebitNote = async (req, res) => {
   }
 };
 
+function normalizeDebitNoteUpdate(req) {
+  const raw = req.body || {};
+  const { items, PurchaseItems, GstDetails, gst_details, ...rest } = raw;
+  const sourceItems = items ?? PurchaseItems;
+  const normalized = normalizeDebitNotePayload(
+    rest,
+    sourceItems ?? [],
+    gst_details ?? GstDetails ?? [],
+    req.user?.company_id
+  );
+  return {
+    ...normalized.body,
+    ...(Array.isArray(sourceItems) ? { items: normalized.items } : {}),
+  };
+}
+
 const handlers = createVoucherHandlers({
   modelName: "debitNote",
   docNoField: "debit_note_no",
   docLabel: "Debit note",
   include,
   buildData: buildDebitNoteData,
+  normalizeRecord: normalizeDebitNoteUpdate,
 });
 
 export const {

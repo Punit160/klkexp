@@ -79,10 +79,28 @@ async function createJournalVoucherRecord(req, rawRecord) {
   const existing = await prisma.journalVoucher.findUnique({
     where: { voucher_no: payload.voucher_no },
   });
-  if (existing) {
+  if (existing && (!fromTally || existing.company_id !== company_id)) {
     const err = new Error("A journal voucher with this number already exists");
     err.status = 409;
     throw err;
+  }
+
+  if (existing && fromTally) {
+    await prisma.journalVoucherEntry.deleteMany({ where: { journal_voucher_id: existing.id } });
+    return prisma.journalVoucher.update({
+      where: { id: existing.id },
+      data: {
+        ...buildJournalVoucherData({
+          ...payload,
+          total_debit: entryResult.totalDebit,
+          total_credit: entryResult.totalCredit,
+        }),
+        approval_status: "APPROVED",
+        tally_push_status: "PUSHED",
+        entries: { create: normalized.entries.map(mapEntry) },
+      },
+      include: journalInclude,
+    });
   }
 
   return prisma.journalVoucher.create({

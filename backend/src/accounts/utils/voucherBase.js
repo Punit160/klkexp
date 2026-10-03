@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { resolveDataStatus } from "../constants/dataStatus.js";
+import { DATA_STATUS_TALLY, resolveDataStatus } from "../constants/dataStatus.js";
 import {
   attachmentTypeForModel,
   deleteAttachmentsForDocument,
@@ -9,8 +9,8 @@ const prisma = new PrismaClient();
 
 export const mapVoucherItem = (item, index) => ({
   sl_no: item.sl_no ?? index + 1,
-  description: item.description,
-  hsn_sac: item.hsn_sac || null,
+  description: item.description || item.itemname || "Item",
+  hsn_sac: item.hsn_sac || item.hsn || null,
   quantity: item.quantity,
   unit: item.unit || null,
   rate: item.rate,
@@ -29,6 +29,7 @@ export function createVoucherHandlers({
   include,
   buildData,
   beforeCreate,
+  normalizeRecord,
 }) {
   const create = async (req, res) => {
     try {
@@ -146,7 +147,8 @@ export function createVoucherHandlers({
     try {
       const { id } = req.params;
       const company_id = req.user?.company_id;
-      const { items, tax_breakup, ...rest } = req.body;
+      const source = typeof normalizeRecord === "function" ? normalizeRecord(req) : req.body;
+      const { items, tax_breakup, ...rest } = source || {};
 
       const existing = await prisma[modelName].findFirst({
         where: { id: Number(id), company_id },
@@ -156,7 +158,10 @@ export function createVoucherHandlers({
         return res.status(404).json({ message: `${docLabel} not found` });
       }
 
-      if (existing.approval_status !== "PENDING") {
+      if (
+        existing.approval_status !== "PENDING" &&
+        resolveDataStatus(req) !== DATA_STATUS_TALLY
+      ) {
         return res.status(400).json({
           message: `${docLabel} cannot be updated once it is ${existing.approval_status}`,
         });

@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { DATA_STATUS_APP } from "../constants/dataStatus.js";
+import { splitBankIfscBranch } from "../utils/tallyPayloadUtils.js";
 
 const prisma = new PrismaClient();
 
@@ -20,12 +21,72 @@ function getTallyWhere(req) {
   };
 }
 
-function tallyListResponse(rows, mapper) {
+async function buildTallyQueueHint(model, company_id) {
+  const base = { company_id };
+  const [total, approved, pushed, appCreated, inQueue, tallyImported] = await Promise.all([
+    prisma[model].count({ where: base }),
+    prisma[model].count({ where: { ...base, approval_status: "APPROVED" } }),
+    prisma[model].count({ where: { ...base, tally_push_status: "PUSHED" } }),
+    prisma[model].count({ where: { ...base, data_status: DATA_STATUS_APP } }),
+    prisma[model].count({
+      where: {
+        ...base,
+        approval_status: "APPROVED",
+        tally_push_status: "PUSHED",
+        data_status: DATA_STATUS_APP,
+      },
+    }),
+    prisma[model].count({ where: { ...base, data_status: 2 } }),
+  ]);
+
+  const reasons = [];
+  if (total === 0) {
+    reasons.push(`No records exist for company_id=${company_id}`);
+  } else {
+    if (approved === 0) reasons.push("None are APPROVED yet (Approve in portal first)");
+    if (pushed === 0) {
+      reasons.push(
+        "None have tally_push_status=PUSHED (NOT_PUSHED means still waiting — click Push to Tally)"
+      );
+    }
+    if (pushed > 0 && inQueue === 0) {
+      reasons.push(
+        "Some are PUSHED but not in queue — check approval_status=APPROVED and data_status=1 (Tally POST imports with data_status=2 are excluded)"
+      );
+    }
+  }
+
+  return {
+    hint:
+      reasons.join(". ") ||
+      "No records in Tally export queue. Create in KLK app → Approve → Senior clicks 'Push to Tally'.",
+    queue_filter: {
+      company_id,
+      approval_status: "APPROVED",
+      tally_push_status: "PUSHED",
+      data_status: 1,
+    },
+    counts: {
+      total,
+      approved,
+      pushed,
+      app_created_data_status_1: appCreated,
+      tally_imported_data_status_2: tallyImported,
+      in_export_queue: inQueue,
+    },
+  };
+}
+
+function tallyListResponse(rows, mapper, emptyMeta = null) {
   const data = rows.map(mapper);
   if (!data.length) {
     return {
       data,
-      hint: "No records in Tally export queue. Create in KLK app → Approve → Senior clicks 'Push to Tally'. Records imported via Tally POST (data_status=2) are excluded from GET.",
+      hint:
+        emptyMeta?.hint ||
+        "No records in Tally export queue. Create in KLK app → Approve → Senior clicks 'Push to Tally'. Records imported via Tally POST (data_status=2) are excluded from GET.",
+      ...(emptyMeta?.queue_filter && { queue_filter: emptyMeta.queue_filter }),
+      ...(emptyMeta?.counts && { counts: emptyMeta.counts }),
     };
   }
   return { data };
@@ -44,14 +105,26 @@ function formatDate(value) {
   return `${day}/${MONTHS[date.getMonth()]}/${date.getFullYear()}`;
 }
 
+function text(value) {
+  if (value === undefined || value === null) return "";
+  return String(value);
+}
+
+function money(value) {
+  return Number(value) || 0;
+}
+
 function mapItems(items = []) {
   return [...items]
     .sort((a, b) => (a.sl_no ?? a.id ?? 0) - (b.sl_no ?? b.id ?? 0))
     .map((item) => ({
       itemname: item.description || "",
-      quantity: Number(item.quantity) || 0,
-      rate: Number(item.rate) || 0,
-      amount: Number(item.amount) || 0,
+      hsn_sac: item.hsn_sac || "",
+      quantity: money(item.quantity),
+      unit: item.unit || "",
+      rate: money(item.rate),
+      per: item.per || item.unit || "",
+      amount: money(item.amount),
     }));
 }
 
@@ -66,15 +139,28 @@ function mapGstDetails(record) {
   if (record.gst_details?.length) {
     return record.gst_details.map((row) => ({
       LedgerName: row.ledger_name || "",
-      amount: Number(row.amount) || 0,
+      rate: money(row.rate),
+      amount: money(row.amount),
     }));
   }
 
   const rows = [];
-  if (Number(record.cgst_amount) > 0) rows.push({ LedgerName: "CGST", amount: Number(record.cgst_amount) });
-  if (Number(record.sgst_amount) > 0) rows.push({ LedgerName: "SGST", amount: Number(record.sgst_amount) });
-  if (Number(record.igst_amount) > 0) rows.push({ LedgerName: "IGST", amount: Number(record.igst_amount) });
+  const push = (name, rate, amount) => {
+    if (money(amount) > 0 || money(rate) > 0) {
+      rows.push({ LedgerName: name, rate: money(rate), amount: money(amount) });
+    }
+  };
+  push("CGST", record.cgst_rate, record.cgst_amount);
+  push("SGST", record.sgst_rate, record.sgst_amount);
+  push("IGST", record.igst_rate, record.igst_amount);
   return rows;
+}
+
+function mapSignatory(row) {
+  return {
+    AuthorisedSignatoryName: text(row.authorised_signatory_name),
+    AuthorisedSignatoryDesignation: text(row.authorised_signatory_designation),
+  };
 }
 
 function mapLedgers(entries = []) {
@@ -94,12 +180,55 @@ function mapCreditNote(row) {
     id: row.id,
     company_id: row.company_id || "",
     ...mapTallyMeta(row),
-    CreditNoteNo: row.credit_note_no || "",
+    InvoiceType: row.invoice_type || "Credit Note",
+    IRN: text(row.irn),
+    AckNo: text(row.ack_no),
+    AckDate: formatDate(row.ack_date),
+    CreditNoteNo: text(row.credit_note_no),
     CreditNoteDate: formatDate(row.credit_note_date),
-    InvoiceNo: row.original_invoice_no || "",
-    CustomerName: row.buyer_name || "",
-    BillAmount: Number(row.total_amount) || 0,
-    customergstin: row.buyer_gstin || "",
+    InvoiceNo: text(row.original_invoice_no),
+    InvoiceDate: formatDate(row.original_invoice_date),
+    EWayBillNo: text(row.eway_bill_no),
+    BuyersOrderNo: text(row.buyers_order_no),
+    OtherReferences: text(row.other_references),
+    DispatchDocNo: text(row.dispatch_doc_no),
+    DispatchedThrough: text(row.dispatched_through),
+    Destination: text(row.destination),
+    TermsOfDelivery: text(row.terms_of_delivery),
+    SellerName: text(row.seller_name),
+    SellerAddress: text(row.seller_address),
+    SellerGstin: text(row.seller_gstin),
+    SellerState: text(row.seller_state),
+    SellerStateCode: text(row.seller_state_code),
+    SellerCIN: text(row.seller_cin),
+    SellerEmail: text(row.seller_email),
+    SellerPAN: text(row.seller_pan),
+    ConsigneeName: text(row.consignee_name),
+    ConsigneeAddress: text(row.consignee_address),
+    ConsigneeGstin: text(row.consignee_gstin),
+    ConsigneeState: text(row.consignee_state),
+    ConsigneeStateCode: text(row.consignee_state_code),
+    ConsigneeEmail: text(row.consignee_email),
+    CustomerName: text(row.buyer_name),
+    BuyerAddress: text(row.buyer_address),
+    customergstin: text(row.buyer_gstin),
+    BuyerState: text(row.buyer_state),
+    BuyerStateCode: text(row.buyer_state_code),
+    BuyerPAN: text(row.buyer_pan),
+    BuyerEmail: text(row.buyer_email),
+    BillAmount: money(row.total_amount),
+    TaxableValue: money(row.taxable_value),
+    TotalQuantity: money(row.total_quantity),
+    TotalTaxAmount: money(row.total_tax_amount),
+    CGSTRate: money(row.cgst_rate),
+    CGSTAmount: money(row.cgst_amount),
+    SGSTRate: money(row.sgst_rate),
+    SGSTAmount: money(row.sgst_amount),
+    IGSTRate: money(row.igst_rate),
+    IGSTAmount: money(row.igst_amount),
+    AmountInWords: text(row.amount_in_words),
+    TaxAmountInWords: text(row.tax_amount_in_words),
+    ...mapSignatory(row),
     BillItems: mapItems(row.items),
     GstDetails: mapGstDetails(row),
   };
@@ -110,12 +239,44 @@ function mapDebitNote(row) {
     id: row.id,
     company_id: row.company_id || "",
     ...mapTallyMeta(row),
-    DebitNoteNo: row.debit_note_no || "",
+    DebitNoteNo: text(row.debit_note_no),
     DebitNoteDate: formatDate(row.debit_note_date),
-    PurchaseNo: row.original_invoice_no || "",
-    VendorName: row.seller_name || "",
-    DebitNoteAmount: Number(row.total_amount) || 0,
-    Vendorgstin: row.seller_gstin || "",
+    PurchaseNo: text(row.original_invoice_no),
+    PurchaseDate: formatDate(row.original_invoice_date),
+    OtherReferences: text(row.other_references),
+    VendorName: text(row.seller_name),
+    VendorAddress: text(row.seller_address),
+    Vendorgstin: text(row.seller_gstin),
+    VendorState: text(row.seller_state),
+    VendorStateCode: text(row.seller_state_code),
+    VendorCIN: text(row.seller_cin),
+    VendorEmail: text(row.seller_email),
+    VendorPAN: text(row.seller_pan),
+    ConsigneeName: text(row.consignee_name),
+    ConsigneeAddress: text(row.consignee_address),
+    ConsigneeGstin: text(row.consignee_gstin),
+    ConsigneeState: text(row.consignee_state),
+    ConsigneeStateCode: text(row.consignee_state_code),
+    ConsigneeEmail: text(row.consignee_email),
+    BuyerName: text(row.buyer_name),
+    BuyerAddress: text(row.buyer_address),
+    BuyerGstin: text(row.buyer_gstin),
+    BuyerState: text(row.buyer_state),
+    BuyerStateCode: text(row.buyer_state_code),
+    BuyerPAN: text(row.buyer_pan),
+    BuyerEmail: text(row.buyer_email),
+    DebitNoteAmount: money(row.total_amount),
+    TaxableValue: money(row.taxable_value),
+    TotalQuantity: money(row.total_quantity),
+    TotalTaxAmount: money(row.total_tax_amount),
+    CGSTRate: money(row.cgst_rate),
+    CGSTAmount: money(row.cgst_amount),
+    SGSTRate: money(row.sgst_rate),
+    SGSTAmount: money(row.sgst_amount),
+    IGSTRate: money(row.igst_rate),
+    IGSTAmount: money(row.igst_amount),
+    AmountInWords: text(row.amount_in_words),
+    ...mapSignatory(row),
     PurchaseItems: mapItems(row.items),
     GstDetails: mapGstDetails(row),
   };
@@ -126,11 +287,45 @@ function mapDeliveryChallan(row) {
     id: row.id,
     company_id: row.company_id || "",
     ...mapTallyMeta(row),
-    Challanno: row.challan_no || "",
+    Challanno: text(row.challan_no),
     Challandate: formatDate(row.challan_date),
-    CustomerName: row.buyer_name || "",
-    Challanamount: Number(row.total_amount) || 0,
-    customergstin: row.buyer_gstin || "",
+    ReferenceNo: text(row.reference_no),
+    ReferenceDate: formatDate(row.reference_date),
+    InvoiceNo: text(row.invoice_no),
+    InvoiceDate: formatDate(row.invoice_date),
+    BuyersOrderNo: text(row.buyers_order_no),
+    BuyersOrderDate: formatDate(row.buyers_order_date),
+    DispatchDocNo: text(row.dispatch_doc_no),
+    DispatchedThrough: text(row.dispatched_through),
+    Destination: text(row.destination),
+    MotorVehicleNo: text(row.motor_vehicle_no),
+    BillOfLadingNo: text(row.bill_of_lading_no),
+    TermsOfDelivery: text(row.terms_of_delivery),
+    PolicyNo: text(row.policy_no),
+    PlaceOfSupply: text(row.place_of_supply),
+    SellerName: text(row.seller_name),
+    SellerAddress: text(row.seller_address),
+    SellerGstin: text(row.seller_gstin),
+    SellerState: text(row.seller_state),
+    SellerStateCode: text(row.seller_state_code),
+    SellerEmail: text(row.seller_email),
+    CustomerName: text(row.buyer_name),
+    BuyerAddress: text(row.buyer_address),
+    customergstin: text(row.buyer_gstin),
+    BuyerState: text(row.buyer_state),
+    BuyerStateCode: text(row.buyer_state_code),
+    Challanamount: money(row.total_amount),
+    TaxableValue: money(row.taxable_value),
+    TotalQuantity: money(row.total_quantity),
+    TotalTaxAmount: money(row.total_tax_amount),
+    CGSTRate: money(row.cgst_rate),
+    CGSTAmount: money(row.cgst_amount),
+    SGSTRate: money(row.sgst_rate),
+    SGSTAmount: money(row.sgst_amount),
+    IGSTRate: money(row.igst_rate),
+    IGSTAmount: money(row.igst_amount),
+    AmountInWords: text(row.amount_in_words),
+    ...mapSignatory(row),
     challanitems: mapItems(row.items),
     GstDetails: mapGstDetails(row),
   };
@@ -142,9 +337,26 @@ function mapExpense(row) {
     id: row.id,
     company_id: row.company_id || "",
     ...mapTallyMeta(row),
-    VoucherNo: row.voucher_no || "",
+    VoucherNo: text(row.voucher_no),
     VoucherDate: formatDate(row.voucher_date),
-    Narration: row.narration || "",
+    VoucherType: row.voucher_type || "Journal Voucher",
+    CompanyName: text(row.company_name),
+    CompanyAddress: text(row.company_address),
+    CompanyState: text(row.company_state),
+    CompanyStateCode: text(row.company_state_code),
+    CompanyCIN: text(row.company_cin),
+    CompanyEmail: text(row.company_email),
+    PayeeType: row.payee_type || "COMPANY",
+    PayeeName: text(row.payee_name),
+    PayeeAddress: text(row.payee_address),
+    PayeeState: text(row.payee_state),
+    PayeeStateCode: text(row.payee_state_code),
+    PayeeGstin: text(row.payee_gstin),
+    PayeeEmail: text(row.payee_email),
+    PayeeDesignation: text(row.payee_designation),
+    Narration: text(row.narration),
+    OnAccountOf: text(row.on_account_of),
+    ...mapSignatory(row),
     DebitLedgers: ledgers.DebitLedgers,
     CreditLedgers: ledgers.CreditLedgers,
   };
@@ -156,11 +368,39 @@ function mapPayment(row) {
     id: row.id,
     company_id: row.company_id || "",
     ...mapTallyMeta(row),
-    VoucherNo: row.voucher_no || "",
+    VoucherNo: text(row.voucher_no),
     VoucherDate: formatDate(row.voucher_date),
-    Narration: row.narration || "",
+    PaymentType: row.payment_type || "GENERAL",
+    PaymentMode: row.payment_mode || "BANK",
+    Narration: text(row.narration),
+    OnAccountOf: text(row.on_account_of),
+    FromCompanyName: text(row.from_company_name),
+    FromCompanyAddress: text(row.from_company_address),
+    FromCompanyGstin: text(row.from_company_gstin),
+    PayeeType: row.payee_type || "COMPANY",
+    PartyName: text(row.party_name),
+    PartyGstin: text(row.party_gstin),
+    PartyAddress: text(row.party_address),
+    LinkedDocumentType: text(row.linked_document_type),
+    LinkedDocumentNo: text(row.linked_document_no),
+    BankName: text(row.bank_name),
+    BankAccountNo: text(row.bank_account_no),
+    BankIfsc: text(row.bank_ifsc),
+    ReferenceNo: text(row.reference_no),
+    ChequeNo: text(row.cheque_no),
+    ChequeDate: formatDate(row.cheque_date),
+    ...mapSignatory(row),
     DebitLedgers: ledgers.DebitLedgers,
     CreditLedgers: ledgers.CreditLedgers,
+    Allocations: (row.allocations || []).map((rowItem) => ({
+      document_type: rowItem.document_type || "",
+      document_id: rowItem.document_id,
+      document_no: text(rowItem.document_no),
+      document_amount: money(rowItem.document_amount),
+      paid_amount: money(rowItem.paid_amount),
+      allocation_type: rowItem.allocation_type || "PARTIAL",
+      remarks: text(rowItem.remarks),
+    })),
   };
 }
 
@@ -253,57 +493,183 @@ async function resolveProjectNames(rows) {
 }
 
 function mapPurchase(row) {
+  const bank = splitBankIfscBranch(row.bank_ifsc_branch);
   return {
     id: row.id,
     company_id: row.company_id || "",
     ...mapTallyMeta(row),
-    PurchaseNo: row.invoice_no || "",
+    InvoiceType: row.invoice_type || "Tax Invoice",
+    IRN: text(row.irn),
+    AckNo: text(row.ack_no),
+    AckDate: formatDate(row.ack_date),
+    PurchaseNo: text(row.invoice_no),
     PurchaseDate: formatDate(row.invoice_date),
-    PONo: row.buyers_order_no || "",
-    VendorName: row.seller_name || "",
-    PurchaseAmount: Number(row.total_amount) || 0,
-    Vendorgstin: row.seller_gstin || "",
+    PONo: text(row.buyers_order_no),
+    PODate: formatDate(row.reference_date),
+    EWayBillNo: text(row.eway_bill_no),
+    DeliveryNote: text(row.delivery_note),
+    DeliveryNoteDate: formatDate(row.delivery_note_date),
+    ModeTermsOfPayment: text(row.mode_of_payment),
+    ReferenceNoDate: text(row.reference_no),
+    OtherReferences: text(row.other_references),
+    DispatchDocNo: text(row.dispatch_doc_no),
+    DispatchedThrough: text(row.dispatched_through),
+    Destination: text(row.destination),
+    BillOfLadingNo: text(row.bill_of_lading_no),
+    MotorVehicleNo: text(row.motor_vehicle_no),
+    TermsOfDelivery: text(row.terms_of_delivery),
+    VendorName: text(row.seller_name),
+    VendorAddress: text(row.seller_address),
+    Vendorgstin: text(row.seller_gstin),
+    VendorState: text(row.seller_state),
+    VendorStateCode: text(row.seller_state_code),
+    VendorCIN: text(row.seller_cin),
+    VendorEmail: text(row.seller_email),
+    BankName: text(row.bank_name),
+    BankAccountNo: text(row.bank_account_no),
+    BankBranch: bank.BankBranch,
+    BankIfsc: bank.BankIfsc,
+    ConsigneeName: text(row.consignee_name),
+    ConsigneeAddress: text(row.consignee_address),
+    ConsigneeGstin: text(row.consignee_gstin),
+    ConsigneeState: text(row.consignee_state),
+    ConsigneeStateCode: text(row.consignee_state_code),
+    ConsigneeEmail: text(row.consignee_email),
+    BuyerName: text(row.buyer_name),
+    BuyerAddress: text(row.buyer_address),
+    BuyerGstin: text(row.buyer_gstin),
+    BuyerState: text(row.buyer_state),
+    BuyerStateCode: text(row.buyer_state_code),
+    BuyerPAN: text(row.buyer_pan),
+    BuyerEmail: text(row.buyer_email),
+    PurchaseAmount: money(row.total_amount),
+    TaxableValue: money(row.taxable_value),
+    TotalQuantity: money(row.total_quantity),
+    TotalTaxAmount: money(row.total_tax_amount),
+    IGSTRate: money(row.igst_rate),
+    IGSTAmount: money(row.igst_amount),
+    AmountInWords: text(row.amount_in_words),
+    TaxAmountInWords: text(row.tax_amount_in_words),
+    Declaration: text(row.declaration),
+    ...mapSignatory(row),
+    IssuingSignatoryName: text(row.issuing_signatory_name),
+    IssuingSignatoryDesignation: text(row.issuing_signatory_designation),
+    Jurisdiction: text(row.jurisdiction),
     PurchaseItems: mapItems(row.items),
     GstDetails: mapGstDetails(row),
   };
 }
 
 function mapSales(row) {
+  const bank = splitBankIfscBranch(row.bank_ifsc_branch);
+  const deliveryNote = text(row.delivery_note);
   return {
     id: row.id,
     company_id: row.company_id || "",
     ...mapTallyMeta(row),
-    InvoiceNo: row.invoice_no || "",
+    InvoiceType: row.invoice_type || "Tax Invoice",
+    IRN: text(row.irn),
+    AckNo: text(row.ack_no),
+    AckDate: formatDate(row.ack_date),
+    InvoiceNo: text(row.invoice_no),
     InvoiceDate: formatDate(row.invoice_date),
-    Challanno: row.delivery_note || row.dispatch_doc_no || row.buyers_order_no || "",
-    CustomerName: row.buyer_name || "",
-    BillAmount: Number(row.total_amount) || 0,
-    customergstin: row.buyer_gstin || "",
+    Challanno: deliveryNote,
+    BuyersOrderNo: text(row.buyers_order_no),
+    BuyersOrderDate: formatDate(row.reference_date),
+    EWayBillNo: text(row.eway_bill_no),
+    DeliveryNote: deliveryNote,
+    DeliveryNoteDate: formatDate(row.delivery_note_date),
+    ModeTermsOfPayment: text(row.mode_of_payment),
+    ReferenceNoDate: text(row.reference_no),
+    OtherReferences: text(row.other_references),
+    DispatchDocNo: text(row.dispatch_doc_no),
+    DispatchedThrough: text(row.dispatched_through),
+    Destination: text(row.destination),
+    BillOfLadingNo: text(row.bill_of_lading_no),
+    MotorVehicleNo: text(row.motor_vehicle_no),
+    TermsOfDelivery: text(row.terms_of_delivery),
+    SellerName: text(row.seller_name),
+    SellerAddress: text(row.seller_address),
+    SellerGstin: text(row.seller_gstin),
+    SellerState: text(row.seller_state),
+    SellerStateCode: text(row.seller_state_code),
+    SellerCIN: text(row.seller_cin),
+    SellerEmail: text(row.seller_email),
+    BankName: text(row.bank_name),
+    BankAccountNo: text(row.bank_account_no),
+    BankBranch: bank.BankBranch,
+    BankIfsc: bank.BankIfsc,
+    ConsigneeName: text(row.consignee_name),
+    ConsigneeAddress: text(row.consignee_address),
+    ConsigneeGstin: text(row.consignee_gstin),
+    ConsigneeState: text(row.consignee_state),
+    ConsigneeStateCode: text(row.consignee_state_code),
+    ConsigneeEmail: text(row.consignee_email),
+    CustomerName: text(row.buyer_name),
+    BuyerAddress: text(row.buyer_address),
+    customergstin: text(row.buyer_gstin),
+    BuyerState: text(row.buyer_state),
+    BuyerStateCode: text(row.buyer_state_code),
+    BuyerPAN: text(row.buyer_pan),
+    BuyerEmail: text(row.buyer_email),
+    BillAmount: money(row.total_amount),
+    TaxableValue: money(row.taxable_value),
+    TotalQuantity: money(row.total_quantity),
+    TotalTaxAmount: money(row.total_tax_amount),
+    CGSTRate: money(row.cgst_rate),
+    CGSTAmount: money(row.cgst_amount),
+    SGSTRate: money(row.sgst_rate),
+    SGSTAmount: money(row.sgst_amount),
+    IGSTRate: money(row.igst_rate),
+    IGSTAmount: money(row.igst_amount),
+    AmountInWords: text(row.amount_in_words),
+    TaxAmountInWords: text(row.tax_amount_in_words),
+    Declaration: text(row.declaration),
+    ...mapSignatory(row),
+    IssuingSignatoryName: text(row.issuing_signatory_name),
+    IssuingSignatoryDesignation: text(row.issuing_signatory_designation),
+    Jurisdiction: text(row.jurisdiction),
     BillItems: mapItems(row.items),
     GstDetails: mapGstDetails(row),
   };
 }
 
 function mapCompany(row) {
+  const gst = text(row.gst);
+  const stateCode =
+    text(row.state_code) || (gst.length >= 2 && /^\d{2}/.test(gst) ? gst.slice(0, 2) : "");
   return {
     id: row.id,
     company_id: row.company_id || "",
     ...mapTallyMeta(row),
-    CompanyName: row.name || "",
-    LedgerName: row.ledger_name || row.name || "",
-    LedgerCode: row.code || "",
-    LedgerGroup: row.ledger_group || "",
-    AddLine1: row.add_line1 || row.address || "",
-    AddLine2: row.add_line2 || "",
-    AddLine3: row.add_line3 || "",
-    LedgerPIN: row.zipcode != null ? String(row.zipcode) : "",
-    LedState: row.state || "",
+    CompanyName: text(row.name),
+    LedgerName: text(row.ledger_name || row.name),
+    LedgerCode: text(row.code),
+    LedgerGroup: text(row.ledger_group),
+    ShortName: text(row.short_name),
+    AddLine1: text(row.add_line1 || row.address),
+    AddLine2: text(row.add_line2),
+    AddLine3: text(row.add_line3),
+    City: text(row.city),
+    LedState: text(row.state),
     LedCountry: row.country || "India",
-    ContactPerson: row.contact_person || "",
-    ContactNumber: row.contact_number || "",
-    EmailID: row.email || "",
-    PanNumber: row.pan || "",
-    GSTNumber: row.gst || "",
+    LedgerPIN: row.zipcode != null ? String(row.zipcode) : "",
+    StateCode: stateCode,
+    ContactPerson: text(row.contact_person),
+    ContactNumber: text(row.contact_number),
+    EmailID: text(row.email),
+    PanNumber: text(row.pan),
+    GSTNumber: gst,
+    TAN: text(row.tan),
+    CIN: text(row.cin),
+    Status: row.status != null ? Number(row.status) : 1,
+    BankAccounts: (row.bank_accounts || []).map((bank) => ({
+      BankName: text(bank.bank_name),
+      AccountNo: text(bank.ac_no),
+      BranchName: text(bank.branch_name),
+      IFSC: text(bank.ifsc_code),
+      IsPrimary: !!bank.is_primary,
+    })),
   };
 }
 
@@ -424,7 +790,10 @@ export async function getExpensesForTally(req, res) {
       include: { entries: { orderBy: { sl_no: "asc" } } },
       orderBy: { createdAt: "desc" },
     });
-    return res.json(tallyListResponse(rows, mapExpense));
+    const emptyMeta = rows.length
+      ? null
+      : await buildTallyQueueHint("journalVoucher", req.tally_company_id);
+    return res.json(tallyListResponse(rows, mapExpense, emptyMeta));
   } catch (error) {
     console.error("Tally expenses:", error);
     return res.status(500).json({ message: "Failed to fetch expenses" });
@@ -456,7 +825,7 @@ export async function getPaymentsForTally(req, res) {
 
     const rows = await prisma.paymentVoucher.findMany({
       where,
-      include: { entries: { orderBy: { sl_no: "asc" } } },
+      include: { entries: { orderBy: { sl_no: "asc" } }, allocations: true },
       orderBy: { createdAt: "desc" },
     });
     return res.json(tallyListResponse(rows, mapPayment));
@@ -472,7 +841,7 @@ export async function getPaymentForTally(req, res) {
 
     const row = await prisma.paymentVoucher.findFirst({
       where: { id: Number(req.params.id), ...where },
-      include: { entries: { orderBy: { sl_no: "asc" } } },
+      include: { entries: { orderBy: { sl_no: "asc" } }, allocations: true },
     });
     if (!row) return res.status(404).json({ message: "Payment voucher not found" });
     return res.json({ data: [mapPayment(row)] });
@@ -506,9 +875,35 @@ export async function getStaffExpensePaymentsForTally(req, res) {
     );
 
     if (!data.length) {
+      const [total, fullyPaid, pushed, inQueue] = await Promise.all([
+        prisma.expensePayment.count({ where: { company_id: req.tally_company_id } }),
+        prisma.expensePayment.count({
+          where: { company_id: req.tally_company_id, approval_status: 1, payment_status: 2 },
+        }),
+        prisma.expensePayment.count({
+          where: { company_id: req.tally_company_id, tally_push_status: "PUSHED" },
+        }),
+        prisma.expensePayment.count({ where }),
+      ]);
       return res.json({
         data,
-        hint: "No fully paid staff expenses in Tally export queue. Pay expense fully → Push to Tally from Paid Payments.",
+        hint:
+          pushed === 0
+            ? "No fully paid staff expenses with tally_push_status=PUSHED. On Paid Payments click Push to Tally. (NOT_PUSHED means not in this queue yet.)"
+            : "No records match export queue (must be fully paid, PUSHED, data_status=1).",
+        queue_filter: {
+          company_id: req.tally_company_id,
+          approval_status: 1,
+          payment_status: 2,
+          tally_push_status: "PUSHED",
+          data_status: 1,
+        },
+        counts: {
+          total,
+          fully_paid_approved: fullyPaid,
+          pushed,
+          in_export_queue: inQueue,
+        },
       });
     }
     return res.json({ data });
