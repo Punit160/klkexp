@@ -29,6 +29,7 @@ function SideBar() {
         permission: undefined,
         content: [
           ...(menu.content?.map((sub) => ({ ...sub, permission: undefined })) || []),
+          { title: "Tally Integration", to: "/settings/tally-integration" },
           { title: "Tally API Manual", to: "/settings/tally-manual" },
         ],
       }));

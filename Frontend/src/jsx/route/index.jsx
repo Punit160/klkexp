@@ -82,6 +82,7 @@ import AiReport from "../modules/Account/AiReport";
 import TenantList from "../modules/Tenant/TenantList";
 import TenantForm from "../modules/Tenant/TenantForm";
 import TallyManual from "../modules/TallyManual/TallyManual";
+import TallyIntegration from "../modules/TallyIntegration/TallyIntegration";
 
 
 
@@ -176,6 +177,7 @@ const Markup = () => {
         { path: '/tenant/edit/:id', element: <TenantForm /> },
 
         { path: '/settings/tally-manual', element: <DeveloperOnlyRoute><TallyManual /></DeveloperOnlyRoute> },
+        { path: '/settings/tally-integration', element: <DeveloperOnlyRoute><TallyIntegration /></DeveloperOnlyRoute> },
 
         { path: '/manager/pending-payments', element: <ManagerPendingPayments /> },
         { path: '/manager/approved-payments', element: <ManagerApprovedPayments /> },

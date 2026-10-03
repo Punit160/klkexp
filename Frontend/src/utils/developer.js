@@ -15,6 +15,7 @@ export const DEVELOPER_ROUTE_PREFIXES = [
   "/permission/",
   "/tenant/",
   "/settings/tally-manual",
+  "/settings/tally-integration",
 ];
 
 export function isDeveloperRoute(pathname) {
